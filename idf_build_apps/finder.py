@@ -1,13 +1,13 @@
 # SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
 import os.path
 import re
 from pathlib import Path
 
-from idf_build_apps.app import App, CMakeApp
-from idf_build_apps.utils import ConfigRule, dict_from_sdkconfig, config_rules_from_str
+from . import LOGGER
+from .app import App, CMakeApp
+from .utils import ConfigRule, dict_from_sdkconfig, config_rules_from_str
 
 
 def _get_apps_from_path(
@@ -30,7 +30,7 @@ def _get_apps_from_path(
     :param work_dir: directory where the app should be copied before building. May contain env variables and
         placeholders.
     :param build_dir: directory where the build will be done, relative to the work_dir. May contain placeholders.
-    :param build_log_path: path of the build log. May contain placeholders. May be None, in which case the log should
+    :param build_log_path: path of the build log. May contain placeholders. Maybe None, in which case the log should
         go into stdout/stderr.
     :param config_rules: mapping of sdkconfig file name patterns to configuration names
     :param preserve: determine if the built binary will be uploaded as artifacts.
@@ -43,12 +43,12 @@ def _get_apps_from_path(
         raise ValueError('Only Support CMake for now')
 
     if not app_cls.is_app(path):
-        logging.debug('Skipping, %s is not an app', path)
+        LOGGER.debug('Skipping, %s is not an app', path)
         return []
 
     supported_targets = app_cls.enable_build_targets(path)
     if target not in supported_targets:
-        logging.debug(
+        LOGGER.debug(
             'Skipping, %s only supports targets: %s', path, ', '.join(supported_targets)
         )
         return []
@@ -67,7 +67,7 @@ def _get_apps_from_path(
             sdkconfig_dict = dict_from_sdkconfig(sdkconfig_path)
             target_from_config = sdkconfig_dict.get('CONFIG_IDF_TARGET')
             if target_from_config is not None and target_from_config != target:
-                logging.debug(
+                LOGGER.debug(
                     'Skipping sdkconfig %s which requires target %s',
                     sdkconfig_path,
                     target_from_config,
@@ -86,7 +86,7 @@ def _get_apps_from_path(
                 config_name = groups.group(1)
 
             sdkconfig_path = os.path.relpath(sdkconfig_path, path)
-            logging.debug(
+            LOGGER.debug(
                 'Found %s app: %s, sdkconfig %s, config name "%s"',
                 build_system,
                 path,
@@ -108,7 +108,7 @@ def _get_apps_from_path(
 
     # no wildcard config rules
     if not apps:
-        logging.debug(
+        LOGGER.debug(
             'Found %s app: %s, default sdkconfig, config name "%s"',
             build_system,
             path,
@@ -162,7 +162,7 @@ def find_apps(
     :return: list of apps found
     """
     exclude_list = exclude_list or []
-    logging.debug(
+    LOGGER.debug(
         'Looking for %s apps in %s%s',
         build_system,
         path,
@@ -173,7 +173,7 @@ def find_apps(
 
     if not recursive:
         if exclude_list:
-            logging.warning('--exclude option is ignored when used without --recursive')
+            LOGGER.warning('--exclude option is ignored when used without --recursive')
 
         return _get_apps_from_path(
             path,
@@ -189,9 +189,9 @@ def find_apps(
     # The remaining part is for recursive == True
     apps = []
     for root, dirs, _ in os.walk(path, topdown=True):
-        logging.debug('Entering %s', root)
+        LOGGER.debug('Entering %s', root)
         if root in exclude_list:
-            logging.debug('Skipping %s (excluded)', root)
+            LOGGER.debug('Skipping %s (excluded)', root)
             del dirs[:]
             continue
 
@@ -206,7 +206,7 @@ def find_apps(
             preserve,
         )
         if _found_apps:  # root has at least one app
-            logging.debug('Stop iteration sub dirs of %s since it has apps', root)
+            LOGGER.debug('Stop iteration sub dirs of %s since it has apps', root)
             del dirs[:]
             apps.extend(_found_apps)
             continue

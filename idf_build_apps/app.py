@@ -1,15 +1,15 @@
 # SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
 import os
 import re
 import shutil
 import subprocess
 import sys
 
-from idf_build_apps.constants import IDF_PY, SUPPORTED_TARGETS
-from idf_build_apps.manifest.manifest import Manifest
+from . import LOGGER
+from .constants import IDF_PY, SUPPORTED_TARGETS
+from .manifest.manifest import Manifest
 
 
 class App:
@@ -135,15 +135,15 @@ class App:
     def build_prepare(self):  # type: () -> dict[str, str]
         if self.work_dir != self.app_dir:
             if os.path.exists(self.work_dir):
-                logging.debug('Work directory %s exists, removing', self.work_dir)
+                LOGGER.debug('Work directory %s exists, removing', self.work_dir)
                 if not self.dry_run:
                     shutil.rmtree(self.work_dir)
-            logging.debug('Copying app from %s to %s', self.app_dir, self.work_dir)
+            LOGGER.debug('Copying app from %s to %s', self.app_dir, self.work_dir)
             if not self.dry_run:
                 shutil.copytree(self.app_dir, self.work_dir)
 
         if os.path.exists(self.build_path):
-            logging.debug('Build directory %s exists, removing', self.build_path)
+            LOGGER.debug('Build directory %s exists, removing', self.build_path)
             if not self.dry_run:
                 shutil.rmtree(self.build_path)
 
@@ -165,11 +165,11 @@ class App:
 
         sdkconfig_file = os.path.join(self.work_dir, 'sdkconfig')
         if os.path.exists(sdkconfig_file):
-            logging.debug('Removing sdkconfig file: %s', sdkconfig_file)
+            LOGGER.debug('Removing sdkconfig file: %s', sdkconfig_file)
             if not self.dry_run:
                 os.unlink(sdkconfig_file)
 
-        logging.debug('Creating sdkconfig file: %s', sdkconfig_file)
+        LOGGER.debug('Creating sdkconfig file: %s', sdkconfig_file)
         cmake_vars = {}
         if not self.dry_run:
             with open(sdkconfig_file, 'w') as f_out:
@@ -177,7 +177,7 @@ class App:
                     sdkconfig_path = os.path.join(self.work_dir, sdkconfig_name)
                     if not sdkconfig_path or not os.path.exists(sdkconfig_path):
                         continue
-                    logging.debug('Appending %s to sdkconfig', sdkconfig_name)
+                    LOGGER.debug('Appending %s to sdkconfig', sdkconfig_name)
                     with open(sdkconfig_path, 'r') as f_in:
                         for line in f_in:
                             if not line.endswith('\n'):
@@ -196,10 +196,10 @@ class App:
                 sdkconfig_path = os.path.join(self.work_dir, sdkconfig_name)
                 if not sdkconfig_path:
                     continue
-                logging.debug('Considering sdkconfig %s', sdkconfig_path)
+                LOGGER.debug('Considering sdkconfig %s', sdkconfig_path)
                 if not os.path.exists(sdkconfig_path):
                     continue
-                logging.debug('Appending %s to sdkconfig', sdkconfig_name)
+                LOGGER.debug('Appending %s to sdkconfig', sdkconfig_name)
 
         return cmake_vars
 
@@ -256,7 +256,7 @@ class CMakeApp(App):
         if self.verbose:
             args.append('-v')
 
-        logging.info('Running %s', ' '.join(args))
+        LOGGER.info('Running %s', ' '.join(args))
 
         if self.dry_run:
             return
@@ -265,7 +265,7 @@ class CMakeApp(App):
         build_stdout = sys.stdout
         build_stderr = sys.stderr
         if self.build_log_path:
-            logging.info('Writing build log to %s', self.build_log_path)
+            LOGGER.info('Writing build log to %s', self.build_log_path)
             log_file = open(self.build_log_path, 'w')
             build_stdout = log_file
             build_stderr = log_file
