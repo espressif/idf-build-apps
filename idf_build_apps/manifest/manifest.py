@@ -54,6 +54,9 @@ class FolderRule:
         self._enable_build_targets = None
         self._enable_test_targets = None
 
+    def __hash__(self):
+        return hash(self.folder)
+
     def __repr__(self):
         return f'FolderRule({self.folder})'
 
@@ -119,7 +122,7 @@ class DefaultRule(FolderRule):
 
 
 class Manifest:
-    def __init__(self, rules):  # type: (list[FolderRule]) -> None
+    def __init__(self, rules):  # type: (list[FolderRule] | set[FolderRule]) -> None
         self.rules = sorted(rules, key=lambda x: x.folder)
 
     @staticmethod

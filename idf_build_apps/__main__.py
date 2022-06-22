@@ -5,7 +5,9 @@ import argparse
 import sys
 
 from . import LOGGER
+from .app import App
 from .finder import find_apps
+from .manifest.manifest import Manifest
 from .utils import setup_logging, get_parallel_start_stop, BuildError
 
 
@@ -78,6 +80,11 @@ if __name__ == '__main__':
         type=argparse.FileType('w'),
         help='Write the script log to the specified file, instead of stderr',
     )
+    common_args.add_argument(
+        '--manifest-file',
+        action='append',
+        help='manifest file to specify the build test rules of the apps, could be specified multiple times.',
+    )
 
     find_parser = actions.add_parser('find', parents=[common_args])
     find_parser.add_argument(
@@ -125,6 +132,14 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     setup_logging(args.verbose, args.log_file)
+
+    if args.manifest_file:
+        rules = set()
+        for _manifest_file in args.manifest_file:
+            LOGGER.info('Loading manifest file: %s', _manifest_file)
+            rules.update(Manifest.from_file(_manifest_file).rules)
+        manifest = Manifest(rules)
+        App.MANIFEST = manifest
 
     apps = []
     for path in args.paths:
