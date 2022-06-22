@@ -6,10 +6,12 @@ import re
 import shutil
 import subprocess
 import sys
+from abc import abstractmethod
 
 from . import LOGGER
 from .constants import IDF_PY, SUPPORTED_TARGETS
 from .manifest.manifest import Manifest
+from .utils import BuildError, rmdir
 
 
 class App:
@@ -25,6 +27,12 @@ class App:
 
     # could be assigned later, used for filtering out apps by supported_targets
     MANIFEST = None  # type: Manifest | None
+
+    # This RE will match GCC errors and many other fatal build errors and warnings as well
+    LOG_ERROR_WARNING = re.compile(r'(error|warning):', re.IGNORECASE)
+
+    # Log this many trailing lines from a failed build log, also
+    LOG_DEBUG_LINES = 25
 
     def __init__(
         self,
@@ -49,22 +57,23 @@ class App:
         self.config_name = config_name
         self.target = target
 
-        self.preserve = preserve
-
         # Some miscellaneous build properties which are set later, at the build stage
-        self.index = None
-        self.verbose = False
         self.dry_run = False
-        self.keep_going = False
+        self.index = None
+        self.preserve = preserve
+        self.verbose = False
 
     def __repr__(self):
-        return '({}) Build app {} for target {}, sdkconfig {} in {}'.format(
+        return '({}) App {} for target {}, sdkconfig {} in {}'.format(
             self.BUILD_SYSTEM,
             self.app_dir,
             self.target,
             self.sdkconfig_path or '(default)',
             self.build_path,
         )
+
+    def __lt__(self, other):
+        return self.app_dir < other.app_dir
 
     def _expand(self, path):  # type: (str) -> str
         """
@@ -210,6 +219,10 @@ class App:
 
         return SUPPORTED_TARGETS
 
+    @abstractmethod
+    def build(self):
+        pass
+
 
 class CMakeApp(App):
     BUILD_SYSTEM = 'cmake'
@@ -273,7 +286,33 @@ class CMakeApp(App):
         try:
             subprocess.check_call(args, stdout=build_stdout, stderr=build_stderr)
         except subprocess.CalledProcessError as e:
-            raise RuntimeError('Build failed with exit code {}'.format(e.returncode))
+            if log_file:
+                log_file.close()
+                log_file = None  # prevent log file from being deleted in finally block
+                # help debug by printing the last few lines of the log
+                with open(self.build_log_path) as f:
+                    lines = [
+                        line.rstrip() for line in f.readlines() if line.rstrip()
+                    ]  # non-empty lines
+                    LOGGER.debug(
+                        'Error and warning lines from "%s"', self.build_log_path
+                    )
+                    for line in lines:
+                        if self.LOG_ERROR_WARNING.search(line):
+                            LOGGER.warning('>>> %s', line)
+                    LOGGER.debug(
+                        'Last %s lines of "%s":',
+                        self.LOG_DEBUG_LINES,
+                        self.build_log_path,
+                    )
+                    for line in lines[-self.LOG_DEBUG_LINES :]:
+                        LOGGER.debug('>>> %s', line)
+
+            raise BuildError('Build failed with exit code {}'.format(e.returncode))
+        else:
+            if not self.preserve:
+                LOGGER.info('Removing build directory %s', self.build_path)
+                rmdir(self.build_path)
         finally:
             if log_file:
                 log_file.close()

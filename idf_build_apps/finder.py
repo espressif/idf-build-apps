@@ -43,13 +43,13 @@ def _get_apps_from_path(
         raise ValueError('Only Support CMake for now')
 
     if not app_cls.is_app(path):
-        LOGGER.debug('Skipping, %s is not an app', path)
+        LOGGER.debug('Skipping. %s is not an app', path)
         return []
 
     supported_targets = app_cls.enable_build_targets(path)
     if target not in supported_targets:
         LOGGER.debug(
-            'Skipping, %s only supports targets: %s', path, ', '.join(supported_targets)
+            'Skipping. %s only supports targets: %s', path, ', '.join(supported_targets)
         )
         return []
 
@@ -188,7 +188,7 @@ def find_apps(
 
     # The remaining part is for recursive == True
     apps = []
-    for root, dirs, _ in os.walk(path, topdown=True):
+    for root, dirs, _ in os.walk(path):
         LOGGER.debug('Entering %s', root)
         if root in exclude_list:
             LOGGER.debug('Skipping %s (excluded)', root)

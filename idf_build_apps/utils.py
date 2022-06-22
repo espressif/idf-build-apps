@@ -1,7 +1,13 @@
 # SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
+import fnmatch
+import logging
+import os
 import re
+import shutil
+import sys
+
+from . import LOGGER
 
 _SDKCONFIG_KV_RE = re.compile(r'^([^#=]+)=(.+)$')
 
@@ -59,3 +65,70 @@ def config_rules_from_str(rule_strings):  # type: (list[str]) -> list[ConfigRule
         rules.append(ConfigRule(items[0], items[1] if len(items) == 2 else None))
     # '' is the default config, sort this one to the front
     return sorted(rules, key=lambda x: x.file_name)
+
+
+def setup_logging(verbose=0, log_file=None):  # type: (int, str | None) -> None
+    if not verbose:
+        level = logging.WARNING
+    elif verbose == 1:
+        level = logging.INFO
+    else:
+        level = logging.DEBUG
+
+    LOGGER.setLevel(level)
+    if log_file:
+        stream = open(log_file, 'w')
+    else:
+        stream = sys.stderr
+    handler = logging.StreamHandler(stream)
+    handler.setLevel(level)
+    handler.setFormatter(
+        logging.Formatter(
+            '%(asctime)s %(levelname)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'
+        )
+    )
+
+    LOGGER.handlers = [handler]
+    LOGGER.propagate = False
+
+
+def get_parallel_start_stop(
+    total, parallel_count, parallel_index
+):  # type: (int, int, int) -> (int, int)
+    """
+    Calculate the start and stop indices for a parallel task.
+
+    :param total: total number of tasks
+    :param parallel_count: number of parallel tasks to run
+    :param parallel_index: index of the parallel task
+    :return: start and stop indices
+    """
+    if parallel_count == 1:
+        return 0, total
+
+    num_builds_per_job = (total + parallel_count - 1) // parallel_count
+
+    _min = num_builds_per_job * (parallel_index - 1)
+    _max = min(num_builds_per_job * parallel_index, total)
+
+    return _min, _max
+
+
+class BuildError(RuntimeError):
+    pass
+
+
+def rmdir(path, exclude_file_pattern=None):
+    if not exclude_file_pattern:
+        shutil.rmtree(path, ignore_errors=True)
+        return
+
+    for root, dirs, files in os.walk(path, topdown=False):
+        for f in files:
+            if not fnmatch.fnmatch(f, exclude_file_pattern):
+                os.remove(os.path.join(root, f))
+        for d in dirs:
+            try:
+                os.rmdir(os.path.join(root, d))
+            except OSError:
+                pass
