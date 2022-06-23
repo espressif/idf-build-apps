@@ -71,13 +71,13 @@ class App:
         self.sdkconfig_path = sdkconfig_path
         self.config_name = config_name
         self.target = target
+        self.check_warnings = check_warnings
+        self.preserve = preserve
 
         # Some miscellaneous build properties which are set later, at the build stage
         self.dry_run = False
         self.index = None
         self.verbose = False
-        self.check_warnings = check_warnings
-        self.preserve = preserve
 
     def __repr__(self):
         return '({}) App {} for target {}, sdkconfig {} in {}'.format(

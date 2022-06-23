@@ -16,10 +16,12 @@ def _get_apps_from_path(
     build_system='cmake',
     work_dir=None,
     build_dir='build',
-    build_log_path=None,
     config_rules=None,
+    build_log_path=None,
+    size_json_path=None,
+    check_warnings=False,
     preserve=True,
-):  # type: (str, str, str, str, str, str, list[ConfigRule], bool) -> list[App]
+):  # type: (str, str, str, str, str, list[ConfigRule], str|None, str|None, bool,  bool) -> list[App]
     """
     Get the list of buildable apps under the given path.
 
@@ -33,6 +35,8 @@ def _get_apps_from_path(
     :param build_log_path: path of the build log. May contain placeholders. Maybe None, in which case the log should
         go into stdout/stderr.
     :param config_rules: mapping of sdkconfig file name patterns to configuration names
+    :param size_json_path: path of the size.json file. May contain placeholders.
+    :param check_warnings: whether to check for warnings in the build log
     :param preserve: determine if the built binary will be uploaded as artifacts.
     :return: list of Apps
     """
@@ -102,6 +106,8 @@ def _get_apps_from_path(
                     work_dir=work_dir,
                     build_dir=build_dir,
                     build_log_path=build_log_path,
+                    size_json_path=size_json_path,
+                    check_warnings=check_warnings,
                     preserve=preserve,
                 )
             )
@@ -138,11 +144,13 @@ def find_apps(
     exclude_list=None,
     work_dir=None,
     build_dir='build',
-    build_log_path=None,
     config_rules_str=None,
+    build_log_path=None,
+    size_json_path=None,
+    check_warnings=False,
     preserve=True,
 ):
-    # type: (str, str, str, bool, list[str], str | None, str, str | None, list[str] | None, bool) -> list[App]
+    # type: (str, str, str, bool, list[str], str | None, str, list[str] | None, str | None, str | None, bool, bool) -> list[App]
     """
     Find app directories in path (possibly recursively), which contain apps for the given build system, compatible
     with the given target.
@@ -155,9 +163,11 @@ def find_apps(
     :param work_dir: directory where the app should be copied before building. May contain env variables and
         placeholders.
     :param build_dir: directory where the build will be done, relative to the work_dir. May contain placeholders.
+    :param config_rules_str: mapping of sdkconfig file name patterns to configuration names
     :param build_log_path: path of the build log. May contain placeholders. May be None, in which case the log should
         go into stdout/stderr.
-    :param config_rules_str: mapping of sdkconfig file name patterns to configuration names
+    :param size_json_path: path of the size.json file. May contain placeholders.
+    :param check_warnings: whether to check for warnings in the build log
     :param preserve: determine if the built binary will be uploaded as artifacts.
     :return: list of apps found
     """
@@ -178,12 +188,14 @@ def find_apps(
         return _get_apps_from_path(
             path,
             target,
-            build_system,
-            work_dir,
-            build_dir,
-            build_log_path,
-            config_rules,
-            preserve,
+            build_system=build_system,
+            work_dir=work_dir,
+            build_dir=build_dir,
+            config_rules=config_rules,
+            build_log_path=build_log_path,
+            size_json_path=size_json_path,
+            check_warnings=check_warnings,
+            preserve=preserve,
         )
 
     # The remaining part is for recursive == True
@@ -198,12 +210,14 @@ def find_apps(
         _found_apps = _get_apps_from_path(
             root,
             target,
-            build_system,
-            work_dir,
-            build_dir,
-            build_log_path,
-            config_rules,
-            preserve,
+            build_system=build_system,
+            work_dir=work_dir,
+            build_dir=build_dir,
+            config_rules=config_rules,
+            build_log_path=build_log_path,
+            size_json_path=size_json_path,
+            check_warnings=check_warnings,
+            preserve=preserve,
         )
         if _found_apps:  # root has at least one app
             LOGGER.debug('Stop iteration sub dirs of %s since it has apps', root)

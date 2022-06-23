@@ -181,14 +181,14 @@ if __name__ == '__main__':
             find_apps(
                 path,
                 args.target,
-                args.build_system,
-                args.recursive,
-                args.exclude or [],
-                args.work_dir,
-                args.build_dir or 'build',
-                args.build_log,
-                args.size_file,
-                args.config,
+                build_system=args.build_system,
+                recursive=args.recursive,
+                exclude_list=args.exclude or [],
+                work_dir=args.work_dir,
+                build_dir=args.build_dir or 'build',
+                build_log_path=args.build_log,
+                size_json_path=args.size_file,
+                config_rules_str=args.config,
             )
         )
     apps.sort()
