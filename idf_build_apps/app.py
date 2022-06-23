@@ -39,7 +39,7 @@ class App:
 
     # This RE will match GCC errors and many other fatal build errors and warnings as well
     LOG_ERROR_WARNING_REGEX = re.compile(
-        r'(?:error|warning)\W', re.MULTILINE | re.IGNORECASE
+        r'(?:error|warning):', re.MULTILINE | re.IGNORECASE
     )
     # Log this many trailing lines from a failed build log, also
     LOG_DEBUG_LINES = 25
@@ -350,7 +350,9 @@ class CMakeApp(App):
             # delete manually later, used for tracking debugging info
             log_file = tempfile.NamedTemporaryFile('w', delete=False)
 
-        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        p = subprocess.Popen(
+            args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8'
+        )
         for line in p.stdout:
             if not self.build_log_path:
                 sys.stdout.write(line)
