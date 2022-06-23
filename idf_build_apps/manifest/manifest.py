@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 
 from .if_parser import BOOL_EXPR, BoolExpr
-from ..constants import IDF_PATH, DEFAULT_BUILD_TARGETS, ALL_TARGETS
+from ..constants import DEFAULT_BUILD_TARGETS, ALL_TARGETS
 
 
 class InvalidManifestError(ValueError):
@@ -126,7 +126,7 @@ class Manifest:
         self.rules = sorted(rules, key=lambda x: x.folder)
 
     @staticmethod
-    def from_file(path):  # type: (Path) -> 'Manifest'
+    def from_file(path):  # type: (str) -> 'Manifest'
         with open(path) as f:
             manifest_dict = yaml.safe_load(f) or {}
 

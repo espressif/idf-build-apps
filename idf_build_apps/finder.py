@@ -136,7 +136,7 @@ def _get_apps_from_path(
     return apps
 
 
-def find_apps(
+def _find_apps(
     path,
     target,
     build_system='cmake',

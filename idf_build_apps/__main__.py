@@ -2,15 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import re
 import sys
 
-from . import LOGGER
-from .app import App
-from .finder import find_apps
-from .manifest.manifest import Manifest
-from .utils import setup_logging, get_parallel_start_stop, BuildError
-
+from .main import find_apps, build_apps
+from .utils import setup_logging
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -86,6 +81,11 @@ if __name__ == '__main__':
         help='Write the script log to the specified file, instead of stderr',
     )
     common_args.add_argument(
+        '--check-warnings',
+        action='store_true',
+        help='Check for warnings in the build output.',
+    )
+    common_args.add_argument(
         '--manifest-file',
         action='append',
         help='manifest file to specify the build test rules of the apps, could be specified multiple times.',
@@ -139,11 +139,6 @@ if __name__ == '__main__':
         help='write size info json file while building, record the file location into the specified file',
     )
     build_parser.add_argument(
-        '--check-warnings',
-        action='store_true',
-        help='Check for warnings in the build output.',
-    )
-    build_parser.add_argument(
         '--ignore-warning-str',
         action='append',
         help='Ignore the warning string that match the specified regex in the build output. '
@@ -158,43 +153,22 @@ if __name__ == '__main__':
     args = parser.parse_args()
     setup_logging(args.verbose, args.log_file)
 
-    if args.manifest_file:
-        rules = set()
-        for _manifest_file in args.manifest_file:
-            LOGGER.info('Loading manifest file: %s', _manifest_file)
-            rules.update(Manifest.from_file(_manifest_file).rules)
-        manifest = Manifest(rules)
-        App.MANIFEST = manifest
-
-    ignore_warnings_regexes = []
-    if args.ignore_warning_str:
-        for s in args.ignore_warning_str:
-            ignore_warnings_regexes.append(re.compile(re.escape(s)))
-    if args.ignore_warning_file:
-        for s in args.ignore_warning_file:
-            ignore_warnings_regexes.append(re.compile(s.strip()))
-    App.IGNORE_WARNS_REGEXES = ignore_warnings_regexes
-
-    apps = []
-    for path in args.paths:
-        apps.extend(
-            find_apps(
-                path,
-                args.target,
-                build_system=args.build_system,
-                recursive=args.recursive,
-                exclude_list=args.exclude or [],
-                work_dir=args.work_dir,
-                build_dir=args.build_dir or 'build',
-                build_log_path=args.build_log,
-                size_json_path=args.size_file,
-                config_rules_str=args.config,
-            )
-        )
-    apps.sort()
+    apps = find_apps(
+        args.paths,
+        args.target,
+        build_system=args.build_system,
+        recursive=args.recursive,
+        exclude_list=args.exclude or [],
+        work_dir=args.work_dir,
+        build_dir=args.build_dir or 'build',
+        config_rules_str=args.config,
+        build_log_path=args.build_log,
+        size_json_path=args.size_file,
+        check_warnings=args.check_warnings,
+        manifest_files=args.manifest_file,
+    )
 
     if args.action == 'find':
-        LOGGER.info('Found %d apps:', len(apps))
         if args.output:
             with open(args.output, 'w') as f:
                 for app in apps:
@@ -205,37 +179,20 @@ if __name__ == '__main__':
         sys.exit(0)
 
     # build from now on
-    start, stop = get_parallel_start_stop(
-        len(apps), args.parallel_count, args.parallel_index
+    if args.no_preserve:
+        for app in apps:
+            app.preserve = False
+
+    exit_code = build_apps(
+        apps,
+        build_verbose=args.build_verbose,
+        parallel_count=args.parallel_count,
+        parallel_index=args.parallel_index,
+        dry_run=args.dry_run,
+        keep_going=args.keep_going,
+        collect_size_info=args.collect_size_info,
+        ignore_warning_strs=args.ignore_warning_str,
+        ignore_warning_file=args.ignore_warning_file,
     )
-    LOGGER.info(
-        'Total %s apps. running build for app %s-%s', len(apps), start + 1, stop
-    )
-
-    failed_apps = []
-    exit_code = 0
-    for i, app in enumerate(apps):
-        if i < start or i >= stop:
-            continue
-
-        # attrs
-        app.dry_run = args.dry_run
-        app.index = i
-        app.verbose = args.build_verbose
-        app.preserve = not args.no_preserve
-        app.check_warnings = args.check_warnings
-
-        LOGGER.debug('=> Building app %s: %s', i, repr(app))
-        try:
-            app.build()
-            if args.collect_size_info:
-                app.collect_size_json(args.collect_size_info)
-        except BuildError as e:
-            LOGGER.error(str(e))
-            if args.keep_going:
-                failed_apps.append(app)
-                exit_code = 1
-            else:
-                raise SystemExit(1)
 
     sys.exit(exit_code)

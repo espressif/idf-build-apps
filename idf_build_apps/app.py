@@ -10,15 +10,16 @@ import sys
 import tempfile
 from abc import abstractmethod
 
-try:
-    from typing import TextIO, Pattern
-except ImportError:
-    pass
 
 from . import LOGGER
 from .constants import IDF_PY, SUPPORTED_TARGETS, IDF_SIZE_PY
 from .manifest.manifest import Manifest
 from .utils import BuildError, rmdir, find_first_match
+
+try:
+    from typing import TextIO, Pattern
+except ImportError:
+    pass
 
 
 class App:
