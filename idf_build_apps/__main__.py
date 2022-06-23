@@ -213,6 +213,7 @@ if __name__ == '__main__':
     )
 
     failed_apps = []
+    exit_code = 0
     for i, app in enumerate(apps):
         if i < start or i >= stop:
             continue
@@ -233,5 +234,8 @@ if __name__ == '__main__':
             LOGGER.error(str(e))
             if args.keep_going:
                 failed_apps.append(app)
+                exit_code = 1
             else:
                 raise SystemExit(1)
+
+    sys.exit(exit_code)
