@@ -10,7 +10,6 @@ import sys
 import tempfile
 from abc import abstractmethod
 
-
 from . import LOGGER
 from .constants import IDF_PY, SUPPORTED_TARGETS, IDF_SIZE_PY
 from .manifest.manifest import Manifest
@@ -278,6 +277,23 @@ class App:
             'path': self.size_json_path,
         }
         output_fs.write(json.dumps(size_info_dict) + '\n')
+
+    def to_json(self):
+        # keeping backward compatibility, only provide these stuffs
+        return json.dumps(
+            {
+                'build_system': self.BUILD_SYSTEM,
+                'app_dir': self.app_dir,
+                'work_dir': self.work_dir,
+                'build_dir': self.build_dir,
+                'build_log_path': self.build_log_path,
+                'sdkconfig': self.sdkconfig_path,
+                'config': self.config_name,
+                'target': self.target,
+                'verbose': self.verbose,
+                'preserve': self.preserve,
+            }
+        )
 
     def is_error_or_warning(
         self, line

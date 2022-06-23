@@ -136,7 +136,12 @@ if __name__ == '__main__':
     build_parser.add_argument(
         '--collect-size-info',
         type=argparse.FileType('w'),
-        help='write size info json file while building, record the file location into the specified file',
+        help='write size info json file while building into the specified file. each line is a json object.',
+    )
+    build_parser.add_argument(
+        '--collect-app-info',
+        type=argparse.FileType('w'),
+        help='write app info json file while building into the specified file. each line is a json object.',
     )
     build_parser.add_argument(
         '--ignore-warning-str',
@@ -191,6 +196,7 @@ if __name__ == '__main__':
         dry_run=args.dry_run,
         keep_going=args.keep_going,
         collect_size_info=args.collect_size_info,
+        collect_app_info=args.collect_app_info,
         ignore_warning_strs=args.ignore_warning_str,
         ignore_warning_file=args.ignore_warning_file,
     )

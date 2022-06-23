@@ -76,9 +76,10 @@ def build_apps(
     dry_run=False,
     keep_going=False,
     collect_size_info=None,
+    collect_app_info=None,
     ignore_warning_strs=None,
     ignore_warning_file=None,
-):  # type: (list[App], bool, int, int, bool, bool, TextIO | None, list[str] | None, TextIO | None) -> int
+):  # type: (list[App], bool, int, int, bool, bool, TextIO | None, TextIO | None, list[str] | None, TextIO | None) -> int
     ignore_warnings_regexes = []
     if ignore_warning_strs:
         for s in ignore_warning_strs:
@@ -109,6 +110,8 @@ def build_apps(
             app.build()
             if collect_size_info:
                 app.collect_size_json(collect_size_info)
+            if collect_app_info:
+                collect_app_info.write(app.to_json() + '\n')
         except BuildError as e:
             LOGGER.error(str(e))
             if keep_going:
