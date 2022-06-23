@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import re
 import sys
 
 from . import LOGGER
@@ -137,6 +138,23 @@ if __name__ == '__main__':
         type=argparse.FileType('w'),
         help='write size info json file while building, record the file location into the specified file',
     )
+    build_parser.add_argument(
+        '--check-warnings',
+        action='store_true',
+        help='Check for warnings in the build output.',
+    )
+    build_parser.add_argument(
+        '--ignore-warning-str',
+        action='append',
+        help='Ignore the warning string that match the specified regex in the build output. '
+        'Can be specified multiple times.',
+    )
+    build_parser.add_argument(
+        '--ignore-warning-file',
+        type=argparse.FileType('r'),
+        help='Ignore the warning strings in the specified file. Each line should be a regex string.',
+    )
+
     args = parser.parse_args()
     setup_logging(args.verbose, args.log_file)
 
@@ -147,6 +165,15 @@ if __name__ == '__main__':
             rules.update(Manifest.from_file(_manifest_file).rules)
         manifest = Manifest(rules)
         App.MANIFEST = manifest
+
+    ignore_warnings_regexes = []
+    if args.ignore_warning_str:
+        for s in args.ignore_warning_str:
+            ignore_warnings_regexes.append(re.compile(re.escape(s)))
+    if args.ignore_warning_file:
+        for s in args.ignore_warning_file:
+            ignore_warnings_regexes.append(re.compile(s.strip()))
+    App.IGNORE_WARNS_REGEXES = ignore_warnings_regexes
 
     apps = []
     for path in args.paths:
@@ -193,8 +220,9 @@ if __name__ == '__main__':
         # attrs
         app.dry_run = args.dry_run
         app.index = i
-        app.preserve = not args.no_preserve
         app.verbose = args.build_verbose
+        app.preserve = not args.no_preserve
+        app.check_warnings = args.check_warnings
 
         LOGGER.debug('=> Building app %s: %s', i, repr(app))
         try:

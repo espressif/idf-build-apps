@@ -1,16 +1,17 @@
 # SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+
 import json
-import logging
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from abc import abstractmethod
 
 try:
-    from typing import TextIO
+    from typing import TextIO, Pattern
 except ImportError:
     pass
 
@@ -37,10 +38,13 @@ class App:
     MANIFEST = None  # type: Manifest | None
 
     # This RE will match GCC errors and many other fatal build errors and warnings as well
-    LOG_ERROR_WARNING = re.compile(r'(error|warning):', re.IGNORECASE)
-
+    LOG_ERROR_WARNING_REGEX = re.compile(
+        r'(?:error|warning)\W', re.MULTILINE | re.IGNORECASE
+    )
     # Log this many trailing lines from a failed build log, also
     LOG_DEBUG_LINES = 25
+    # IGNORE_WARNING_REGEX is a regex for warnings to be ignored. Could be assigned later
+    IGNORE_WARNS_REGEXES = []  # type: list[Pattern]
 
     def __init__(
         self,
@@ -52,15 +56,16 @@ class App:
         build_dir='build',
         build_log_path=None,
         size_json_path=None,
+        check_warnings=False,
         preserve=True,
-    ):  # type: (str, str, str | None, str | None, str | None, str, str | None, str | None, bool) -> None
+    ):  # type: (str, str, str | None, str | None, str | None, str, str | None, str | None, bool, bool) -> None
         # These internal variables store the paths with environment variables and placeholders;
         # Public properties with similar names use the _expand method to get the actual paths.
         self._app_dir = app_dir
         self._work_dir = work_dir or app_dir
         self._build_dir = build_dir or 'build'
         self._build_log_path = build_log_path
-        self._size_json_path = size_json_path or self.SIZE_JSON
+        self._size_json_path = size_json_path
 
         self.name = os.path.basename(os.path.realpath(app_dir))
         self.sdkconfig_path = sdkconfig_path
@@ -70,8 +75,9 @@ class App:
         # Some miscellaneous build properties which are set later, at the build stage
         self.dry_run = False
         self.index = None
-        self.preserve = preserve
         self.verbose = False
+        self.check_warnings = check_warnings
+        self.preserve = preserve
 
     def __repr__(self):
         return '({}) App {} for target {}, sdkconfig {} in {}'.format(
@@ -272,6 +278,20 @@ class App:
         }
         output_fs.write(json.dumps(size_info_dict) + '\n')
 
+    def is_error_or_warning(
+        self, line
+    ):  # type: (str) -> tuple[bool, bool]  # is_error_or_warning, is_ignored
+        if not self.LOG_ERROR_WARNING_REGEX.search(line):
+            return False, False
+
+        has_warnings = True
+        for ignored in self.IGNORE_WARNS_REGEXES:
+            if re.search(ignored, line):
+                has_warnings = False
+                break
+
+        return True, has_warnings
+
 
 class CMakeApp(App):
     BUILD_SYSTEM = 'cmake'
@@ -323,48 +343,53 @@ class CMakeApp(App):
         if self.dry_run:
             return
 
-        log_file = None
-        build_stdout = sys.stdout
-        build_stderr = sys.stderr
         if self.build_log_path:
             LOGGER.info('Writing build log to %s', self.build_log_path)
             log_file = open(self.build_log_path, 'w')
-            build_stdout = log_file
-            build_stderr = log_file
-
-        try:
-            subprocess.check_call(args, stdout=build_stdout, stderr=build_stderr)
-        except subprocess.CalledProcessError as e:
-            if log_file:
-                log_file.close()
-                log_file = None  # prevent log file from being deleted in finally block
-                # help debug by printing the last few lines of the log
-                with open(self.build_log_path) as f:
-                    lines = [
-                        line.rstrip() for line in f.readlines() if line.rstrip()
-                    ]  # non-empty lines
-                    LOGGER.debug(
-                        'Error and warning lines from "%s"', self.build_log_path
-                    )
-                    for line in lines:
-                        if self.LOG_ERROR_WARNING.search(line):
-                            LOGGER.warning('>>> %s', line)
-                    LOGGER.debug(
-                        'Last %s lines of "%s":',
-                        self.LOG_DEBUG_LINES,
-                        self.build_log_path,
-                    )
-                    for line in lines[-self.LOG_DEBUG_LINES :]:
-                        LOGGER.debug('>>> %s', line)
-
-            raise BuildError('Build failed with exit code {}'.format(e.returncode))
         else:
-            if not self.preserve:
-                LOGGER.info('Removing build directory %s', self.build_path)
-                rmdir(self.build_path)
-        finally:
-            if log_file:
-                log_file.close()
+            # delete manually later, used for tracking debugging info
+            log_file = tempfile.NamedTemporaryFile('w', delete=False)
+
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        for line in p.stdout:
+            if not self.build_log_path:
+                sys.stdout.write(line)
+            log_file.write(line)
+        returncode = p.wait()
+
+        # help debug
+        log_file.close()
+        has_unignored_warning = False
+        with open(log_file.name) as f:
+            lines = [line.rstrip() for line in f.readlines() if line.rstrip()]
+            for line in lines:
+                is_error_or_warning, ignored = self.is_error_or_warning(line)
+                if is_error_or_warning:
+                    LOGGER.warning('>>> %s', line)
+                if not ignored:
+                    has_unignored_warning = True
+
+            if returncode != 0:
+                # print last few lines to help debug
+                LOGGER.debug(
+                    'Last %s lines from the build log:',
+                    self.LOG_DEBUG_LINES,
+                    self.build_log_path,
+                )
+                for line in lines[-self.LOG_DEBUG_LINES :]:
+                    LOGGER.debug('>>> %s', line)
+
+        if self.size_json_path:
+            self.write_size_json()
+
+        if not self.preserve:
+            LOGGER.info('Removing build directory %s', self.build_path)
+            rmdir(self.build_path, exclude_file_pattern=self.size_json_path)
+
+        if returncode != 0:
+            raise BuildError('Build failed with exit code {}'.format(returncode))
+        elif has_unignored_warning:
+            raise BuildError('Build succeeded with warnings')
 
     @classmethod
     def is_app(cls, path):  # type: (str) -> bool
