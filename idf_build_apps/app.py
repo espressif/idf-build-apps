@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
+import json
+import logging
 import os
 import re
 import shutil
@@ -8,10 +9,15 @@ import subprocess
 import sys
 from abc import abstractmethod
 
+try:
+    from typing import TextIO
+except ImportError:
+    pass
+
 from . import LOGGER
-from .constants import IDF_PY, SUPPORTED_TARGETS
+from .constants import IDF_PY, SUPPORTED_TARGETS, IDF_SIZE_PY
 from .manifest.manifest import Manifest
-from .utils import BuildError, rmdir
+from .utils import BuildError, rmdir, find_first_match
 
 
 class App:
@@ -24,6 +30,8 @@ class App:
     BUILD_SYSTEM = 'unknown'
 
     SDKCONFIG_LINE_REGEX = re.compile(r"^([^=]+)=\"?([^\"\n]*)\"?\n*$")
+
+    SIZE_JSON = 'size.json'
 
     # could be assigned later, used for filtering out apps by supported_targets
     MANIFEST = None  # type: Manifest | None
@@ -43,14 +51,16 @@ class App:
         work_dir=None,
         build_dir='build',
         build_log_path=None,
+        size_json_path=None,
         preserve=True,
-    ):  # type: (str, str, str | None, str | None, str | None, str, str | None, bool) -> None
+    ):  # type: (str, str, str | None, str | None, str | None, str, str | None, str | None, bool) -> None
         # These internal variables store the paths with environment variables and placeholders;
         # Public properties with similar names use the _expand method to get the actual paths.
         self._app_dir = app_dir
         self._work_dir = work_dir or app_dir
         self._build_dir = build_dir or 'build'
         self._build_log_path = build_log_path
+        self._size_json_path = size_json_path or self.SIZE_JSON
 
         self.name = os.path.basename(os.path.realpath(app_dir))
         self.sdkconfig_path = sdkconfig_path
@@ -136,10 +146,17 @@ class App:
 
     @property
     def build_log_path(self):
-        """
-        :return: path of the build log file
-        """
-        return self._expand(self._build_log_path)
+        if self._build_log_path:
+            return os.path.join(self.build_path, self._expand(self._build_log_path))
+
+        return None
+
+    @property
+    def size_json_path(self):
+        if self._size_json_path:
+            return os.path.join(self.build_path, self._expand(self._size_json_path))
+
+        return None
 
     def build_prepare(self):  # type: () -> dict[str, str]
         if self.work_dir != self.app_dir:
@@ -222,6 +239,38 @@ class App:
     @abstractmethod
     def build(self):
         pass
+
+    def write_size_json(self):
+        map_file = find_first_match('*.map', self.build_path)
+        if not map_file:
+            raise ValueError('.map file not found under "{}"'.format(self.build_path))
+
+        idf_size_args = [
+            sys.executable,
+            str(IDF_SIZE_PY),
+            '--json',
+            '-o',
+            self.size_json_path,
+            map_file,
+        ]
+        try:
+            subprocess.check_call(idf_size_args)
+        except subprocess.CalledProcessError as e:
+            raise BuildError('Failed to run idf_size.py: {}'.format(e))
+
+        LOGGER.debug('write size info to %s', self.size_json_path)
+
+    def collect_size_json(self, output_fs):  # type: (TextIO) -> None
+        if not os.path.isfile(self.size_json_path):
+            self.write_size_json()
+
+        size_info_dict = {
+            'app_name': self.name,
+            'config_name': self.config_name,
+            'target': self.target,
+            'path': self.size_json_path,
+        }
+        output_fs.write(json.dumps(size_info_dict) + '\n')
 
 
 class CMakeApp(App):

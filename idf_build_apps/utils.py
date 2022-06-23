@@ -132,3 +132,11 @@ def rmdir(path, exclude_file_pattern=None):
                 os.rmdir(os.path.join(root, d))
             except OSError:
                 pass
+
+
+def find_first_match(pattern, path):
+    for root, _, files in os.walk(path):
+        res = fnmatch.filter(files, pattern)
+        if res:
+            return os.path.join(root, res[0])
+    return None

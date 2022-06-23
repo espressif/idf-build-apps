@@ -59,6 +59,10 @@ if __name__ == '__main__':
         help='If specified, the build log will be written to this file. Can expand placeholders.',
     )
     common_args.add_argument(
+        '--size-file',
+        help='the size json will be written to this file. Can expand placeholders.',
+    )
+    common_args.add_argument(
         '--config',
         action='append',
         help='Adds configurations (sdkconfig file names) to build. Could be specified for multiple times.'
@@ -113,7 +117,6 @@ if __name__ == '__main__':
         type=int,
         help='Index (1-based) of the job, out of the number specified by --parallel-count.',
     )
-
     build_parser.add_argument(
         '--dry-run',
         action='store_true',
@@ -129,7 +132,11 @@ if __name__ == '__main__':
         action='store_true',
         help="Don't preserve the build directory after a successful build.",
     )
-
+    build_parser.add_argument(
+        '--collect-size-info',
+        type=argparse.FileType('w'),
+        help='write size info json file while building, record the file location into the specified file',
+    )
     args = parser.parse_args()
     setup_logging(args.verbose, args.log_file)
 
@@ -153,6 +160,7 @@ if __name__ == '__main__':
                 args.work_dir,
                 args.build_dir or 'build',
                 args.build_log,
+                args.size_file,
                 args.config,
             )
         )
@@ -191,6 +199,8 @@ if __name__ == '__main__':
         LOGGER.debug('=> Building app %s: %s', i, repr(app))
         try:
             app.build()
+            if args.collect_size_info:
+                app.collect_size_json(args.collect_size_info)
         except BuildError as e:
             LOGGER.error(str(e))
             if args.keep_going:
