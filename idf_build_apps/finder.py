@@ -51,7 +51,7 @@ def _get_apps_from_path(
         return []
 
     supported_targets = app_cls.enable_build_targets(path)
-    if target not in supported_targets:
+    if target != 'all' and target not in supported_targets:
         LOGGER.debug(
             'Skipping. %s only supports targets: %s', path, ', '.join(supported_targets)
         )
