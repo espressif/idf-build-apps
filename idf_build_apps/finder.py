@@ -129,6 +129,8 @@ def _get_apps_from_path(
                 work_dir=work_dir,
                 build_dir=build_dir,
                 build_log_path=build_log_path,
+                size_json_path=size_json_path,
+                check_warnings=check_warnings,
                 preserve=preserve,
             )
         ]
