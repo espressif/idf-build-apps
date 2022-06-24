@@ -301,13 +301,13 @@ class App:
         if not self.LOG_ERROR_WARNING_REGEX.search(line):
             return False, False
 
-        has_warnings = True
+        is_ignored = False
         for ignored in self.IGNORE_WARNS_REGEXES:
             if re.search(ignored, line):
-                has_warnings = False
+                is_ignored = True
                 break
 
-        return True, has_warnings
+        return True, is_ignored
 
 
 class CMakeApp(App):
@@ -385,8 +385,8 @@ class CMakeApp(App):
                 is_error_or_warning, ignored = self.is_error_or_warning(line)
                 if is_error_or_warning:
                     LOGGER.warning('>>> %s', line)
-                if not ignored:
-                    has_unignored_warning = True
+                    if not ignored:
+                        has_unignored_warning = True
 
             if returncode != 0:
                 # print last few lines to help debug
@@ -407,7 +407,8 @@ class CMakeApp(App):
 
         if returncode != 0:
             raise BuildError('Build failed with exit code {}'.format(returncode))
-        elif has_unignored_warning:
+
+        if has_unignored_warning:
             raise BuildError('Build succeeded with warnings')
 
     @classmethod
