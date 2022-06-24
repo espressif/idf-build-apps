@@ -5,6 +5,7 @@ import re
 
 from . import LOGGER
 from .app import App
+from .constants import ALL_TARGETS
 from .finder import _find_apps
 from .manifest.manifest import Manifest
 from .utils import get_parallel_start_stop, BuildError
@@ -45,23 +46,29 @@ def find_apps(
     if isinstance(paths, str):
         paths = [paths]
 
-    for path in paths:
-        apps.extend(
-            _find_apps(
-                path,
-                target,
-                build_system=build_system,
-                recursive=recursive,
-                exclude_list=exclude_list or [],
-                work_dir=work_dir,
-                build_dir=build_dir or 'build',
-                config_rules_str=config_rules_str,
-                build_log_path=build_log_path,
-                size_json_path=size_json_path,
-                check_warnings=check_warnings,
-                preserve=preserve,
+    if target == 'all':
+        targets = ALL_TARGETS
+    else:
+        targets = [target]
+
+    for target in targets:
+        for path in paths:
+            apps.extend(
+                _find_apps(
+                    path,
+                    target,
+                    build_system=build_system,
+                    recursive=recursive,
+                    exclude_list=exclude_list or [],
+                    work_dir=work_dir,
+                    build_dir=build_dir or 'build',
+                    config_rules_str=config_rules_str,
+                    build_log_path=build_log_path,
+                    size_json_path=size_json_path,
+                    check_warnings=check_warnings,
+                    preserve=preserve,
+                )
             )
-        )
     apps.sort()
 
     LOGGER.info('Found %d apps in total', len(apps))
