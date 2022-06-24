@@ -266,7 +266,7 @@ class App:
 
         LOGGER.debug('write size info to %s', self.size_json_path)
 
-    def collect_size_json(self, output_fs):  # type: (TextIO) -> None
+    def collect_size_info(self, output_fs):  # type: (TextIO) -> None
         if not os.path.isfile(self.size_json_path):
             self.write_size_json()
 

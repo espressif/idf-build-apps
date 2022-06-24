@@ -64,7 +64,7 @@ def find_apps(
         )
     apps.sort()
 
-    LOGGER.info('Found %d apps:', len(apps))
+    LOGGER.info('Found %d apps in total', len(apps))
     return apps
 
 
@@ -108,10 +108,6 @@ def build_apps(
         LOGGER.debug('=> Building app %s: %s', i, repr(app))
         try:
             app.build()
-            if collect_size_info:
-                app.collect_size_json(collect_size_info)
-            if collect_app_info:
-                collect_app_info.write(app.to_json() + '\n')
         except BuildError as e:
             LOGGER.error(str(e))
             if keep_going:
@@ -119,5 +115,16 @@ def build_apps(
                 exit_code = 1
             else:
                 return 1
+        finally:
+            if collect_app_info:
+                collect_app_info.write(app.to_json() + '\n')
+
+            try:
+                # this may not work if the build is failed
+                if collect_size_info:
+                    app.collect_size_info(collect_size_info)
+            except Exception as e:
+                LOGGER.debug(e)
+                pass
 
     return exit_code
