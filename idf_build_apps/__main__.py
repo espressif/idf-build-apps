@@ -154,6 +154,11 @@ if __name__ == '__main__':
         type=argparse.FileType('r'),
         help='Ignore the warning strings in the specified file. Each line should be a regex string.',
     )
+    build_parser.add_argument(
+        '--copy-sdkconfig',
+        action='store_true',
+        help='Copy the sdkconfig file to the build directory.',
+    )
 
     args = parser.parse_args()
     setup_logging(args.verbose, args.log_file)
@@ -199,6 +204,7 @@ if __name__ == '__main__':
         collect_app_info=args.collect_app_info,
         ignore_warning_strs=args.ignore_warning_str,
         ignore_warning_file=args.ignore_warning_file,
+        copy_sdkconfig=args.copy_sdkconfig,
     )
 
     sys.exit(exit_code)

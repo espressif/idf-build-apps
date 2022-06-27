@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
+import os
 import re
+import shutil
 
 from . import LOGGER
 from .app import App
@@ -86,7 +87,8 @@ def build_apps(
     collect_app_info=None,
     ignore_warning_strs=None,
     ignore_warning_file=None,
-):  # type: (list[App], bool, int, int, bool, bool, TextIO | None, TextIO | None, list[str] | None, TextIO | None) -> int
+    copy_sdkconfig=False,
+):  # type: (list[App], bool, int, int, bool, bool, TextIO | None, TextIO | None, list[str] | None, TextIO | None, bool) -> int
     ignore_warnings_regexes = []
     if ignore_warning_strs:
         for s in ignore_warning_strs:
@@ -126,12 +128,22 @@ def build_apps(
             if collect_app_info:
                 collect_app_info.write(app.to_json() + '\n')
 
-            try:
-                # this may not work if the build is failed
-                if collect_size_info:
+            if collect_size_info:
+                try:
+                    # this may not work if the build is failed
                     app.collect_size_info(collect_size_info)
-            except Exception as e:
-                LOGGER.debug(e)
-                pass
+                except Exception as e:
+                    LOGGER.debug(e)
+                    pass
+
+            if copy_sdkconfig:
+                try:
+                    shutil.copy(
+                        os.path.join(app.work_dir, 'sdkconfig'),
+                        os.path.join(app.build_path, 'sdkconfig'),
+                    )
+                except Exception as e:
+                    LOGGER.debug(e)
+                    pass
 
     return exit_code
