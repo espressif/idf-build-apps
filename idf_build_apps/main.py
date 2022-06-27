@@ -92,7 +92,7 @@ def build_apps(
     ignore_warnings_regexes = []
     if ignore_warning_strs:
         for s in ignore_warning_strs:
-            ignore_warnings_regexes.append(re.compile(re.escape(s)))
+            ignore_warnings_regexes.append(re.compile(s))
     if ignore_warning_file:
         for s in ignore_warning_file:
             ignore_warnings_regexes.append(re.compile(s.strip()))
