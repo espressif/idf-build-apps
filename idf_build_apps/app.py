@@ -402,7 +402,7 @@ class CMakeApp(App):
                 for line in lines[-self.LOG_DEBUG_LINES :]:
                     LOGGER.debug('>>> %s', line)
 
-        if self.size_json_path:
+        if returncode == 0 and self.size_json_path:
             self.write_size_json()
 
         if not self.preserve:
