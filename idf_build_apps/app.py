@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -407,7 +408,14 @@ class CMakeApp(App):
 
         if not self.preserve:
             LOGGER.info('Removing build directory %s', self.build_path)
-            rmdir(self.build_path, exclude_file_pattern=self.size_json_path)
+            rmdir(
+                self.build_path,
+                exclude_file_patterns=[
+                    os.path.basename(self.size_json_path),
+                    os.path.basename(self.build_log_path),
+                ],
+            )
+        LOGGER.info('-' * 80)  # sep line
 
         if returncode != 0:
             raise BuildError('Build failed with exit code {}'.format(returncode))

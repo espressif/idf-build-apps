@@ -119,15 +119,24 @@ class BuildError(RuntimeError):
     pass
 
 
-def rmdir(path, exclude_file_pattern=None):
-    if not exclude_file_pattern:
+def rmdir(path, exclude_file_patterns=None):
+    if not exclude_file_patterns:
         shutil.rmtree(path, ignore_errors=True)
         return
 
+    if isinstance(exclude_file_patterns, str):
+        exclude_file_patterns = [exclude_file_patterns]
+
     for root, dirs, files in os.walk(path, topdown=False):
         for f in files:
-            if not fnmatch.fnmatch(f, exclude_file_pattern):
-                os.remove(os.path.join(root, f))
+            fp = os.path.join(root, f)
+            remove = True
+            for pattern in exclude_file_patterns:
+                if pattern and fnmatch.fnmatch(f, pattern):
+                    remove = False
+                    break
+            if remove:
+                os.remove(fp)
         for d in dirs:
             try:
                 os.rmdir(os.path.join(root, d))
