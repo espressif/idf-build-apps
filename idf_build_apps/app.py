@@ -261,7 +261,11 @@ class App:
     def write_size_json(self):
         map_file = find_first_match('*.map', self.build_path)
         if not map_file:
-            raise ValueError('.map file not found under "{}"'.format(self.build_path))
+            LOGGER.warning(
+                '.map file not found. Cannot write size json to file: %s',
+                self.size_json_path,
+            )
+            return
 
         idf_size_args = [
             sys.executable,
