@@ -241,11 +241,18 @@ class App:
         return cmake_vars
 
     @classmethod
-    def enable_build_targets(cls, path):
+    def enable_build_targets(cls, path):  # type: (str) -> list[str]
         if cls.MANIFEST:
             return cls.MANIFEST.enable_build_targets(path)
 
         return SUPPORTED_TARGETS
+
+    @classmethod
+    def enable_test_targets(cls, path):  # type: (str) -> list[str]
+        if cls.MANIFEST:
+            return cls.MANIFEST.enable_test_targets(path)
+
+        return []
 
     @abstractmethod
     def build(self):
