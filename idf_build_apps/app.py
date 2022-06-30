@@ -379,6 +379,8 @@ class CMakeApp(App):
             # delete manually later, used for tracking debugging info
             log_file = tempfile.NamedTemporaryFile('w', delete=False)
 
+        old_idf_target_env = os.getenv('IDF_TARGET')
+        os.environ['IDF_TARGET'] = self.target  # pass the cmake check
         p = subprocess.Popen(
             args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8'
         )
@@ -387,6 +389,7 @@ class CMakeApp(App):
                 sys.stdout.write(line)
             log_file.write(line)
         returncode = p.wait()
+        os.environ['IDF_TARGET'] = old_idf_target_env  # revert it back
 
         # help debug
         log_file.close()
