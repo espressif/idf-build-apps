@@ -393,7 +393,8 @@ class CMakeApp(App):
                 sys.stdout.write(line)
             log_file.write(line)
         returncode = p.wait()
-        os.environ['IDF_TARGET'] = old_idf_target_env  # revert it back
+        if old_idf_target_env is not None:
+            os.environ['IDF_TARGET'] = old_idf_target_env  # revert it back
 
         # help debug
         log_file.close()
