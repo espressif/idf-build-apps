@@ -57,6 +57,9 @@ def _get_apps_from_path(
         )
         return []
 
+    if not config_rules:
+        config_rules = []
+
     apps = []
     default_config_name = ''
     for rule in config_rules:
