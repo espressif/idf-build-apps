@@ -74,6 +74,18 @@ class BoolStmt(Stmt):
         if self.comparison == '!=':
             return self.left.get_value(target) != self.right.get_value(target)
 
+        if self.comparison == '>':
+            return self.left.get_value(target) > self.right.get_value(target)
+
+        if self.comparison == '>=':
+            return self.left.get_value(target) >= self.right.get_value(target)
+
+        if self.comparison == '<':
+            return self.left.get_value(target) < self.right.get_value(target)
+
+        if self.comparison == '<=':
+            return self.left.get_value(target) <= self.right.get_value(target)
+
         raise ValueError(f'Unsupported comparison operator: "{self.comparison}"')
 
 
@@ -109,10 +121,14 @@ STRING = QuotedString('"').setParseAction(String)
 
 BOOL_OPERAND = CAP_WORD | INTEGER | STRING
 
-EQUAL = Keyword('==').setParseAction(lambda t: t[0])
-UNEQUAL = Keyword('!=').setParseAction(lambda t: t[0])
+EQ = Keyword('==').setParseAction(lambda t: t[0])
+NE = Keyword('!=').setParseAction(lambda t: t[0])
+LE = Keyword('<=').setParseAction(lambda t: t[0])
+LT = Keyword('<').setParseAction(lambda t: t[0])
+GE = Keyword('>=').setParseAction(lambda t: t[0])
+GT = Keyword('>').setParseAction(lambda t: t[0])
 
-BOOL_STMT = BOOL_OPERAND + (EQUAL | UNEQUAL) + BOOL_OPERAND
+BOOL_STMT = BOOL_OPERAND + (EQ | NE | LE | LT | GE | GT) + BOOL_OPERAND
 BOOL_STMT.setParseAction(BoolStmt)
 
 AND = Keyword('and')
