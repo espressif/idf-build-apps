@@ -254,6 +254,14 @@ class App:
 
         return []
 
+    @property
+    def supported_targets(self):
+        return self.enable_build_targets(self.app_dir)
+
+    @property
+    def verified_targets(self):
+        return self.enable_test_targets(self.app_dir)
+
     @abstractmethod
     def build(self):
         pass
