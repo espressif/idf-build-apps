@@ -14,7 +14,7 @@ from abc import abstractmethod
 from . import LOGGER
 from .constants import IDF_PY, SUPPORTED_TARGETS, IDF_SIZE_PY
 from .manifest.manifest import Manifest
-from .utils import BuildError, rmdir, find_first_match
+from .utils import BuildError, rmdir, find_first_match, dict_from_sdkconfig
 
 try:
     from typing import TextIO, Pattern
@@ -243,9 +243,29 @@ class App:
     @classmethod
     def enable_build_targets(cls, path):  # type: (str) -> list[str]
         if cls.MANIFEST:
-            return cls.MANIFEST.enable_build_targets(path)
+            res = cls.MANIFEST.enable_build_targets(path)
+        else:
+            res = SUPPORTED_TARGETS
 
-        return SUPPORTED_TARGETS
+        # check if there's CONFIG_IDF_TARGET in sdkconfig.defaults
+        default_sdkconfig = os.path.join(path, 'sdkconfig.defaults')
+        default_sdkconfig_target = None
+        if os.path.isfile(default_sdkconfig):
+            sdkconfig_dict = dict_from_sdkconfig(default_sdkconfig)
+            if 'CONFIG_IDF_TARGET' in sdkconfig_dict:
+                default_sdkconfig_target = sdkconfig_dict['CONFIG_IDF_TARGET']
+
+        if default_sdkconfig_target:
+            if len(res) > 1 or res != default_sdkconfig_target:
+                LOGGER.warning(
+                    'CONFIG_IDF_TARGET is set in %s. Set enable build targets to %s only.',
+                    default_sdkconfig,
+                    default_sdkconfig_target,
+                )
+
+            res = [default_sdkconfig_target]
+
+        return res
 
     @classmethod
     def enable_test_targets(cls, path):  # type: (str) -> list[str]
