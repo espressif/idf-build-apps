@@ -81,7 +81,7 @@ class App:
         self.verbose = False
 
     def __repr__(self):
-        return '({}) App {} for target {}, sdkconfig {} in {}'.format(
+        return '({}) App {}, target {}, sdkconfig {}, build in {}'.format(
             self.BUILD_SYSTEM,
             self.app_dir,
             self.target,

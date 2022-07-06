@@ -99,22 +99,29 @@ def build_apps(
     App.IGNORE_WARNS_REGEXES = ignore_warnings_regexes
 
     start, stop = get_parallel_start_stop(len(apps), parallel_count, parallel_index)
-    LOGGER.info(
-        'Total %s apps. running build for app %s-%s', len(apps), start + 1, stop
-    )
+    LOGGER.info('Total %s apps. running build for app %s-%s', len(apps), start, stop)
 
     failed_apps = []
     exit_code = 0
+
+    LOGGER.info('Building the following apps:')
+    if apps[start - 1 : stop]:
+        for app in apps[start - 1 : stop]:
+            LOGGER.info('  %s (preserve: %s)', app, app.preserve)
+    else:
+        LOGGER.info('  parallel count is too large. build nothing...')
+
     for i, app in enumerate(apps):
-        if i < start or i >= stop:
+        index = i + 1  # we use 1-based
+        if index < start or index > stop:
             continue
 
         # attrs
         app.dry_run = dry_run
-        app.index = i
+        app.index = index
         app.verbose = build_verbose
 
-        LOGGER.debug('=> Building app %s: %s', i, repr(app))
+        LOGGER.debug('=> Building app %s: %s', index, repr(app))
         try:
             app.build()
         except BuildError as e:

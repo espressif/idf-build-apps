@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from idf_build_apps.utils import rmdir
+from idf_build_apps.utils import rmdir, get_parallel_start_stop
 
 
 @pytest.mark.parametrize(
@@ -35,3 +35,18 @@ def test_rmdir(tmpdir, patterns, expected):
     rmdir(test_dir, exclude_file_patterns=patterns)
 
     assert sorted(Path(test_dir).glob('**/*')) == [Path(tmpdir / i) for i in expected]
+
+
+@pytest.mark.parametrize(
+    'total, parallel_count, parallel_index, start, stop',
+    [
+        (1, 1, 1, 1, 1),
+        (1, 2, 2, 2, 2),
+        (1, 10, 1, 1, 1),
+        (10, 10, 9, 9, 9),
+        (33, 2, 1, 1, 17),
+        (33, 2, 2, 18, 33),
+    ],
+)
+def test_get_parallel_start_stop(total, parallel_count, parallel_index, start, stop):
+    assert start, stop == get_parallel_start_stop(total, parallel_count, parallel_index)
