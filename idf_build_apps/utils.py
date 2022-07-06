@@ -109,7 +109,7 @@ def get_parallel_start_stop(
 
     num_builds_per_job = (total + parallel_count - 1) // parallel_count
 
-    _min = num_builds_per_job * (parallel_index - 1)
+    _min = num_builds_per_job * (parallel_index - 1) + 1
     _max = min(num_builds_per_job * parallel_index, total)
 
     return _min, _max

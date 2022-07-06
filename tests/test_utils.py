@@ -41,12 +41,18 @@ def test_rmdir(tmpdir, patterns, expected):
     'total, parallel_count, parallel_index, start, stop',
     [
         (1, 1, 1, 1, 1),
-        (1, 2, 2, 2, 2),
+        (1, 2, 2, 2, 1),
         (1, 10, 1, 1, 1),
+        (6, 4, 1, 1, 2),
+        (6, 4, 2, 3, 4),
+        (6, 4, 3, 5, 6),
+        (6, 4, 4, 7, 6),
         (10, 10, 9, 9, 9),
         (33, 2, 1, 1, 17),
         (33, 2, 2, 18, 33),
     ],
 )
 def test_get_parallel_start_stop(total, parallel_count, parallel_index, start, stop):
-    assert start, stop == get_parallel_start_stop(total, parallel_count, parallel_index)
+    assert (start, stop) == get_parallel_start_stop(
+        total, parallel_count, parallel_index
+    )
