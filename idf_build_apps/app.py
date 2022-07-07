@@ -90,11 +90,12 @@ class App:
         )
 
     def __lt__(self, other):
-        return (
-            self.app_dir < other.app_dir
-            and self.target < other.target
-            and self.config_name < other.config_name
-        )
+        if self.app_dir != other.app_dir:
+            return self.app_dir < other.app_dir
+        elif self.target != other.target:
+            return self.target < other.target
+        else:
+            return self.config_name < other.config_name
 
     def _expand(self, path):  # type: (str) -> str
         """
