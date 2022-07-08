@@ -212,6 +212,11 @@ def _find_apps(
             del dirs[:]
             continue
 
+        if root.endswith('managed_components'):  # idf-component-manager
+            LOGGER.debug('Skipping %s (managed components)', root)
+            del dirs[:]
+            continue
+
         _found_apps = _get_apps_from_path(
             root,
             target,
