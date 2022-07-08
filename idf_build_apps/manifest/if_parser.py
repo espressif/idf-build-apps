@@ -14,6 +14,8 @@ from pyparsing import (
     hexnums,
     infixNotation,
     nums,
+    delimitedList,
+    Suppress,
 )
 
 from .soc_header import SOC_HEADERS
@@ -61,6 +63,14 @@ class String(Stmt):
         )  # double quotes is swallowed by QuotedString
 
 
+class List_(Stmt):
+    def __init__(self, t):
+        self.expr = t
+
+    def get_value(self, target):  # type: (str) -> any
+        return [item.get_value(target) for item in self.expr]
+
+
 class BoolStmt(Stmt):
     def __init__(self, t):
         self.left: Stmt = t[0]
@@ -85,6 +95,12 @@ class BoolStmt(Stmt):
 
         if self.comparison == '<=':
             return self.left.get_value(target) <= self.right.get_value(target)
+
+        if self.comparison == 'not in':
+            return self.left.get_value(target) not in self.right.get_value(target)
+
+        if self.comparison == 'in':
+            return self.left.get_value(target) in self.right.get_value(target)
 
         raise ValueError(f'Unsupported comparison operator: "{self.comparison}"')
 
@@ -119,7 +135,13 @@ INTEGER = (HEX_NUMBER | DECIMAL_NUMBER).setParseAction(Integer)
 
 STRING = QuotedString('"').setParseAction(String)
 
-BOOL_OPERAND = CAP_WORD | INTEGER | STRING
+LIST = (
+    Suppress('[')
+    + delimitedList(INTEGER | STRING).setParseAction(List_)
+    + Suppress(']')
+)
+
+BOOL_OPERAND = CAP_WORD | INTEGER | STRING | LIST
 
 EQ = Keyword('==').setParseAction(lambda t: t[0])
 NE = Keyword('!=').setParseAction(lambda t: t[0])
@@ -127,8 +149,10 @@ LE = Keyword('<=').setParseAction(lambda t: t[0])
 LT = Keyword('<').setParseAction(lambda t: t[0])
 GE = Keyword('>=').setParseAction(lambda t: t[0])
 GT = Keyword('>').setParseAction(lambda t: t[0])
+NOT_IN = Keyword('not in').setParseAction(lambda t: t[0])
+IN = Keyword('in').setParseAction(lambda t: t[0])
 
-BOOL_STMT = BOOL_OPERAND + (EQ | NE | LE | LT | GE | GT) + BOOL_OPERAND
+BOOL_STMT = BOOL_OPERAND + (EQ | NE | LE | LT | GE | GT | NOT_IN | IN) + BOOL_OPERAND
 BOOL_STMT.setParseAction(BoolStmt)
 
 AND = Keyword('and')
