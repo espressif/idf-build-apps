@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+import logging
 import os
 import re
 import shutil
@@ -160,5 +161,10 @@ def build_apps(
                 except Exception as e:
                     LOGGER.debug(e)
                     pass
+
+    if failed_apps:
+        LOGGER.error('Build failed for the following apps:')
+        for app in failed_apps:
+            logging.error('  %s', app)
 
     return exit_code

@@ -458,7 +458,6 @@ class CMakeApp(App):
                     os.path.basename(self.build_log_path),
                 ],
             )
-        LOGGER.info('-' * 80)  # sep line
 
         if returncode != 0:
             raise BuildError('Build failed with exit code {}'.format(returncode))
