@@ -6,6 +6,7 @@ import sys
 
 from .main import find_apps, build_apps
 from .utils import setup_logging
+from .constants import ALL_TARGETS
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -90,6 +91,10 @@ if __name__ == '__main__':
         action='append',
         help='manifest file to specify the build test rules of the apps, could be specified multiple times.',
     )
+    common_args.add_argument(
+        '--default-build-targets',
+        help='comma-separated target list. IDF supported targets would be used if this option is not set',
+    )
 
     find_parser = actions.add_parser('find', parents=[common_args])
     find_parser.add_argument(
@@ -163,6 +168,21 @@ if __name__ == '__main__':
     args = parser.parse_args()
     setup_logging(args.verbose, args.log_file)
 
+    default_build_targets = []
+    if args.default_build_targets:
+        for t in args.default_build_targets.split(','):
+            t = t.strip()
+            if t not in ALL_TARGETS:
+                print(
+                    'Unrecognizable target {}, only know targets {}'.format(
+                        t, ALL_TARGETS
+                    )
+                )
+                sys.exit(1)
+
+            if t not in default_build_targets:
+                default_build_targets.append(t)
+
     apps = find_apps(
         args.paths,
         args.target,
@@ -176,6 +196,7 @@ if __name__ == '__main__':
         size_json_path=args.size_file,
         check_warnings=args.check_warnings,
         manifest_files=args.manifest_file,
+        default_build_targets=default_build_targets,
     )
 
     if args.action == 'find':

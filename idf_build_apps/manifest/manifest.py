@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 
 from .if_parser import BOOL_EXPR, BoolExpr
-from ..constants import DEFAULT_BUILD_TARGETS, ALL_TARGETS
+from ..constants import ALL_TARGETS, SUPPORTED_TARGETS
 
 
 class InvalidManifestError(ValueError):
@@ -29,6 +29,8 @@ class IfClause:
 
 
 class FolderRule:
+    DEFAULT_BUILD_TARGETS = SUPPORTED_TARGETS
+
     def __init__(
         self,
         folder,
@@ -68,7 +70,7 @@ class FolderRule:
                     res = True
                     break
         else:
-            res = target in DEFAULT_BUILD_TARGETS
+            res = target in self.DEFAULT_BUILD_TARGETS
 
         if self.disable:
             for clause in self.disable:

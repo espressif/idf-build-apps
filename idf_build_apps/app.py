@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
-import logging
 import os
 import re
 import shutil
@@ -12,8 +11,8 @@ import tempfile
 from abc import abstractmethod
 
 from . import LOGGER
-from .constants import IDF_PY, SUPPORTED_TARGETS, IDF_SIZE_PY
-from .manifest.manifest import Manifest
+from .constants import IDF_PY, IDF_SIZE_PY
+from .manifest.manifest import Manifest, FolderRule
 from .utils import BuildError, rmdir, find_first_match, dict_from_sdkconfig
 
 try:
@@ -246,7 +245,7 @@ class App:
         if cls.MANIFEST:
             res = cls.MANIFEST.enable_build_targets(path)
         else:
-            res = SUPPORTED_TARGETS
+            res = FolderRule.DEFAULT_BUILD_TARGETS
 
         # check if there's CONFIG_IDF_TARGET in sdkconfig.defaults
         default_sdkconfig = os.path.join(path, 'sdkconfig.defaults')

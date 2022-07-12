@@ -20,6 +20,3 @@ _idf_py_constant_py = importlib.import_module('constants')
 SUPPORTED_TARGETS = getattr(_idf_py_constant_py, 'SUPPORTED_TARGETS', [])
 PREVIEW_TARGETS = getattr(_idf_py_constant_py, 'PREVIEW_TARGETS', [])
 ALL_TARGETS = SUPPORTED_TARGETS + PREVIEW_TARGETS
-
-DEFAULT_BUILD_TARGETS = SUPPORTED_TARGETS.copy()
-DEFAULT_TEST_TARGETS = SUPPORTED_TARGETS.copy()

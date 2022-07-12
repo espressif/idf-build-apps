@@ -8,7 +8,7 @@ from . import LOGGER
 from .app import App
 from .constants import ALL_TARGETS
 from .finder import _find_apps
-from .manifest.manifest import Manifest
+from .manifest.manifest import Manifest, FolderRule
 from .utils import get_parallel_start_stop, BuildError
 
 try:
@@ -31,7 +31,15 @@ def find_apps(
     check_warnings=False,
     preserve=True,
     manifest_files=None,
-):  # type: (list[str] | str, str, str, bool, list[str] | None, str | None, str, list[str] | None, str | None, str | None, bool, bool, list[str] | str | None) -> list[App]
+    default_build_targets=None,
+):  # type: (list[str] | str, str, str, bool, list[str] | None, str | None, str, list[str] | None, str | None, str | None, bool, bool, list[str] | str | None, list[str] | str | None) -> list[App]
+    if default_build_targets:
+        if isinstance(default_build_targets, str):
+            default_build_targets = [default_build_targets]
+
+        LOGGER.info('Overriding DEFAULT_BUILD_TARGETS to %s', default_build_targets)
+        FolderRule.DEFAULT_BUILD_TARGETS = default_build_targets
+
     if manifest_files:
         if isinstance(manifest_files, str):
             manifest_files = [manifest_files]
