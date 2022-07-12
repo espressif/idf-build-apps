@@ -82,28 +82,27 @@ class SocHeader(dict):
 
     @staticmethod
     def _parse_soc_header(target):  # type: (str) -> dict[str, any]
-        soc_header_file = (
-            IDF_PATH / 'components' / 'soc' / target / 'include' / 'soc' / 'soc_caps.h'
-        )
+        soc_headers_dir = IDF_PATH / 'components' / 'soc' / target / 'include' / 'soc'
 
-        if not soc_header_file.is_file():
-            logging.debug('Not found soc_caps.h file: %s', soc_header_file.resolve())
+        if not soc_headers_dir.is_dir():
+            logging.debug('No soc header files folder: %s', soc_headers_dir.resolve())
             return {}
 
         output_dict = {}
-        for line in get_defines(soc_header_file):
-            try:
-                res = parse_define(line)
-            except ParseException:
-                logging.debug('Failed to parse: %s', line)
-                continue
+        for soc_header_file in soc_headers_dir.glob('*_caps.h'):
+            for line in get_defines(soc_header_file):
+                try:
+                    res = parse_define(line)
+                except ParseException:
+                    logging.debug('Failed to parse: %s', line)
+                    continue
 
-            if 'str_value' in res:
-                output_dict[res.name] = res.str_value
-            elif 'int_value' in res:
-                output_dict[res.name] = int(res.int_value)
-            elif 'hex_value' in res:
-                output_dict[res.name] = int(res.hex_value, 16)
+                if 'str_value' in res:
+                    output_dict[res.name] = res.str_value
+                elif 'int_value' in res:
+                    output_dict[res.name] = int(res.int_value)
+                elif 'hex_value' in res:
+                    output_dict[res.name] = int(res.hex_value, 16)
 
         return output_dict
 
