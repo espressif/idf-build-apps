@@ -439,7 +439,7 @@ class CMakeApp(App):
             if returncode != 0:
                 # print last few lines to help debug
                 LOGGER.debug(
-                    'Last %s lines from the build log:',
+                    'Last %s lines from the build log "%s":',
                     self.LOG_DEBUG_LINES,
                     self.build_log_path,
                 )
