@@ -298,7 +298,8 @@ class App:
         idf_size_args = [
             sys.executable,
             str(IDF_SIZE_PY),
-            '--json',
+            '--format',
+            'json',
             '-o',
             self.size_json_path,
             map_file,
