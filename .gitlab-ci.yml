@@ -1,28 +1,43 @@
+default:
+  image: python:3.10-bullseye
+  tags: [build]
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+# Pip's cache doesn't store the python packages
+# https://pip.pypa.io/en/stable/reference/pip_install/#caching
+cache:
+  paths:
+    - .cache/pip
+
+pre-commit:
+  stage: test
+  script:
+    - pip install pre-commit
+    - pre-commit run -a
+
 publish-gitlab:
   stage: deploy
-  image: python:3.10-bullseye
-  tags:
-    - build
   variables:
     FLIT_USERNAME: gitlab-ci-token
     FLIT_PASSWORD: ${CI_JOB_TOKEN}
     FLIT_INDEX_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi
+  only:
+    refs:
+      - tags
   script:
     - pip install flit
     - flit publish --setup-py
-  only:
-    - main
 
 publish-pypi:
   stage: deploy
-  image: python:3.10-bullseye
-  tags:
-    - build
   variables:
     FLIT_USERNAME: __token__
     FLIT_PASSWORD: ${PYPI_TOKEN}
+  only:
+    refs:
+      - tags
   script:
     - pip install flit
     - flit publish --setup-py
-  only:
-    - main
