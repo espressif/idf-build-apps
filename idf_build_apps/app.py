@@ -10,8 +10,10 @@ import sys
 import tempfile
 from abc import abstractmethod
 
+from packaging.version import Version
+
 from . import LOGGER
-from .constants import IDF_PY, IDF_SIZE_PY
+from .constants import IDF_PY, IDF_SIZE_PY, IDF_VERSION
 from .manifest.manifest import Manifest, FolderRule
 from .utils import BuildError, rmdir, find_first_match, dict_from_sdkconfig
 
@@ -295,15 +297,23 @@ class App:
             )
             return
 
-        idf_size_args = [
-            sys.executable,
-            str(IDF_SIZE_PY),
-            '--format',
-            'json',
-            '-o',
-            self.size_json_path,
-            map_file,
-        ]
+        if IDF_VERSION < Version('5.1'):
+            format_args = ['--json']
+        else:
+            format_args = ['--format', 'json']
+
+        idf_size_args = (
+            [
+                sys.executable,
+                str(IDF_SIZE_PY),
+            ]
+            + format_args
+            + [
+                '-o',
+                self.size_json_path,
+                map_file,
+            ]
+        )
         try:
             subprocess.check_call(idf_size_args)
         except subprocess.CalledProcessError as e:
