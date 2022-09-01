@@ -74,9 +74,9 @@ class List_(Stmt):
 
 class BoolStmt(Stmt):
     def __init__(self, t):
-        self.left: Stmt = t[0]
-        self.comparison: str = t[1]
-        self.right: Stmt = t[2]
+        self.left = t[0]  # type: Stmt
+        self.comparison = t[1]  # type: str
+        self.right = t[2]  # type: Stmt
 
     def get_value(self, target):  # type: (str) -> any
         if self.comparison == '==':
@@ -112,8 +112,8 @@ class BoolExpr(Stmt, ABC):
 
 class BoolAnd(BoolExpr):
     def __init__(self, t):
-        self.left: BoolStmt = t[0][0]
-        self.right: BoolStmt = t[0][1]
+        self.left = t[0][0]  # type: BoolStmt
+        self.right = t[0][1]  # type: BoolStmt
 
     def get_value(self, target):  # type: (str) -> any
         return self.left.get_value(target) and self.right.get_value(target)
@@ -121,8 +121,8 @@ class BoolAnd(BoolExpr):
 
 class BoolOr(BoolExpr):
     def __init__(self, t):
-        self.left: BoolStmt = t[0][0]
-        self.right: BoolStmt = t[0][2]
+        self.left = t[0][0]  # type: BoolStmt
+        self.right = t[0][2]  # type: BoolStmt
 
     def get_value(self, target):  # type: (str) -> any
         return self.left.get_value(target) or self.right.get_value(target)

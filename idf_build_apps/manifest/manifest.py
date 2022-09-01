@@ -17,7 +17,7 @@ class IfClause:
     def __init__(
         self, stmt, temporary=False, reason=None
     ):  # type: (str, bool, str | None) -> None
-        self.stmt: BoolExpr = BOOL_EXPR.parseString(stmt)[0]
+        self.stmt = BOOL_EXPR.parseString(stmt)[0]  # type: BoolExpr
         self.temporary = temporary
         self.reason = reason
 
