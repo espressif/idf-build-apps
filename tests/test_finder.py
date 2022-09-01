@@ -16,11 +16,13 @@ def test_finder(tmpdir):
     with open(yaml_file, 'w') as fw:
         fw.write(
             inspect.cleandoc(
-                f'''
-            {test_dir}:
+                '''
+            {}:
                 enable:
                     - if: IDF_TARGET == "esp32s2"
-        '''
+        '''.format(
+                    test_dir
+                )
             )
         )
 

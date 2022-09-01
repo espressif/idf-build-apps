@@ -60,7 +60,7 @@ class String(Stmt):
 
     def get_value(self, target):  # type: (str) -> any
         return literal_eval(
-            f'"{self.expr}"'
+            '"{}"'.format(self.expr)
         )  # double quotes is swallowed by QuotedString
 
 
@@ -103,7 +103,9 @@ class BoolStmt(Stmt):
         if self.comparison == 'in':
             return self.left.get_value(target) in self.right.get_value(target)
 
-        raise ValueError(f'Unsupported comparison operator: "{self.comparison}"')
+        raise ValueError(
+            'Unsupported comparison operator: "{}"'.format(self.comparison)
+        )
 
 
 class BoolExpr(Stmt, ABC):

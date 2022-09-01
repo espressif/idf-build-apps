@@ -60,7 +60,7 @@ class FolderRule:
         return hash(self.folder)
 
     def __repr__(self):
-        return f'FolderRule({self.folder})'
+        return 'FolderRule({})'.format(self.folder)
 
     def _enable_build(self, target):  # type: (str) -> bool
         if self.enable:
