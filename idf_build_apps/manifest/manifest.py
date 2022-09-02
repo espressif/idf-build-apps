@@ -135,12 +135,7 @@ class Manifest:
         rules = []  # type: list[FolderRule]
         for folder, folder_rule in manifest_dict.items():
             folder = Path(folder)
-            rules.append(
-                FolderRule(
-                    folder,
-                    **folder_rule if folder_rule else {},
-                )
-            )
+            rules.append(FolderRule(folder, **folder_rule if folder_rule else {}))
 
         return Manifest(rules)
 
