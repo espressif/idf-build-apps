@@ -59,9 +59,7 @@ class String(Stmt):
         self.expr = t[0]
 
     def get_value(self, target):  # type: (str) -> any
-        return literal_eval(
-            f'"{self.expr}"'
-        )  # double quotes is swallowed by QuotedString
+        return literal_eval('"{}"'.format(self.expr))  # double quotes is swallowed by QuotedString
 
 
 class List_(Stmt):
@@ -74,9 +72,9 @@ class List_(Stmt):
 
 class BoolStmt(Stmt):
     def __init__(self, t):
-        self.left: Stmt = t[0]
-        self.comparison: str = t[1]
-        self.right: Stmt = t[2]
+        self.left = t[0]  # type: Stmt
+        self.comparison = t[1]  # type: str
+        self.right = t[2]  # type: Stmt
 
     def get_value(self, target):  # type: (str) -> any
         if self.comparison == '==':
@@ -103,7 +101,7 @@ class BoolStmt(Stmt):
         if self.comparison == 'in':
             return self.left.get_value(target) in self.right.get_value(target)
 
-        raise ValueError(f'Unsupported comparison operator: "{self.comparison}"')
+        raise ValueError('Unsupported comparison operator: "{}"'.format(self.comparison))
 
 
 class BoolExpr(Stmt, ABC):
@@ -112,8 +110,8 @@ class BoolExpr(Stmt, ABC):
 
 class BoolAnd(BoolExpr):
     def __init__(self, t):
-        self.left: BoolStmt = t[0][0]
-        self.right: BoolStmt = t[0][1]
+        self.left = t[0][0]  # type: BoolStmt
+        self.right = t[0][1]  # type: BoolStmt
 
     def get_value(self, target):  # type: (str) -> any
         return self.left.get_value(target) and self.right.get_value(target)
@@ -121,8 +119,8 @@ class BoolAnd(BoolExpr):
 
 class BoolOr(BoolExpr):
     def __init__(self, t):
-        self.left: BoolStmt = t[0][0]
-        self.right: BoolStmt = t[0][2]
+        self.left = t[0][0]  # type: BoolStmt
+        self.right = t[0][2]  # type: BoolStmt
 
     def get_value(self, target):  # type: (str) -> any
         return self.left.get_value(target) or self.right.get_value(target)
@@ -136,11 +134,7 @@ INTEGER = (HEX_NUMBER | DECIMAL_NUMBER).setParseAction(Integer)
 
 STRING = QuotedString('"').setParseAction(String)
 
-LIST = (
-    Suppress('[')
-    + delimitedList(INTEGER | STRING).setParseAction(List_)
-    + Suppress(']')
-)
+LIST = Suppress('[') + delimitedList(INTEGER | STRING).setParseAction(List_) + Suppress(']')
 
 BOOL_OPERAND = CAP_WORD | INTEGER | STRING | LIST
 

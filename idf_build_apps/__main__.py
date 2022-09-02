@@ -11,19 +11,18 @@ from .constants import ALL_TARGETS
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Tools for building ESP-IDF related apps.'
-        'Some CLI options can be expanded by the following placeholders, like "--work-dir", "--build-dir", etc.:'
-        '- @t: would be replaced by the target chip type'
-        '- @w: would be replaced by the wildcard, usually the sdkconfig'
-        '- @n: would be replaced by the app name'
-        '- @f: would be replaced by the escaped app path (replaced "/" to "_")'
-        '- @i: would be replaced by the build index'
+        'Some CLI options can be expanded by the following placeholders, like "--work-dir", "--build-dir", etc.:\n'
+        '- @t: would be replaced by the target chip type\n'
+        '- @w: would be replaced by the wildcard, usually the sdkconfig\n'
+        '- @n: would be replaced by the app name\n'
+        '- @f: would be replaced by the escaped app path (replaced "/" to "_")\n'
+        '- @i: would be replaced by the build index',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     actions = parser.add_subparsers(dest='action')
 
     common_args = argparse.ArgumentParser(add_help=False)
-    common_args.add_argument(
-        '-p', '--paths', nargs='+', help='One or more paths to look for apps.'
-    )
+    common_args.add_argument('-p', '--paths', nargs='+', help='One or more paths to look for apps.')
     common_args.add_argument('-t', '--target', help='filter apps by given target.')
     common_args.add_argument(
         '--build-system',
@@ -173,11 +172,7 @@ if __name__ == '__main__':
         for t in args.default_build_targets.split(','):
             t = t.strip()
             if t not in ALL_TARGETS:
-                print(
-                    'Unrecognizable target {}, only know targets {}'.format(
-                        t, ALL_TARGETS
-                    )
-                )
+                print('Unrecognizable target {}, only know targets {}'.format(t, ALL_TARGETS))
                 sys.exit(1)
 
             if t not in default_build_targets:

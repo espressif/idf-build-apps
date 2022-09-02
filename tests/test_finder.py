@@ -16,16 +16,16 @@ def test_finder(tmpdir):
     with open(yaml_file, 'w') as fw:
         fw.write(
             inspect.cleandoc(
-                f'''
-            {test_dir}:
+                '''
+            {}:
                 enable:
                     - if: IDF_TARGET == "esp32s2"
-        '''
+        '''.format(
+                    test_dir
+                )
             )
         )
 
-    filtered_apps = find_apps(
-        test_dir, 'esp32', recursive=True, manifest_files=yaml_file
-    )
+    filtered_apps = find_apps(test_dir, 'esp32', recursive=True, manifest_files=yaml_file)
     assert not filtered_apps
     assert filtered_apps != apps

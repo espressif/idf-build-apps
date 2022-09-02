@@ -28,6 +28,7 @@ dependencies = [
     "pathlib; python_version < '3.4'",
     "pyparsing",
     "pyyaml",
+    "packaging",
 ]
 
 [project.optional-dependencies]

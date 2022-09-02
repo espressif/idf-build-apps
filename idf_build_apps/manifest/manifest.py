@@ -14,10 +14,8 @@ class InvalidManifestError(ValueError):
 
 
 class IfClause:
-    def __init__(
-        self, stmt, temporary=False, reason=None
-    ):  # type: (str, bool, str | None) -> None
-        self.stmt: BoolExpr = BOOL_EXPR.parseString(stmt)[0]
+    def __init__(self, stmt, temporary=False, reason=None):  # type: (str, bool, str | None) -> None
+        self.stmt = BOOL_EXPR.parseString(stmt)[0]  # type: BoolExpr
         self.temporary = temporary
         self.reason = reason
 
@@ -48,9 +46,7 @@ class FolderRule:
 
         self.enable = [IfClause(**clause) for clause in enable] if enable else []
         self.disable = [IfClause(**clause) for clause in disable] if disable else []
-        self.disable_test = (
-            [IfClause(**clause) for clause in disable_test] if disable_test else []
-        )
+        self.disable_test = [IfClause(**clause) for clause in disable_test] if disable_test else []
 
         # cache attrs
         self._enable_build_targets = None
@@ -60,7 +56,7 @@ class FolderRule:
         return hash(self.folder)
 
     def __repr__(self):
-        return f'FolderRule({self.folder})'
+        return 'FolderRule({})'.format(self.folder)
 
     def _enable_build(self, target):  # type: (str) -> bool
         if self.enable:
@@ -120,7 +116,7 @@ class FolderRule:
 
 class DefaultRule(FolderRule):
     def __init__(self, folder: Path):
-        super().__init__(folder)
+        super(DefaultRule, self).__init__(folder)
 
 
 class Manifest:
@@ -135,12 +131,7 @@ class Manifest:
         rules = []  # type: list[FolderRule]
         for folder, folder_rule in manifest_dict.items():
             folder = Path(folder)
-            rules.append(
-                FolderRule(
-                    folder,
-                    **folder_rule if folder_rule else {},
-                )
-            )
+            rules.append(FolderRule(folder, **folder_rule if folder_rule else {}))
 
         return Manifest(rules)
 

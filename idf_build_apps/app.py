@@ -10,8 +10,10 @@ import sys
 import tempfile
 from abc import abstractmethod
 
+from packaging.version import Version
+
 from . import LOGGER
-from .constants import IDF_PY, IDF_SIZE_PY
+from .constants import IDF_PY, IDF_SIZE_PY, IDF_VERSION
 from .manifest.manifest import Manifest, FolderRule
 from .utils import BuildError, rmdir, find_first_match, dict_from_sdkconfig
 
@@ -38,9 +40,7 @@ class App:
     MANIFEST = None  # type: Manifest | None
 
     # This RE will match GCC errors and many other fatal build errors and warnings as well
-    LOG_ERROR_WARNING_REGEX = re.compile(
-        r'(?:error|warning):', re.MULTILINE | re.IGNORECASE
-    )
+    LOG_ERROR_WARNING_REGEX = re.compile(r'(?:error|warning):', re.MULTILINE | re.IGNORECASE)
     # Log this many trailing lines from a failed build log, also
     LOG_DEBUG_LINES = 25
     # IGNORE_WARNING_REGEX is a regex for warnings to be ignored. Could be assigned later
@@ -110,9 +110,7 @@ class App:
         if (
             self.FULL_NAME_PLACEHOLDER in path
         ):  # to avoid recursion to the call to app_dir in the next line:
-            path = path.replace(
-                self.FULL_NAME_PLACEHOLDER, self.app_dir.replace(os.path.sep, '_')
-            )
+            path = path.replace(self.FULL_NAME_PLACEHOLDER, self.app_dir.replace(os.path.sep, '_'))
         wildcard_pos = path.find(self.WILDCARD_PLACEHOLDER)
         if wildcard_pos != -1:
             if self.config_name:
@@ -295,15 +293,23 @@ class App:
             )
             return
 
-        idf_size_args = [
-            sys.executable,
-            str(IDF_SIZE_PY),
-            '--format',
-            'json',
-            '-o',
-            self.size_json_path,
-            map_file,
-        ]
+        if IDF_VERSION < Version('5.1'):
+            format_args = ['--json']
+        else:
+            format_args = ['--format', 'json']
+
+        idf_size_args = (
+            [
+                sys.executable,
+                str(IDF_SIZE_PY),
+            ]
+            + format_args
+            + [
+                '-o',
+                self.size_json_path,
+                map_file,
+            ]
+        )
         try:
             subprocess.check_call(idf_size_args)
         except subprocess.CalledProcessError as e:
@@ -387,10 +393,7 @@ class CMakeApp(App):
         if cmake_vars:
             for key, val in cmake_vars.items():
                 args.append('-D{}={}'.format(key, val))
-            if (
-                'TEST_EXCLUDE_COMPONENTS' in cmake_vars
-                and 'TEST_COMPONENTS' not in cmake_vars
-            ):
+            if 'TEST_EXCLUDE_COMPONENTS' in cmake_vars and 'TEST_COMPONENTS' not in cmake_vars:
                 args.append('-DTESTS_ALL=1')
             if 'CONFIG_APP_BUILD_BOOTLOADER' in cmake_vars:
                 # In case if secure_boot is enabled then for bootloader build need to add `bootloader` cmd
@@ -414,10 +417,10 @@ class CMakeApp(App):
 
         old_idf_target_env = os.getenv('IDF_TARGET')
         os.environ['IDF_TARGET'] = self.target  # pass the cmake check
-        p = subprocess.Popen(
-            args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8'
-        )
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in p.stdout:
+            if isinstance(line, bytes):
+                line = line.decode('utf-8')
             if not self.build_log_path:
                 sys.stdout.write(line)
             log_file.write(line)

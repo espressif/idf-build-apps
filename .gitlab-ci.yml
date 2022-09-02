@@ -12,10 +12,79 @@ cache:
     - .cache/pip
 
 pre-commit:
-  stage: test
+  stage: .pre
   script:
     - pip install pre-commit
     - pre-commit run -a
+
+.build-hello-world:
+  stage: build
+  needs: []  # run immediately
+  before_script:
+    - git clone -b ${IDF_RELEASE_BRANCH} --depth 1 --recursive ${IDF_URL_PATH}
+    - cd esp-idf
+    - export IDF_PATH=$(pwd)
+  artifacts:
+    paths:
+      - esp-idf/examples/get-started/hello_world/build
+    expire_in: 4 days
+    when: on_failure
+
+build-hello-world-4.1-4.3:
+  extends: .build-hello-world
+  image: $CI_DOCKER_REGISTRY/esp32-ci-env:latest
+  parallel:
+    matrix:
+      - IDF_RELEASE_BRANCH: [release/v4.1, release/v4.2, release/v4.3]
+  script:
+    - . /opt/pyenv/activate
+    - pyenv global 3.4.8
+    - python tools/idf_tools.py --non-interactive install ${SETUP_TOOLS_LIST:-}
+    - eval "$(tools/idf_tools.py --non-interactive export)"
+    - pip install ${CI_PROJECT_DIR}
+    - python -m idf_build_apps build -vv
+      -p examples/get-started/hello_world
+      -t esp32
+      --size-file size_info.json
+      --ignore-warning-str "Python 3 versions older than 3.6 are not supported"
+
+build-hello-world-4.4:
+  extends: .build-hello-world
+  image: $CI_DOCKER_REGISTRY/esp-env:v4.4-1
+  parallel:
+    matrix:
+      - IDF_RELEASE_BRANCH: [ release/v4.4 ]
+  script:
+    - . /opt/pyenv/activate
+    - pyenv global 3.7.10
+    - python tools/idf_tools.py --non-interactive install ${SETUP_TOOLS_LIST:-}
+    - eval "$(tools/idf_tools.py --non-interactive export)"
+    - pip install ${CI_PROJECT_DIR}
+    # fix "The following Python requirements are not satisfied:" issue
+    - pip install "jinja2<3.1"
+    - pip install "itsdangerous<2.1"
+    - python -m idf_build_apps build -vv
+      -p examples/get-started/hello_world
+      -t esp32
+      --size-file size_info.json
+
+build-hello-world-5.0-or-later:
+  extends: .build-hello-world
+  image: ${IMAGE}
+  parallel:
+    matrix:
+      - IMAGE: $CI_DOCKER_REGISTRY/esp-env-v5.0:4
+        IDF_RELEASE_BRANCH: release/v5.0
+      - IMAGE: $CI_DOCKER_REGISTRY/esp-env-v5.1:1
+        IDF_RELEASE_BRANCH: master
+  script:
+    - bash install.sh
+    - . export.sh
+    - pip install ${CI_PROJECT_DIR}
+    - python -m idf_build_apps build -vv
+      -p examples/get-started/hello_world
+      -t esp32
+      --size-file size_info.json
 
 publish-gitlab:
   stage: deploy

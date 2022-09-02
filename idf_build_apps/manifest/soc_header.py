@@ -27,7 +27,7 @@ from ..constants import IDF_PATH, ALL_TARGETS
 def get_defines(header_path):  # type: (Path) -> list[str]
     defines = []
     logging.debug('Reading macros from %s...', header_path)
-    with open(header_path, 'r') as f:
+    with open(str(header_path), 'r') as f:
         output = f.read()
 
     for line in output.split('\n'):
@@ -38,7 +38,7 @@ def get_defines(header_path):  # type: (Path) -> list[str]
     return defines
 
 
-def parse_define(define_line):  # type: (str) -> type[ParserElement]
+def parse_define(define_line):  # type: (str) -> 'ParserElement'
 
     # Group for parsing literal suffix of a numbers, e.g. 100UL
     literal_symbol = Group(CaselessLiteral('L') | CaselessLiteral('U'))
@@ -48,14 +48,10 @@ def parse_define(define_line):  # type: (str) -> type[ParserElement]
     name = Word(alphas, alphas + nums + '_')
 
     # Define value, either a hex, int or a string
-    hex_value = Combine(
-        Literal('0x') + Word(hexnums) + Optional(literal_suffix).suppress()
-    )('hex_value')
-    int_value = (
-        Word(nums)('int_value')
-        + ~Char('.')
-        + Optional(literal_suffix)('literal_suffix')
+    hex_value = Combine(Literal('0x') + Word(hexnums) + Optional(literal_suffix).suppress())(
+        'hex_value'
     )
+    int_value = Word(nums)('int_value') + ~Char('.') + Optional(literal_suffix)('literal_suffix')
     str_value = QuotedString('"')('str_value')
 
     # Remove optional parenthesis around values
@@ -78,14 +74,27 @@ class SocHeader(dict):
         else:
             soc_header_dict = {}
 
-        super().__init__(**soc_header_dict)
+        super(SocHeader, self).__init__(**soc_header_dict)
 
     @staticmethod
     def _parse_soc_header(target):  # type: (str) -> dict[str, any]
-        soc_headers_dir = IDF_PATH / 'components' / 'soc' / target / 'include' / 'soc'
+        soc_headers_dir_candidates = [
+            # other branches
+            IDF_PATH / 'components' / 'soc' / target / 'include' / 'soc',
+            # release/v4.2
+            IDF_PATH / 'components' / 'soc' / 'soc' / target / 'include' / 'soc',
+        ]
 
-        if not soc_headers_dir.is_dir():
-            logging.debug('No soc header files folder: %s', soc_headers_dir.resolve())
+        # get the soc_headers_dir
+        soc_headers_dir = None
+        for d in soc_headers_dir_candidates:
+            if not d.is_dir():
+                logging.debug('No soc header files folder: %s', d.absolute())
+            else:
+                soc_headers_dir = d
+                break
+
+        if not soc_headers_dir:
             return {}
 
         output_dict = {}
