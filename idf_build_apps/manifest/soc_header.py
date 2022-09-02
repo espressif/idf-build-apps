@@ -82,10 +82,23 @@ class SocHeader(dict):
 
     @staticmethod
     def _parse_soc_header(target):  # type: (str) -> dict[str, any]
-        soc_headers_dir = IDF_PATH / 'components' / 'soc' / target / 'include' / 'soc'
+        soc_headers_dir_candidates = [
+            # other branches
+            IDF_PATH / 'components' / 'soc' / target / 'include' / 'soc',
+            # release/v4.2
+            IDF_PATH / 'components' / 'soc' / 'soc' / target / 'include' / 'soc',
+        ]
 
-        if not soc_headers_dir.is_dir():
-            logging.debug('No soc header files folder: %s', soc_headers_dir.resolve())
+        # get the soc_headers_dir
+        soc_headers_dir = None
+        for d in soc_headers_dir_candidates:
+            if not d.is_dir():
+                logging.debug('No soc header files folder: %s', d.absolute())
+            else:
+                soc_headers_dir = d
+                break
+
+        if not soc_headers_dir:
             return {}
 
         output_dict = {}
