@@ -52,9 +52,7 @@ def _get_apps_from_path(
 
     supported_targets = app_cls.enable_build_targets(path)
     if target not in supported_targets:
-        LOGGER.debug(
-            'Skipping. %s only supports targets: %s', path, ', '.join(supported_targets)
-        )
+        LOGGER.debug('Skipping. %s only supports targets: %s', path, ', '.join(supported_targets))
         return []
 
     if not config_rules:
@@ -85,9 +83,7 @@ def _get_apps_from_path(
             config_name = rule.config_name or ''
             if '*' in rule.file_name:
                 # convert glob pattern into a regex
-                regex_str = r'.*' + rule.file_name.replace('.', r'\.').replace(
-                    '*', r'(.*)'
-                )
+                regex_str = r'.*' + rule.file_name.replace('.', r'\.').replace('*', r'(.*)')
                 groups = re.match(regex_str, sdkconfig_path)
                 assert groups
                 config_name = groups.group(1)

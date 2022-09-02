@@ -59,9 +59,7 @@ class String(Stmt):
         self.expr = t[0]
 
     def get_value(self, target):  # type: (str) -> any
-        return literal_eval(
-            '"{}"'.format(self.expr)
-        )  # double quotes is swallowed by QuotedString
+        return literal_eval('"{}"'.format(self.expr))  # double quotes is swallowed by QuotedString
 
 
 class List_(Stmt):
@@ -103,9 +101,7 @@ class BoolStmt(Stmt):
         if self.comparison == 'in':
             return self.left.get_value(target) in self.right.get_value(target)
 
-        raise ValueError(
-            'Unsupported comparison operator: "{}"'.format(self.comparison)
-        )
+        raise ValueError('Unsupported comparison operator: "{}"'.format(self.comparison))
 
 
 class BoolExpr(Stmt, ABC):
@@ -138,11 +134,7 @@ INTEGER = (HEX_NUMBER | DECIMAL_NUMBER).setParseAction(Integer)
 
 STRING = QuotedString('"').setParseAction(String)
 
-LIST = (
-    Suppress('[')
-    + delimitedList(INTEGER | STRING).setParseAction(List_)
-    + Suppress(']')
-)
+LIST = Suppress('[') + delimitedList(INTEGER | STRING).setParseAction(List_) + Suppress(']')
 
 BOOL_OPERAND = CAP_WORD | INTEGER | STRING | LIST
 

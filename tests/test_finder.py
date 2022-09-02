@@ -26,8 +26,6 @@ def test_finder(tmpdir):
             )
         )
 
-    filtered_apps = find_apps(
-        test_dir, 'esp32', recursive=True, manifest_files=yaml_file
-    )
+    filtered_apps = find_apps(test_dir, 'esp32', recursive=True, manifest_files=yaml_file)
     assert not filtered_apps
     assert filtered_apps != apps

@@ -14,9 +14,7 @@ class InvalidManifestError(ValueError):
 
 
 class IfClause:
-    def __init__(
-        self, stmt, temporary=False, reason=None
-    ):  # type: (str, bool, str | None) -> None
+    def __init__(self, stmt, temporary=False, reason=None):  # type: (str, bool, str | None) -> None
         self.stmt = BOOL_EXPR.parseString(stmt)[0]  # type: BoolExpr
         self.temporary = temporary
         self.reason = reason
@@ -48,9 +46,7 @@ class FolderRule:
 
         self.enable = [IfClause(**clause) for clause in enable] if enable else []
         self.disable = [IfClause(**clause) for clause in disable] if disable else []
-        self.disable_test = (
-            [IfClause(**clause) for clause in disable_test] if disable_test else []
-        )
+        self.disable_test = [IfClause(**clause) for clause in disable_test] if disable_test else []
 
         # cache attrs
         self._enable_build_targets = None

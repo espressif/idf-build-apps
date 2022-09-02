@@ -22,9 +22,7 @@ if __name__ == '__main__':
     actions = parser.add_subparsers(dest='action')
 
     common_args = argparse.ArgumentParser(add_help=False)
-    common_args.add_argument(
-        '-p', '--paths', nargs='+', help='One or more paths to look for apps.'
-    )
+    common_args.add_argument('-p', '--paths', nargs='+', help='One or more paths to look for apps.')
     common_args.add_argument('-t', '--target', help='filter apps by given target.')
     common_args.add_argument(
         '--build-system',
@@ -174,11 +172,7 @@ if __name__ == '__main__':
         for t in args.default_build_targets.split(','):
             t = t.strip()
             if t not in ALL_TARGETS:
-                print(
-                    'Unrecognizable target {}, only know targets {}'.format(
-                        t, ALL_TARGETS
-                    )
-                )
+                print('Unrecognizable target {}, only know targets {}'.format(t, ALL_TARGETS))
                 sys.exit(1)
 
             if t not in default_build_targets:

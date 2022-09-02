@@ -53,6 +53,4 @@ def test_rmdir(tmpdir, patterns, expected):
     ],
 )
 def test_get_parallel_start_stop(total, parallel_count, parallel_index, start, stop):
-    assert (start, stop) == get_parallel_start_stop(
-        total, parallel_count, parallel_index
-    )
+    assert (start, stop) == get_parallel_start_stop(total, parallel_count, parallel_index)

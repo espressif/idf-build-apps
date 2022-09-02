@@ -40,9 +40,7 @@ class App:
     MANIFEST = None  # type: Manifest | None
 
     # This RE will match GCC errors and many other fatal build errors and warnings as well
-    LOG_ERROR_WARNING_REGEX = re.compile(
-        r'(?:error|warning):', re.MULTILINE | re.IGNORECASE
-    )
+    LOG_ERROR_WARNING_REGEX = re.compile(r'(?:error|warning):', re.MULTILINE | re.IGNORECASE)
     # Log this many trailing lines from a failed build log, also
     LOG_DEBUG_LINES = 25
     # IGNORE_WARNING_REGEX is a regex for warnings to be ignored. Could be assigned later
@@ -112,9 +110,7 @@ class App:
         if (
             self.FULL_NAME_PLACEHOLDER in path
         ):  # to avoid recursion to the call to app_dir in the next line:
-            path = path.replace(
-                self.FULL_NAME_PLACEHOLDER, self.app_dir.replace(os.path.sep, '_')
-            )
+            path = path.replace(self.FULL_NAME_PLACEHOLDER, self.app_dir.replace(os.path.sep, '_'))
         wildcard_pos = path.find(self.WILDCARD_PLACEHOLDER)
         if wildcard_pos != -1:
             if self.config_name:
@@ -397,10 +393,7 @@ class CMakeApp(App):
         if cmake_vars:
             for key, val in cmake_vars.items():
                 args.append('-D{}={}'.format(key, val))
-            if (
-                'TEST_EXCLUDE_COMPONENTS' in cmake_vars
-                and 'TEST_COMPONENTS' not in cmake_vars
-            ):
+            if 'TEST_EXCLUDE_COMPONENTS' in cmake_vars and 'TEST_COMPONENTS' not in cmake_vars:
                 args.append('-DTESTS_ALL=1')
             if 'CONFIG_APP_BUILD_BOOTLOADER' in cmake_vars:
                 # In case if secure_boot is enabled then for bootloader build need to add `bootloader` cmd

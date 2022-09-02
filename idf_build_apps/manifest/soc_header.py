@@ -48,14 +48,10 @@ def parse_define(define_line):  # type: (str) -> 'ParserElement'
     name = Word(alphas, alphas + nums + '_')
 
     # Define value, either a hex, int or a string
-    hex_value = Combine(
-        Literal('0x') + Word(hexnums) + Optional(literal_suffix).suppress()
-    )('hex_value')
-    int_value = (
-        Word(nums)('int_value')
-        + ~Char('.')
-        + Optional(literal_suffix)('literal_suffix')
+    hex_value = Combine(Literal('0x') + Word(hexnums) + Optional(literal_suffix).suppress())(
+        'hex_value'
     )
+    int_value = Word(nums)('int_value') + ~Char('.') + Optional(literal_suffix)('literal_suffix')
     str_value = QuotedString('"')('str_value')
 
     # Remove optional parenthesis around values
