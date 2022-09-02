@@ -27,7 +27,7 @@ from ..constants import IDF_PATH, ALL_TARGETS
 def get_defines(header_path):  # type: (Path) -> list[str]
     defines = []
     logging.debug('Reading macros from %s...', header_path)
-    with open(header_path, 'r') as f:
+    with open(str(header_path), 'r') as f:
         output = f.read()
 
     for line in output.split('\n'):
@@ -38,7 +38,7 @@ def get_defines(header_path):  # type: (Path) -> list[str]
     return defines
 
 
-def parse_define(define_line):  # type: (str) -> type[ParserElement]
+def parse_define(define_line):  # type: (str) -> 'ParserElement'
 
     # Group for parsing literal suffix of a numbers, e.g. 100UL
     literal_symbol = Group(CaselessLiteral('L') | CaselessLiteral('U'))
@@ -78,7 +78,7 @@ class SocHeader(dict):
         else:
             soc_header_dict = {}
 
-        super().__init__(**soc_header_dict)
+        super(SocHeader, self).__init__(**soc_header_dict)
 
     @staticmethod
     def _parse_soc_header(target):  # type: (str) -> dict[str, any]

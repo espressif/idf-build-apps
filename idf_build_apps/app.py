@@ -424,10 +424,10 @@ class CMakeApp(App):
 
         old_idf_target_env = os.getenv('IDF_TARGET')
         os.environ['IDF_TARGET'] = self.target  # pass the cmake check
-        p = subprocess.Popen(
-            args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8'
-        )
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in p.stdout:
+            if isinstance(line, bytes):
+                line = line.decode('utf-8')
             if not self.build_log_path:
                 sys.stdout.write(line)
             log_file.write(line)

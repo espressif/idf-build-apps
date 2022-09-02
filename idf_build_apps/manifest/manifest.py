@@ -120,7 +120,7 @@ class FolderRule:
 
 class DefaultRule(FolderRule):
     def __init__(self, folder: Path):
-        super().__init__(folder)
+        super(DefaultRule, self).__init__(folder)
 
 
 class Manifest:
