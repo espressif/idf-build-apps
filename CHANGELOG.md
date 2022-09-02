@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Latest Changes
 
+## [0.2.1]
+
 ### Fixed
 
 - Fix `--format json` incompatible issue for IDF branches earlier than 5.0
