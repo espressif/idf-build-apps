@@ -13,7 +13,7 @@ from abc import abstractmethod
 from packaging.version import Version
 
 from . import LOGGER
-from .constants import IDF_PY, IDF_SIZE_PY, IDF_VERSION
+from .constants import IDF_PY, IDF_SIZE_PY, IDF_VERSION, PROJECT_DESCRIPTION_JSON
 from .manifest.manifest import FolderRule, Manifest
 from .utils import BuildError, dict_from_sdkconfig, find_first_match, rmdir
 
@@ -279,7 +279,10 @@ class App:
         return self.enable_test_targets(self.app_dir)
 
     @abstractmethod
-    def build(self):
+    def build(
+        self,
+        depends_on_components=None,  # type: list[str] | str | None
+    ):  # type: (...) -> bool
         pass
 
     def write_size_json(self):
@@ -374,10 +377,37 @@ class CMakeApp(App):
     # there is no equivalent for the project CMakeLists files. This seems to be the best option...
     CMAKE_PROJECT_LINE = r'include($ENV{IDF_PATH}/tools/cmake/project.cmake)'
 
-    def build(self):
+    def build(
+        self,
+        depends_on_components=None,  # type: list[str] | str | None
+    ):  # type: (...) -> bool
         cmake_vars = self.build_prepare()
 
-        args = [
+        if depends_on_components:
+            reconfigure_args = [
+                sys.executable,
+                str(IDF_PY),
+                '-B',
+                self.build_path,
+                '-C',
+                self.work_dir,
+                'reconfigure',
+            ]
+            subprocess.run(reconfigure_args, check=True)
+
+            with open(os.path.join(self.build_path, PROJECT_DESCRIPTION_JSON)) as fr:
+                build_components = set(json.load(fr)['build_components'])
+
+            if not set(depends_on_components).intersection(set(build_components)):
+                LOGGER.debug(
+                    'app %s depends on components: %s, which is not in depends_on_components list: %s',
+                    self.app_dir,
+                    build_components,
+                    depends_on_components,
+                )
+                return False
+
+        build_args = [
             sys.executable,
             str(IDF_PY),
             '-B',
@@ -388,21 +418,22 @@ class CMakeApp(App):
         ]
         if cmake_vars:
             for key, val in cmake_vars.items():
-                args.append('-D{}={}'.format(key, val))
+                build_args.append('-D{}={}'.format(key, val))
             if 'TEST_EXCLUDE_COMPONENTS' in cmake_vars and 'TEST_COMPONENTS' not in cmake_vars:
-                args.append('-DTESTS_ALL=1')
+                build_args.append('-DTESTS_ALL=1')
             if 'CONFIG_APP_BUILD_BOOTLOADER' in cmake_vars:
                 # In case if secure_boot is enabled then for bootloader build need to add `bootloader` cmd
-                args.append('bootloader')
-        args.append('build')
+                build_args.append('bootloader')
+        build_args.append('build')
 
         if self.verbose:
-            args.append('-v')
+            build_args.append('-v')
 
-        LOGGER.info('Running %s', ' '.join(args))
+        LOGGER.info('Running %s', ' '.join(build_args))
 
         if self.dry_run:
-            return
+            LOGGER.debug('Skipping... (dry run)')
+            return True
 
         if self.build_log_path:
             LOGGER.info('Writing build log to %s', self.build_log_path)
@@ -413,7 +444,7 @@ class CMakeApp(App):
 
         old_idf_target_env = os.getenv('IDF_TARGET')
         os.environ['IDF_TARGET'] = self.target  # pass the cmake check
-        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        p = subprocess.Popen(build_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in p.stdout:
             if isinstance(line, bytes):
                 line = line.decode('utf-8')
@@ -464,6 +495,8 @@ class CMakeApp(App):
 
         if has_unignored_warning:
             raise BuildError('Build succeeded with warnings')
+
+        return True
 
     @classmethod
     def is_app(cls, path):  # type: (str) -> bool
