@@ -7,15 +7,15 @@ from ast import literal_eval
 from pyparsing import (
     Keyword,
     Literal,
-    opAssoc,
     QuotedString,
+    Suppress,
     Word,
     alphas,
+    delimitedList,
     hexnums,
     infixNotation,
     nums,
-    delimitedList,
-    Suppress,
+    opAssoc,
 )
 
 from .soc_header import SOC_HEADERS

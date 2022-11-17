@@ -5,23 +5,23 @@ import logging
 from pathlib import Path
 
 from pyparsing import (
-    ParseException,
-    Group,
-    OneOrMore,
     CaselessLiteral,
-    alphas,
-    nums,
-    Optional,
-    Combine,
-    Literal,
-    Word,
-    QuotedString,
     Char,
-    hexnums,
+    Combine,
+    Group,
+    Literal,
+    OneOrMore,
+    Optional,
+    ParseException,
     ParserElement,
+    QuotedString,
+    Word,
+    alphas,
+    hexnums,
+    nums,
 )
 
-from ..constants import IDF_PATH, ALL_TARGETS
+from ..constants import ALL_TARGETS, IDF_PATH
 
 
 def get_defines(header_path):  # type: (Path) -> list[str]
@@ -48,18 +48,12 @@ def parse_define(define_line):  # type: (str) -> 'ParserElement'
     name = Word(alphas, alphas + nums + '_')
 
     # Define value, either a hex, int or a string
-    hex_value = Combine(Literal('0x') + Word(hexnums) + Optional(literal_suffix).suppress())(
-        'hex_value'
-    )
+    hex_value = Combine(Literal('0x') + Word(hexnums) + Optional(literal_suffix).suppress())('hex_value')
     int_value = Word(nums)('int_value') + ~Char('.') + Optional(literal_suffix)('literal_suffix')
     str_value = QuotedString('"')('str_value')
 
     # Remove optional parenthesis around values
-    value = (
-        Optional('(').suppress()
-        + (hex_value ^ int_value ^ str_value)('value')
-        + Optional(')').suppress()
-    )
+    value = Optional('(').suppress() + (hex_value ^ int_value ^ str_value)('value') + Optional(')').suppress()
 
     expr = '#define' + Optional(name)('name') + Optional(value)
     res = expr.parseString(define_line)

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from idf_build_apps.utils import rmdir, get_parallel_start_stop
+from idf_build_apps.utils import get_parallel_start_stop, rmdir
 
 
 @pytest.mark.parametrize(

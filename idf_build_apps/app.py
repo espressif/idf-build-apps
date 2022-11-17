@@ -14,11 +14,11 @@ from packaging.version import Version
 
 from . import LOGGER
 from .constants import IDF_PY, IDF_SIZE_PY, IDF_VERSION
-from .manifest.manifest import Manifest, FolderRule
-from .utils import BuildError, rmdir, find_first_match, dict_from_sdkconfig
+from .manifest.manifest import FolderRule, Manifest
+from .utils import BuildError, dict_from_sdkconfig, find_first_match, rmdir
 
 try:
-    from typing import TextIO, Pattern
+    from typing import Pattern, TextIO
 except ImportError:
     pass
 
@@ -107,9 +107,7 @@ class App:
             path = path.replace(self.INDEX_PLACEHOLDER, str(self.index))
         path = path.replace(self.TARGET_PLACEHOLDER, self.target)
         path = path.replace(self.NAME_PLACEHOLDER, self.name)
-        if (
-            self.FULL_NAME_PLACEHOLDER in path
-        ):  # to avoid recursion to the call to app_dir in the next line:
+        if self.FULL_NAME_PLACEHOLDER in path:  # to avoid recursion to the call to app_dir in the next line:
             path = path.replace(self.FULL_NAME_PLACEHOLDER, self.app_dir.replace(os.path.sep, '_'))
         wildcard_pos = path.find(self.WILDCARD_PLACEHOLDER)
         if wildcard_pos != -1:
@@ -346,9 +344,7 @@ class App:
             }
         )
 
-    def is_error_or_warning(
-        self, line
-    ):  # type: (str) -> tuple[bool, bool]  # is_error_or_warning, is_ignored
+    def is_error_or_warning(self, line):  # type: (str) -> tuple[bool, bool]  # is_error_or_warning, is_ignored
         if not self.LOG_ERROR_WARNING_REGEX.search(line):
             return False, False
 

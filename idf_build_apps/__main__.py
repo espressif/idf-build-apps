@@ -4,9 +4,9 @@
 import argparse
 import sys
 
-from .main import find_apps, build_apps
-from .utils import setup_logging
 from .constants import ALL_TARGETS
+from .main import build_apps, find_apps
+from .utils import setup_logging
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

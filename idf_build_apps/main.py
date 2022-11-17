@@ -9,8 +9,8 @@ from . import LOGGER
 from .app import App
 from .constants import ALL_TARGETS
 from .finder import _find_apps
-from .manifest.manifest import Manifest, FolderRule
-from .utils import get_parallel_start_stop, BuildError
+from .manifest.manifest import FolderRule, Manifest
+from .utils import BuildError, get_parallel_start_stop
 
 try:
     from typing import TextIO

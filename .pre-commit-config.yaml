@@ -15,8 +15,24 @@ repos:
         args:
           - --license-filepath
           - license_header.txt        # defaults to: LICENSE.txt
+  - repo: https://github.com/pycqa/isort
+    rev: 5.10.1
+    hooks:
+      - id: isort
+        args: [ "--profile", "black", "--filter-files" ]
   - repo: https://github.com/psf/black
-    rev: 22.8.0
+    rev: 22.10.0
     hooks:
       - id: black
-        args: ['--skip-string-normalization', '-l', '100']
+        args: ['--skip-string-normalization', '-l', '120']
+  - repo: https://github.com/pycqa/flake8
+    rev: 5.0.4
+    hooks:
+      - id: flake8
+        # E1/W1 Indentation
+        # E2/W2 Whitespace
+        # E3/W3 Blank line
+        # E4/W4 Import
+        # E5/W5 Line Length
+        # E722 do not use bare 'except' (temporary workaround)
+        args: ['--ignore', 'E1,W1,E2,W2,E3,W3,E4,W4,E5,W5,E722']

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import LOGGER
 from .app import App, CMakeApp
-from .utils import ConfigRule, dict_from_sdkconfig, config_rules_from_str
+from .utils import ConfigRule, config_rules_from_str, dict_from_sdkconfig
 
 
 def _get_apps_from_path(
