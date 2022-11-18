@@ -1,5 +1,5 @@
 default:
-  image: python:3.10-bullseye
+  image: python:3-slim
   tags: [build]
 
 variables:
@@ -85,6 +85,15 @@ build-hello-world-5.0-or-later:
       -p examples/get-started/hello_world
       -t esp32
       --size-file size_info.json
+
+build-python-package:
+  stage: deploy
+  except:
+    refs:
+      - tags
+  script:
+    - pip install flit
+    - flit build
 
 publish-gitlab:
   stage: deploy
