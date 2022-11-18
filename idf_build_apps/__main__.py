@@ -4,9 +4,9 @@
 import argparse
 import sys
 
-from .main import find_apps, build_apps
-from .utils import setup_logging
 from .constants import ALL_TARGETS
+from .main import build_apps, find_apps
+from .utils import setup_logging
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -163,6 +163,12 @@ if __name__ == '__main__':
         action='store_true',
         help='Copy the sdkconfig file to the build directory.',
     )
+    build_parser.add_argument(
+        '--depends-on-components',
+        nargs='*',
+        default=[],
+        help='space-separated components list, app would only be built if depends on any of the specified components',
+    )
 
     args = parser.parse_args()
     setup_logging(args.verbose, args.log_file)
@@ -209,7 +215,7 @@ if __name__ == '__main__':
         for app in apps:
             app.preserve = False
 
-    exit_code = build_apps(
+    exit_code, _ = build_apps(
         apps,
         build_verbose=args.build_verbose,
         parallel_count=args.parallel_count,
@@ -221,6 +227,7 @@ if __name__ == '__main__':
         ignore_warning_strs=args.ignore_warning_str,
         ignore_warning_file=args.ignore_warning_file,
         copy_sdkconfig=args.copy_sdkconfig,
+        depends_on_components=args.depends_on_components,
     )
 
     sys.exit(exit_code)

@@ -5,8 +5,8 @@ from pathlib import Path
 
 import yaml
 
-from .if_parser import BOOL_EXPR, BoolExpr
 from ..constants import ALL_TARGETS, SUPPORTED_TARGETS
+from .if_parser import BOOL_EXPR, BoolExpr
 
 
 class InvalidManifestError(ValueError):

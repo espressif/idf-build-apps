@@ -1,6 +1,5 @@
 # SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-import logging
 import os
 import re
 import shutil
@@ -9,31 +8,31 @@ from . import LOGGER
 from .app import App
 from .constants import ALL_TARGETS
 from .finder import _find_apps
-from .manifest.manifest import Manifest, FolderRule
-from .utils import get_parallel_start_stop, BuildError
+from .manifest.manifest import FolderRule, Manifest
+from .utils import BuildError, get_parallel_start_stop
 
 try:
-    from typing import TextIO
+    import typing as t
 except ImportError:
     pass
 
 
 def find_apps(
-    paths,
-    target,
-    build_system='cmake',
-    recursive=False,
-    exclude_list=None,
-    work_dir=None,
-    build_dir='build',
-    config_rules_str=None,
-    build_log_path=None,
-    size_json_path=None,
-    check_warnings=False,
-    preserve=True,
-    manifest_files=None,
-    default_build_targets=None,
-):  # type: (list[str] | str, str, str, bool, list[str] | None, str | None, str, list[str] | None, str | None, str | None, bool, bool, list[str] | str | None, list[str] | str | None) -> list[App]
+    paths,  # type: (list[str] | str)
+    target,  # type: str
+    build_system='cmake',  # type: str
+    recursive=False,  # type: bool
+    exclude_list=None,  # type: list[str] | None
+    work_dir=None,  # type: str | None
+    build_dir='build',  # type: str
+    config_rules_str=None,  # type: list[str] | None
+    build_log_path=None,  # type: str | None
+    size_json_path=None,  # type: str | None
+    check_warnings=False,  # type: bool
+    preserve=True,  # type: bool
+    manifest_files=None,  # type: list[str] | str | None
+    default_build_targets=None,  # type: list[str] | str | None
+):  # type: (...) -> list[App]
     if default_build_targets:
         if isinstance(default_build_targets, str):
             default_build_targets = [default_build_targets]
@@ -86,18 +85,19 @@ def find_apps(
 
 
 def build_apps(
-    apps,
-    build_verbose=False,
-    parallel_count=1,
-    parallel_index=1,
-    dry_run=False,
-    keep_going=False,
-    collect_size_info=None,
-    collect_app_info=None,
-    ignore_warning_strs=None,
-    ignore_warning_file=None,
-    copy_sdkconfig=False,
-):  # type: (list[App], bool, int, int, bool, bool, TextIO | None, TextIO | None, list[str] | None, TextIO | None, bool) -> int
+    apps,  # type: list[App]
+    build_verbose=False,  # type: bool
+    parallel_count=1,  # type: int
+    parallel_index=1,  # type: int
+    dry_run=False,  # type: bool
+    keep_going=False,  # type: bool
+    collect_size_info=None,  # type: t.TextIO | None
+    collect_app_info=None,  # type: t.TextIO | None
+    ignore_warning_strs=None,  # type: list[str] | None
+    ignore_warning_file=None,  # type: t.TextIO | None
+    copy_sdkconfig=False,  # type: bool
+    depends_on_components=None,  # type: list[str] | str | None
+):  # type: (...) -> t.Tuple[int, list[App]]
     ignore_warnings_regexes = []
     if ignore_warning_strs:
         for s in ignore_warning_strs:
@@ -120,6 +120,7 @@ def build_apps(
     else:
         LOGGER.info('  parallel count is too large. build nothing...')
 
+    actual_built_apps = []
     for i, app in enumerate(apps):
         index = i + 1  # we use 1-based
         if index < start or index > stop:
@@ -131,16 +132,20 @@ def build_apps(
         app.verbose = build_verbose
 
         LOGGER.debug('=> Building app %s: %s', index, repr(app))
+        is_built = False
         try:
-            app.build()
+            is_built = app.build(depends_on_components)
         except BuildError as e:
             LOGGER.error(str(e))
             if keep_going:
                 failed_apps.append(app)
                 exit_code = 1
             else:
-                return 1
+                return 1, actual_built_apps
         finally:
+            if is_built:
+                actual_built_apps.append(app)
+
             if collect_app_info:
                 collect_app_info.write(app.to_json() + '\n')
 
@@ -165,6 +170,6 @@ def build_apps(
     if failed_apps:
         LOGGER.error('Build failed for the following apps:')
         for app in failed_apps:
-            logging.error('  %s', app)
+            LOGGER.error('  %s', app)
 
-    return exit_code
+    return exit_code, actual_built_apps

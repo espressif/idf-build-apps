@@ -83,17 +83,13 @@ def setup_logging(verbose=0, log_file=None):  # type: (int, str | None) -> None
         stream = sys.stderr
     handler = logging.StreamHandler(stream)
     handler.setLevel(level)
-    handler.setFormatter(
-        logging.Formatter('%(asctime)s %(levelname)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    )
+    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
 
     LOGGER.handlers = [handler]
     LOGGER.propagate = False
 
 
-def get_parallel_start_stop(
-    total, parallel_count, parallel_index
-):  # type: (int, int, int) -> (int, int)
+def get_parallel_start_stop(total, parallel_count, parallel_index):  # type: (int, int, int) -> (int, int)
     """
     Calculate the start and stop indices for a parallel task (1-based).
 

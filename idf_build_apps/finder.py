@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import LOGGER
 from .app import App, CMakeApp
-from .utils import ConfigRule, dict_from_sdkconfig, config_rules_from_str
+from .utils import ConfigRule, config_rules_from_str, dict_from_sdkconfig
 
 
 def _get_apps_from_path(
@@ -138,20 +138,19 @@ def _get_apps_from_path(
 
 
 def _find_apps(
-    path,
-    target,
-    build_system='cmake',
-    recursive=False,
-    exclude_list=None,
-    work_dir=None,
-    build_dir='build',
-    config_rules_str=None,
-    build_log_path=None,
-    size_json_path=None,
-    check_warnings=False,
-    preserve=True,
-):
-    # type: (str, str, str, bool, list[str], str | None, str, list[str] | None, str | None, str | None, bool, bool) -> list[App]
+    path,  # type: str
+    target,  # type: str
+    build_system='cmake',  # type: str
+    recursive=False,  # type: bool
+    exclude_list=None,  # type: list[str] | None
+    work_dir=None,  # type: str | None
+    build_dir='build',  # type: str
+    config_rules_str=None,  # type: list[str] | None
+    build_log_path=None,  # type: str | None
+    size_json_path=None,  # type: str | None
+    check_warnings=False,  # type: bool
+    preserve=True,  # type: bool
+):  # type: (...) -> list[App]
     """
     Find app directories in path (possibly recursively), which contain apps for the given build system, compatible
     with the given target.
