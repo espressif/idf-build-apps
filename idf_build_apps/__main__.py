@@ -216,7 +216,7 @@ if __name__ == '__main__':
         for app in apps:
             app.preserve = False
 
-    exit_code, _ = build_apps(
+    res = build_apps(
         apps,
         build_verbose=args.build_verbose,
         parallel_count=args.parallel_count,
@@ -231,4 +231,7 @@ if __name__ == '__main__':
         depends_on_components=args.depends_on_components,
     )
 
-    sys.exit(exit_code)
+    if args.depends_on_components:
+        sys.exit(res[0])
+    else:
+        sys.exit(res)

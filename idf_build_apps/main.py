@@ -102,7 +102,7 @@ def build_apps(
     ignore_warning_file=None,  # type: t.TextIO | None
     copy_sdkconfig=False,  # type: bool
     depends_on_components=None,  # type: list[str] | str | None
-):  # type: (...) -> t.Tuple[int, list[App]]
+):  # type: (...) -> t.Tuple[int, list[App]] | int
     ignore_warnings_regexes = []
     if ignore_warning_strs:
         for s in ignore_warning_strs:
@@ -146,7 +146,10 @@ def build_apps(
                 failed_apps.append(app)
                 exit_code = 1
             else:
-                return 1, actual_built_apps
+                if depends_on_components:
+                    return 1, actual_built_apps
+                else:
+                    return 1
         finally:
             if is_built:
                 actual_built_apps.append(app)
@@ -177,4 +180,7 @@ def build_apps(
         for app in failed_apps:
             LOGGER.error('  %s', app)
 
-    return exit_code, actual_built_apps
+    if depends_on_components:
+        return exit_code, actual_built_apps
+    else:
+        return exit_code
