@@ -32,6 +32,7 @@ def find_apps(
     preserve=True,  # type: bool
     manifest_files=None,  # type: list[str] | str | None
     default_build_targets=None,  # type: list[str] | str | None
+    depends_on_components=None,  # type: list[str] | str | None
 ):  # type: (...) -> list[App]
     if default_build_targets:
         if isinstance(default_build_targets, str):
@@ -60,6 +61,9 @@ def find_apps(
     else:
         targets = [target]
 
+    if isinstance(depends_on_components, str):
+        depends_on_components = [depends_on_components]
+
     for target in targets:
         for path in paths:
             apps.extend(
@@ -76,6 +80,7 @@ def find_apps(
                     size_json_path=size_json_path,
                     check_warnings=check_warnings,
                     preserve=preserve,
+                    depends_on_components=depends_on_components,
                 )
             )
     apps.sort()
@@ -97,7 +102,7 @@ def build_apps(
     ignore_warning_file=None,  # type: t.TextIO | None
     copy_sdkconfig=False,  # type: bool
     depends_on_components=None,  # type: list[str] | str | None
-):  # type: (...) -> t.Tuple[int, list[App]]
+):  # type: (...) -> t.Tuple[int, list[App]] | int
     ignore_warnings_regexes = []
     if ignore_warning_strs:
         for s in ignore_warning_strs:
@@ -141,7 +146,10 @@ def build_apps(
                 failed_apps.append(app)
                 exit_code = 1
             else:
-                return 1, actual_built_apps
+                if depends_on_components:
+                    return 1, actual_built_apps
+                else:
+                    return 1
         finally:
             if is_built:
                 actual_built_apps.append(app)
@@ -172,4 +180,7 @@ def build_apps(
         for app in failed_apps:
             LOGGER.error('  %s', app)
 
-    return exit_code, actual_built_apps
+    if depends_on_components:
+        return exit_code, actual_built_apps
+    else:
+        return exit_code

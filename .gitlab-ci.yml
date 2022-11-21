@@ -1,5 +1,5 @@
 default:
-  image: python:3-slim
+  image: $CI_DOCKER_REGISTRY/esp-idf-pre-commit:1
   tags: [build]
 
 variables:
@@ -77,6 +77,12 @@ build-hello-world-5.0-or-later:
         IDF_RELEASE_BRANCH: release/v5.0
       - IMAGE: $CI_DOCKER_REGISTRY/esp-env-v5.1:1
         IDF_RELEASE_BRANCH: master
+  artifacts:
+    paths:
+      - esp-idf/examples/get-started/hello_world/build
+      - report.xml
+    expire_in: 4 days
+    when: on_failure
   script:
     - bash install.sh
     - . export.sh
@@ -85,6 +91,10 @@ build-hello-world-5.0-or-later:
       -p examples/get-started/hello_world
       -t esp32
       --size-file size_info.json
+    # also run unit-test
+    - cd $CI_PROJECT_DIR
+    - pip install pytest
+    - pytest --junit-xml report.xml
 
 build-python-package:
   stage: deploy

@@ -94,6 +94,12 @@ if __name__ == '__main__':
         '--default-build-targets',
         help='comma-separated target list. IDF supported targets would be used if this option is not set',
     )
+    common_args.add_argument(
+        '--depends-on-components',
+        nargs='*',
+        default=[],
+        help='space-separated components list, app would only be built if depends on any of the specified components',
+    )
 
     find_parser = actions.add_parser('find', parents=[common_args])
     find_parser.add_argument(
@@ -163,12 +169,6 @@ if __name__ == '__main__':
         action='store_true',
         help='Copy the sdkconfig file to the build directory.',
     )
-    build_parser.add_argument(
-        '--depends-on-components',
-        nargs='*',
-        default=[],
-        help='space-separated components list, app would only be built if depends on any of the specified components',
-    )
 
     args = parser.parse_args()
     setup_logging(args.verbose, args.log_file)
@@ -198,6 +198,7 @@ if __name__ == '__main__':
         check_warnings=args.check_warnings,
         manifest_files=args.manifest_file,
         default_build_targets=default_build_targets,
+        depends_on_components=args.depends_on_components,
     )
 
     if args.action == 'find':
@@ -215,7 +216,7 @@ if __name__ == '__main__':
         for app in apps:
             app.preserve = False
 
-    exit_code, _ = build_apps(
+    res = build_apps(
         apps,
         build_verbose=args.build_verbose,
         parallel_count=args.parallel_count,
@@ -230,4 +231,7 @@ if __name__ == '__main__':
         depends_on_components=args.depends_on_components,
     )
 
-    sys.exit(exit_code)
+    if args.depends_on_components:
+        sys.exit(res[0])
+    else:
+        sys.exit(res)
