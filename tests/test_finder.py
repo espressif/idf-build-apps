@@ -25,7 +25,59 @@ def test_finder(tmpdir):
                 )
             )
         )
-
     filtered_apps = find_apps(test_dir, 'esp32', recursive=True, manifest_files=yaml_file)
     assert not filtered_apps
     assert filtered_apps != apps
+
+
+def test_finder_with_requires_and_depends_on_components(tmpdir):
+    test_dir = str(IDF_PATH / 'examples')
+    apps = find_apps(test_dir, 'esp32', recursive=True)
+    assert apps
+
+    yaml_file = str(tmpdir / 'test.yml')
+    with open(yaml_file, 'w') as fw:
+        fw.write(
+            inspect.cleandoc(
+                '''
+            {}:
+                requires_components:
+                    - foo
+                    - bar
+        '''.format(
+                    test_dir
+                )
+            )
+        )
+    filtered_apps = find_apps(
+        test_dir, 'esp32', recursive=True, manifest_files=yaml_file, depends_on_components=['baz']
+    )
+    assert not filtered_apps
+
+    filtered_apps = find_apps(
+        test_dir, 'esp32', recursive=True, manifest_files=yaml_file, depends_on_components=['bar']
+    )
+    assert filtered_apps == apps
+
+
+def test_finder_with_requires_without_depends_on_components(tmpdir):
+    test_dir = str(IDF_PATH / 'examples')
+    apps = find_apps(test_dir, 'esp32', recursive=True)
+    assert apps
+
+    yaml_file = str(tmpdir / 'test.yml')
+    with open(yaml_file, 'w') as fw:
+        fw.write(
+            inspect.cleandoc(
+                '''
+            {}:
+                requires_components:
+                    - foo
+                    - bar
+        '''.format(
+                    test_dir
+                )
+            )
+        )
+    filtered_apps = find_apps(test_dir, 'esp32', recursive=True, manifest_files=yaml_file)
+    assert filtered_apps == apps
