@@ -96,6 +96,23 @@ class App:
         else:
             return self.config_name < other.config_name
 
+    def __eq__(self, other):
+        for props in [
+            'app_dir',
+            'work_dir',
+            'build_dir',
+            'size_json_path',
+            'sdkconfig_path',
+            'config_name',
+            'target',
+            'check_warnings',
+            'preserve',
+        ]:
+            if getattr(self, props) != getattr(other, props):
+                return False
+
+        return True
+
     def _expand(self, path):  # type: (str) -> str
         """
         Internal method, expands any of the placeholders in {app,work,build} paths.
