@@ -270,6 +270,13 @@ class App:
 
         return []
 
+    @classmethod
+    def requires_components(cls, path):  # type: (str) -> list[str]
+        if cls.MANIFEST:
+            return cls.MANIFEST.requires_components(path)
+
+        return []
+
     @property
     def supported_targets(self):
         return self.enable_build_targets(self.app_dir)

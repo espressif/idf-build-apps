@@ -31,11 +31,12 @@ class FolderRule:
 
     def __init__(
         self,
-        folder,
-        enable=None,
-        disable=None,
-        disable_test=None,
-    ):  # type: (Path, list[dict[str, str]] | None, list[dict[str, str]] | None, list[dict[str, str]] | None) -> None
+        folder,  # type: Path
+        enable=None,  # type: list[dict[str, str]] | None
+        disable=None,  # type: list[dict[str, str]] | None
+        disable_test=None,  # type: list[dict[str, str]] | None
+        requires_components=None,  # type: list[str] | None
+    ):  # type: (...) -> None
         self.folder = folder.resolve()
 
         for group in [enable, disable, disable_test]:
@@ -47,6 +48,7 @@ class FolderRule:
         self.enable = [IfClause(**clause) for clause in enable] if enable else []
         self.disable = [IfClause(**clause) for clause in disable] if disable else []
         self.disable_test = [IfClause(**clause) for clause in disable_test] if disable_test else []
+        self.requires_components = requires_components or []
 
         # cache attrs
         self._enable_build_targets = None
@@ -148,3 +150,6 @@ class Manifest:
 
     def enable_test_targets(self, folder):  # type: (str) -> list[str]
         return self._most_suitable_rule(folder).enable_test_targets
+
+    def requires_components(self, folder):  # type: (str) -> list[str]
+        return self._most_suitable_rule(folder).requires_components

@@ -11,17 +11,18 @@ from .utils import ConfigRule, config_rules_from_str, dict_from_sdkconfig
 
 
 def _get_apps_from_path(
-    path,
-    target,
-    build_system='cmake',
-    work_dir=None,
-    build_dir='build',
-    config_rules=None,
-    build_log_path=None,
-    size_json_path=None,
-    check_warnings=False,
-    preserve=True,
-):  # type: (str, str, str, str, str, list[ConfigRule], str|None, str|None, bool,  bool) -> list[App]
+    path,  # type: str
+    target,  # type: str
+    build_system='cmake',  # type: str
+    work_dir=None,  # type: str | None
+    build_dir='build',  # type: str
+    config_rules=None,  # type: list[ConfigRule] | None
+    build_log_path=None,  # type: str | None
+    size_json_path=None,  # type: str | None
+    check_warnings=False,  # type: bool
+    preserve=True,  # type: bool
+    depends_on_components=None,  # type: list[str] | None
+):  # type: (...) -> list[App]
     """
     Get the list of buildable apps under the given path.
 
@@ -54,6 +55,17 @@ def _get_apps_from_path(
     if target not in supported_targets:
         LOGGER.debug('Skipping. %s only supports targets: %s', path, ', '.join(supported_targets))
         return []
+
+    requires_components = app_cls.requires_components(path)
+    if requires_components and depends_on_components:
+        if not set(requires_components).intersection(set(depends_on_components)):
+            LOGGER.debug(
+                'Skipping. %s requires components: %s, but you passed "--depends-on-components %s"',
+                path,
+                ', '.join(requires_components),
+                ', '.join(depends_on_components),
+            )
+            return []
 
     if not config_rules:
         config_rules = []
@@ -150,6 +162,7 @@ def _find_apps(
     size_json_path=None,  # type: str | None
     check_warnings=False,  # type: bool
     preserve=True,  # type: bool
+    depends_on_components=None,  # type: list[str] | None
 ):  # type: (...) -> list[App]
     """
     Find app directories in path (possibly recursively), which contain apps for the given build system, compatible
@@ -169,6 +182,7 @@ def _find_apps(
     :param size_json_path: path of the size.json file. May contain placeholders.
     :param check_warnings: whether to check for warnings in the build log
     :param preserve: determine if the built binary will be uploaded as artifacts.
+    :param depends_on_components: one app would be found only if it requires any of the specified components
     :return: list of apps found
     """
     exclude_list = exclude_list or []
@@ -196,6 +210,7 @@ def _find_apps(
             size_json_path=size_json_path,
             check_warnings=check_warnings,
             preserve=preserve,
+            depends_on_components=depends_on_components,
         )
 
     # The remaining part is for recursive == True
@@ -223,6 +238,7 @@ def _find_apps(
             size_json_path=size_json_path,
             check_warnings=check_warnings,
             preserve=preserve,
+            depends_on_components=depends_on_components,
         )
         if _found_apps:  # root has at least one app
             LOGGER.debug('Stop iteration sub dirs of %s since it has apps', root)

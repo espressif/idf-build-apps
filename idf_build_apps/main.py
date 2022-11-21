@@ -32,6 +32,7 @@ def find_apps(
     preserve=True,  # type: bool
     manifest_files=None,  # type: list[str] | str | None
     default_build_targets=None,  # type: list[str] | str | None
+    depends_on_components=None,  # type: list[str] | str | None
 ):  # type: (...) -> list[App]
     if default_build_targets:
         if isinstance(default_build_targets, str):
@@ -60,6 +61,9 @@ def find_apps(
     else:
         targets = [target]
 
+    if isinstance(depends_on_components, str):
+        depends_on_components = [depends_on_components]
+
     for target in targets:
         for path in paths:
             apps.extend(
@@ -76,6 +80,7 @@ def find_apps(
                     size_json_path=size_json_path,
                     check_warnings=check_warnings,
                     preserve=preserve,
+                    depends_on_components=depends_on_components,
                 )
             )
     apps.sort()
