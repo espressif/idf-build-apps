@@ -1,5 +1,5 @@
 default:
-  image: python:3-slim
+  image: $CI_DOCKER_REGISTRY/esp-idf-pre-commit:1
   tags: [build]
 
 variables:
