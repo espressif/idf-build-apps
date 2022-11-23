@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Latest Changes
 
+### Added
+
+- `find_apps`, `build_apps` support `--depends-on-components`, will only find or build apps that require specified components.
+- manifest file support `requires_components`
+
 ## [0.2.1]
 
 ### Fixed
