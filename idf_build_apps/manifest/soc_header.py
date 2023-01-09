@@ -38,7 +38,7 @@ def get_defines(header_path):  # type: (Path) -> list[str]
     return defines
 
 
-def parse_define(define_line):  # type: (str) -> 'ParserElement'
+def parse_define(define_line):  # type: (str) -> ParserElement
 
     # Group for parsing literal suffix of a numbers, e.g. 100UL
     literal_symbol = Group(CaselessLiteral('L') | CaselessLiteral('U'))
