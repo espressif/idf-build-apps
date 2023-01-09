@@ -2,12 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
-## Latest Changes
+## [0.3.0]
 
 ### Added
 
 - `find_apps`, `build_apps` support `--depends-on-components`, will only find or build apps that require specified components.
 - manifest file support `requires_components`
+
+### Fixed
+
+-  Wrong `App.verified_targets` when `CONFIG_IDF_TARGET` set in app's `sdkconfig.defaults` file.
 
 ## [0.2.1]
 
