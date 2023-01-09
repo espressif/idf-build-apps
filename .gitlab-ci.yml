@@ -63,6 +63,7 @@ build-hello-world-4.4:
     # fix "The following Python requirements are not satisfied:" issue
     - pip install "jinja2<3.1"
     - pip install "itsdangerous<2.1"
+    - pip install "bitstring>=3.1.6,<4"
     - python -m idf_build_apps build -vv
       -p examples/get-started/hello_world
       -t esp32
