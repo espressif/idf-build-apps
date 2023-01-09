@@ -50,10 +50,6 @@ class FolderRule:
         self.disable_test = [IfClause(**clause) for clause in disable_test] if disable_test else []
         self.requires_components = requires_components or []
 
-        # cache attrs
-        self._enable_build_targets = None
-        self._enable_test_targets = None
-
     def __hash__(self):
         return hash(self.folder)
 
@@ -78,8 +74,8 @@ class FolderRule:
 
         return res
 
-    def _enable_test(self, target):  # type: (str) -> bool
-        res = target in self.enable_build_targets
+    def _enable_test(self, target, default_sdkconfig_target=None):  # type: (str, str | None) -> bool
+        res = target in self.enable_build_targets(default_sdkconfig_target)
 
         if self.disable or self.disable_test:
             for clause in self.disable + self.disable_test:
@@ -89,31 +85,24 @@ class FolderRule:
 
         return res
 
-    @property
-    def enable_build_targets(self):
-        if self._enable_build_targets is not None:
-            return self._enable_build_targets
-
+    def enable_build_targets(self, default_sdkconfig_target=None):  # type: (str | None) -> list[str]
         res = []
         for target in ALL_TARGETS:
             if self._enable_build(target):
                 res.append(target)
 
-        self._enable_build_targets = sorted(res)
-        return self._enable_build_targets
+        if default_sdkconfig_target and res != [default_sdkconfig_target]:
+            res = [default_sdkconfig_target]
 
-    @property
-    def enable_test_targets(self):
-        if self._enable_test_targets is not None:
-            return self._enable_test_targets
+        return sorted(res)
 
+    def enable_test_targets(self, default_sdkconfig_target=None):  # type: (str | None) -> list[str]
         res = []
         for target in ALL_TARGETS:
-            if self._enable_test(target):
+            if self._enable_test(target, default_sdkconfig_target):
                 res.append(target)
 
-        self._enable_test_targets = sorted(res)
-        return self._enable_test_targets
+        return sorted(res)
 
 
 class DefaultRule(FolderRule):
@@ -145,11 +134,11 @@ class Manifest:
 
         return DefaultRule(folder)
 
-    def enable_build_targets(self, folder):  # type: (str) -> list[str]
-        return self._most_suitable_rule(folder).enable_build_targets
+    def enable_build_targets(self, folder, default_sdkconfig_target=None):  # type: (str, str | None) -> list[str]
+        return self._most_suitable_rule(folder).enable_build_targets(default_sdkconfig_target)
 
-    def enable_test_targets(self, folder):  # type: (str) -> list[str]
-        return self._most_suitable_rule(folder).enable_test_targets
+    def enable_test_targets(self, folder, default_sdkconfig_target=None):  # type: (str, str | None) -> list[str]
+        return self._most_suitable_rule(folder).enable_test_targets(default_sdkconfig_target)
 
     def requires_components(self, folder):  # type: (str) -> list[str]
         return self._most_suitable_rule(folder).requires_components

@@ -13,7 +13,13 @@ from abc import abstractmethod
 from packaging.version import Version
 
 from . import LOGGER
-from .constants import IDF_PY, IDF_SIZE_PY, IDF_VERSION, PROJECT_DESCRIPTION_JSON
+from .constants import (
+    DEFAULT_SDKCONFIG,
+    IDF_PY,
+    IDF_SIZE_PY,
+    IDF_VERSION,
+    PROJECT_DESCRIPTION_JSON,
+)
 from .manifest.manifest import FolderRule, Manifest
 from .utils import BuildError, dict_from_sdkconfig, find_first_match, rmdir
 
@@ -112,6 +118,23 @@ class App:
                 return False
 
         return True
+
+    def __hash__(self):
+        return hash(
+            (
+                self._app_dir,
+                self._work_dir,
+                self._build_dir,
+                self._build_log_path,
+                self._size_json_path,
+                self.name,
+                self.sdkconfig_path,
+                self.config_name,
+                self.target,
+                self.check_warnings,
+                self.preserve,
+            )
+        )
 
     def _expand(self, path):  # type: (str) -> str
         """
@@ -254,36 +277,41 @@ class App:
         return cmake_vars
 
     @classmethod
-    def enable_build_targets(cls, path):  # type: (str) -> list[str]
-        if cls.MANIFEST:
-            res = cls.MANIFEST.enable_build_targets(path)
-        else:
-            res = FolderRule.DEFAULT_BUILD_TARGETS
-
+    def _get_default_sdkconfig_target(cls, path):  # type: (str) -> str | None
         # check if there's CONFIG_IDF_TARGET in sdkconfig.defaults
-        default_sdkconfig = os.path.join(path, 'sdkconfig.defaults')
-        default_sdkconfig_target = None
+        default_sdkconfig_target = None  # type: str | None
+        default_sdkconfig = os.path.join(path, DEFAULT_SDKCONFIG)
         if os.path.isfile(default_sdkconfig):
             sdkconfig_dict = dict_from_sdkconfig(default_sdkconfig)
             if 'CONFIG_IDF_TARGET' in sdkconfig_dict:
                 default_sdkconfig_target = sdkconfig_dict['CONFIG_IDF_TARGET']
-
-        if default_sdkconfig_target:
-            if len(res) > 1 or res != default_sdkconfig_target:
-                LOGGER.warning(
+                LOGGER.debug(
                     'CONFIG_IDF_TARGET is set in %s. Set enable build targets to %s only.',
                     default_sdkconfig,
                     default_sdkconfig_target,
                 )
 
-            res = [default_sdkconfig_target]
+        return default_sdkconfig_target
+
+    @classmethod
+    def enable_build_targets(cls, path):  # type: (str) -> list[str]
+        default_sdkconfig_target = cls._get_default_sdkconfig_target(path)
+        if cls.MANIFEST:
+            res = cls.MANIFEST.enable_build_targets(path, default_sdkconfig_target)
+        else:
+            if default_sdkconfig_target:
+                res = [default_sdkconfig_target]
+            else:
+                res = FolderRule.DEFAULT_BUILD_TARGETS
 
         return res
 
     @classmethod
     def enable_test_targets(cls, path):  # type: (str) -> list[str]
+        default_sdkconfig_target = cls._get_default_sdkconfig_target(path)
+
         if cls.MANIFEST:
-            return cls.MANIFEST.enable_test_targets(path)
+            return cls.MANIFEST.enable_test_targets(path, default_sdkconfig_target)
 
         return []
 
