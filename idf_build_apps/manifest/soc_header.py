@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -39,7 +39,6 @@ def get_defines(header_path):  # type: (Path) -> list[str]
 
 
 def parse_define(define_line):  # type: (str) -> ParserElement
-
     # Group for parsing literal suffix of a numbers, e.g. 100UL
     literal_symbol = Group(CaselessLiteral('L') | CaselessLiteral('U'))
     literal_suffix = OneOrMore(literal_symbol)
