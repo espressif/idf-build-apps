@@ -5,13 +5,23 @@ import importlib
 import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 from packaging.version import Version
 
-_idf_env = os.getenv('IDF_PATH', '')
+_BUILDING_DOCS = bool(os.getenv('BUILDING_DOCS'))
+if _BUILDING_DOCS:
+    print('Building Docs... Faking lots of constant values')
+
+
+if _BUILDING_DOCS:
+    _idf_env = tempfile.gettempdir()
+else:
+    _idf_env = os.getenv('IDF_PATH', '')
 if not os.path.isdir(_idf_env):
     raise ValueError('Invalid value for IDF_PATH: {}'.format(_idf_env))
+
 
 IDF_PATH = Path(_idf_env).resolve()
 IDF_PY = IDF_PATH / 'tools' / 'idf.py'
@@ -19,9 +29,12 @@ IDF_SIZE_PY = IDF_PATH / 'tools' / 'idf_size.py'
 PROJECT_DESCRIPTION_JSON = 'project_description.json'
 DEFAULT_SDKCONFIG = 'sdkconfig.defaults'
 
-sys.path.append(str(IDF_PATH / 'tools' / 'idf_py_actions'))
-_idf_py_constant_py = importlib.import_module('constants')
 
+sys.path.append(str(IDF_PATH / 'tools' / 'idf_py_actions'))
+if _BUILDING_DOCS:
+    _idf_py_constant_py = object()
+else:
+    _idf_py_constant_py = importlib.import_module('constants')
 SUPPORTED_TARGETS = getattr(_idf_py_constant_py, 'SUPPORTED_TARGETS', [])
 PREVIEW_TARGETS = getattr(_idf_py_constant_py, 'PREVIEW_TARGETS', [])
 ALL_TARGETS = SUPPORTED_TARGETS + PREVIEW_TARGETS
@@ -47,4 +60,7 @@ def _idf_version_from_cmake():
         raise ValueError('Cannot find ESP-IDF version in {}'.format(version_path))
 
 
-IDF_VERSION = _idf_version_from_cmake()
+if _BUILDING_DOCS:
+    IDF_VERSION = '1.0.0'
+else:
+    IDF_VERSION = _idf_version_from_cmake()
