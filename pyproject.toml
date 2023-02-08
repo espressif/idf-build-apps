@@ -36,6 +36,14 @@ test = [
     "pytest",
     "pytest-cov",
 ]
+doc = [
+    "sphinx",
+    # theme
+    "sphinx-rtd-theme",
+    # extensions
+    "sphinx_copybutton",  # copy button
+    "myst-parser",  # markdown support
+]
 
 [project.urls]
 Source = "https://github.com/espressif/idf-build-apps"
