@@ -8,8 +8,15 @@ root = true
 end_of_line = lf
 insert_final_newline = true
 
-# 4 space indentation
 [*.py]
 charset = utf-8
+indent_style = space
+indent_size = 4
+
+[*.rst]
+indent_style = space
+indent_size = 3
+
+[*.md]
 indent_style = space
 indent_size = 4
