@@ -1,0 +1,114 @@
+name: Test Build IDF Apps
+
+on:
+  pull_request:
+    paths:
+      - '**.py'
+  push:
+    branches:
+      - main
+
+env:
+  IDF_PATH: /opt/esp/idf
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build-python-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.7'
+      - run: |
+          pip install -U pip
+          pip install flit
+          flit build
+      - name: Upload built python packages
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheel
+          path: dist/idf_build_apps-*-py2.py3-none-any.whl
+
+  build-apps-on-eariler-idf-branches:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    needs: build-python-packages
+    strategy:
+      matrix:
+        python-version: [2.7, 3.4]
+        idf-branch: [release-v4.1, release-v4.2]
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:${{ matrix.idf-branch }}
+      # otherwise would be the idf venv included which has python 3.6
+      options: --entrypoint /bin/bash
+    steps:
+      - name: Install system dependencies
+        run: |
+          apt update && DEBIAN_FRONTEND=noninteractive apt install -y build-essential libssl1.0-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl libncursesw5-dev xz-utils tk-dev libxml2-dev libffi-dev liblzma-dev
+          curl https://pyenv.run | bash
+          export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init --path)"
+          pyenv install ${{ matrix.python-version }}
+      - name: Download wheel
+        uses: actions/download-artifact@v3
+        with:
+          name: wheel
+      - name: Build the Apps
+        run: |
+          export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init --path)"
+          pyenv global ${{ matrix.python-version }}
+          rm $(which python3)
+          bash $IDF_PATH/install.sh
+          . $IDF_PATH/export.sh
+          pip install idf_build_apps-*-py2.py3-none-any.whl
+          python -m idf_build_apps build -vv -t esp32 \
+            -p $IDF_PATH/examples/get-started/hello_world \
+            --size-file size_info.json \
+            --ignore-warning-str "Python 3 versions older than 3.6 are not supported" \
+            --ignore-warning-str "Python 2 is no longer supported" \
+            --ignore-warning-str "Support for Python 2 is deprecated"
+
+  build-apps-on-idf-env:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    needs: build-python-packages
+    strategy:
+      matrix:
+        idf-branch: [ release-v4.3, release-v4.4, release-v5.0]
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:${{ matrix.idf-branch }}
+    steps:
+      - name: Download wheel
+        uses: actions/download-artifact@v3
+        with:
+          name: wheel
+      - name: Build the Apps
+        run: |
+          bash $IDF_PATH/install.sh
+          . $IDF_PATH/export.sh
+          pip install idf_build_apps-*-py2.py3-none-any.whl
+          python -m idf_build_apps build -vv -t esp32 \
+            -p $IDF_PATH/examples/get-started/hello_world \
+            --size-file size_info.json
+
+  build-apps-on-idf-master:
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:latest
+    env:
+      FLIT_ROOT_INSTALL: 1
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build the Apps
+        run: |
+          bash $IDF_PATH/install.sh
+          . $IDF_PATH/export.sh
+          pip install flit
+          flit install -s
+          python -m idf_build_apps build -vv -t esp32 \
+            -p $IDF_PATH/examples/get-started/hello_world \
+            --size-file size_info.json
+          pytest --cov idf_build_apps --junit-xml report.xml
