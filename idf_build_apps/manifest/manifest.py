@@ -106,7 +106,7 @@ class FolderRule:
 
 
 class DefaultRule(FolderRule):
-    def __init__(self, folder: Path):
+    def __init__(self, folder):  # type: (Path) -> None
         super(DefaultRule, self).__init__(folder)
 
 

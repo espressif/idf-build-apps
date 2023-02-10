@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-from abc import ABC, abstractmethod
 from ast import literal_eval
 
 from pyparsing import (
@@ -22,9 +21,8 @@ from .soc_header import SOC_HEADERS
 
 
 class Stmt:
-    @abstractmethod
     def get_value(self, target):  # type: (str) -> any
-        pass
+        raise NotImplementedError('Please implement this function in sub classes')
 
 
 class ChipAttr(Stmt):
@@ -104,7 +102,7 @@ class BoolStmt(Stmt):
         raise ValueError('Unsupported comparison operator: "{}"'.format(self.comparison))
 
 
-class BoolExpr(Stmt, ABC):
+class BoolExpr(Stmt):
     pass
 
 
