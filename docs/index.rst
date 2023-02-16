@@ -9,8 +9,9 @@ Welcome to idf-build-apps's documentation!
 .. toctree::
    :maxdepth: 2
 
-   CONTRIBUTING
    api
+   CHANGELOG
+   CONTRIBUTING
 
 Indices and tables
 ==================
