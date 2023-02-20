@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import inspect
+import os
 
 from idf_build_apps.manifest.manifest import Manifest
 
@@ -21,6 +22,8 @@ def test_manifest(tmpdir):
             )
         )
 
+    os.chdir(tmpdir)
+    Manifest.ROOTPATH = tmpdir
     manifest = Manifest.from_file(yaml_file)
 
     assert manifest.enable_build_targets('test1') == ['esp32', 'esp32c3']

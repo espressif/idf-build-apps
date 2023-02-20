@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
+import os.path
 from pathlib import Path
 
 import yaml
@@ -111,17 +111,27 @@ class DefaultRule(FolderRule):
 
 
 class Manifest:
-    def __init__(self, rules):  # type: (list[FolderRule] | set[FolderRule]) -> None
+    # could be reassigned later
+    ROOTPATH = os.curdir
+
+    def __init__(
+        self,
+        rules,  # type: list[FolderRule] | set[FolderRule]
+    ):  # type: (...) -> None
         self.rules = sorted(rules, key=lambda x: x.folder)
 
-    @staticmethod
-    def from_file(path):  # type: (str) -> 'Manifest'
+    @classmethod
+    def from_file(cls, path):  # type: (str) -> 'Manifest'
         with open(path) as f:
             manifest_dict = yaml.safe_load(f) or {}
 
         rules = []  # type: list[FolderRule]
         for folder, folder_rule in manifest_dict.items():
-            folder = Path(folder)
+            if os.path.isabs(folder):
+                folder = Path(folder)
+            else:
+                folder = Path(cls.ROOTPATH, folder)
+
             rules.append(FolderRule(folder, **folder_rule if folder_rule else {}))
 
         return Manifest(rules)
