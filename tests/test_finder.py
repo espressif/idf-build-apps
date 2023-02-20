@@ -114,3 +114,48 @@ def test_finder_with_requires_without_depends_on_components(tmpdir):
         )
     filtered_apps = find_apps(test_dir, 'esp32', recursive=True, manifest_files=yaml_file)
     assert filtered_apps == apps
+
+
+def test_finder_after_chdir():
+    test_dir = IDF_PATH / 'examples' / 'get-started'
+
+    yaml_file = str(test_dir / 'test.yml')
+    with open(yaml_file, 'w') as fw:
+        fw.write(
+            inspect.cleandoc(
+                '''
+            examples/get-started:
+                enable:
+                    - if: IDF_TARGET != "esp32"
+        '''
+            )
+        )
+
+    os.chdir(IDF_PATH)
+    assert not find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=yaml_file)
+
+    # manifest folder invalid
+    os.chdir(test_dir)
+    assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=yaml_file)
+
+
+def test_finder_custom_root_dir():
+    test_dir = IDF_PATH / 'examples' / 'get-started'
+
+    yaml_file = str(test_dir / 'test.yml')
+    with open(yaml_file, 'w') as fw:
+        fw.write(
+            inspect.cleandoc(
+                '''
+            get-started:
+                enable:
+                    - if: IDF_TARGET != "esp32"
+        '''
+            )
+        )
+
+    assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=yaml_file, manifest_rootpath=str(IDF_PATH))
+
+    assert not find_apps(
+        str(test_dir), 'esp32', recursive=True, manifest_files=yaml_file, manifest_rootpath=str(IDF_PATH / 'examples')
+    )

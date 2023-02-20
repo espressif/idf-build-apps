@@ -91,6 +91,11 @@ if __name__ == '__main__':
         help='manifest file to specify the build test rules of the apps, could be specified multiple times.',
     )
     common_args.add_argument(
+        '--manifest-rootpath',
+        help='Root directory for calculating the realpath of the relative path defined in the manifest files. '
+        'Would use the current directory if not set.',
+    )
+    common_args.add_argument(
         '--default-build-targets',
         help='comma-separated target list. IDF supported targets would be used if this option is not set',
     )
@@ -199,6 +204,7 @@ if __name__ == '__main__':
         manifest_files=args.manifest_file,
         default_build_targets=default_build_targets,
         depends_on_components=args.depends_on_components,
+        manifest_rootpath=args.manifest_rootpath,
     )
 
     if args.action == 'find':

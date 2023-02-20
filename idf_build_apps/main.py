@@ -3,6 +3,7 @@
 import os
 import re
 import shutil
+from pathlib import Path
 
 from . import LOGGER
 from .app import App
@@ -33,6 +34,7 @@ def find_apps(
     manifest_files=None,  # type: list[str] | str | None
     default_build_targets=None,  # type: list[str] | str | None
     depends_on_components=None,  # type: list[str] | str | None
+    manifest_rootpath=None,  # type: str | None
 ):  # type: (...) -> list[App]
     if default_build_targets:
         if isinstance(default_build_targets, str):
@@ -40,6 +42,9 @@ def find_apps(
 
         LOGGER.info('Overriding DEFAULT_BUILD_TARGETS to %s', default_build_targets)
         FolderRule.DEFAULT_BUILD_TARGETS = default_build_targets
+
+    # always set the manifest rootpath at the very beginning of find_apps
+    Manifest.ROOTPATH = Path(manifest_rootpath or os.curdir).resolve()
 
     if manifest_files:
         if isinstance(manifest_files, str):
