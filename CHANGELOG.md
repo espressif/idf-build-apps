@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1]
+
+### Fixed
+
+- Ralative path defined in the manifest files depend on the current work path.
+
+  Added `manifest_rootpath` argument in `find_apps()`. Will use this value instead as the root folder for calculating absolute path.
+
 ## [0.3.0]
 
 ### Added
