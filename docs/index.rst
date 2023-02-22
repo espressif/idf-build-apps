@@ -6,15 +6,14 @@
 Welcome to idf-build-apps's documentation!
 ==========================================
 
-.. toctree::
-   :maxdepth: 2
+.. include:: ../README.md
+   :parser: myst_parser.sphinx_
 
+.. toctree::
+   :hidden:
+
+   find-build
+   manifest
    api
    CHANGELOG
    CONTRIBUTING
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`search`
