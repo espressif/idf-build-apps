@@ -113,6 +113,11 @@ class BuildError(RuntimeError):
     pass
 
 
+class InvalidCommand(SystemExit):
+    def __init__(self, msg):
+        super().__init__('Invalid Command: ' + msg.strip())
+
+
 def rmdir(path, exclude_file_patterns=None):
     if not exclude_file_patterns:
         shutil.rmtree(path, ignore_errors=True)

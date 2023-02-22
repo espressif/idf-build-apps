@@ -6,7 +6,7 @@ import sys
 
 from .constants import ALL_TARGETS
 from .main import build_apps, find_apps
-from .utils import setup_logging
+from .utils import InvalidCommand, setup_logging
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -72,6 +72,7 @@ if __name__ == '__main__':
     common_args.add_argument(
         '-v',
         '--verbose',
+        default=0,
         action='count',
         help='Increase the logging level of the whole process. Can be specified multiple times.',
     )
@@ -176,6 +177,18 @@ if __name__ == '__main__':
     )
 
     args = parser.parse_args()
+    if args.action not in ['find', 'build']:
+        parser.print_help()
+        raise InvalidCommand('subcommand is required. {find, build}')
+
+    if not args.paths:
+        if args.action == 'find':
+            find_parser.print_help()
+        elif args.action == 'build':
+            build_parser.print_help()
+
+        raise InvalidCommand('Must specify at least one search path with CLI option "-p <path>" or "--path <path>"')
+
     setup_logging(args.verbose, args.log_file)
 
     default_build_targets = []
