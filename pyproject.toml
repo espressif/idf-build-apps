@@ -42,8 +42,9 @@ doc = [
     # theme
     "sphinx-rtd-theme",
     # extensions
-    "sphinx_copybutton",  # copy button
-    "myst-parser",  # markdown support
+    "sphinx_copybutton",        # copy button
+    "myst-parser",              # markdown support
+    "sphinxcontrib-mermaid",    # mermaid graph support
 ]
 
 [project.urls]
