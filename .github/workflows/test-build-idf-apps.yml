@@ -3,7 +3,7 @@ name: Test Build IDF Apps
 on:
   pull_request:
     paths:
-      - '**.py'
+      - 'idf_build_apps/**'
   push:
     branches:
       - main
