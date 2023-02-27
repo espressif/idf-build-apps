@@ -1,5 +1,9 @@
 # idf-build-apps
 
+[![Documentation Status](https://readthedocs.com/projects/espressif-idf-build-apps/badge/?version=latest)](https://espressif-docs.readthedocs-hosted.com/projects/idf-build-apps/en/latest/)
+[![pypi_package_version](https://img.shields.io/pypi/v/idf-build-apps)](https://pypi.org/project/idf_build_apps/)
+[![supported_python_versions](https://img.shields.io/pypi/pyversions/idf-build-apps)](https://pypi.org/project/idf_build_apps/)
+
 `idf-build-apps` is a tool that helps users find and build [ESP-IDF][esp-idf] projects faster.
 
 ## What is an `app`?
@@ -55,7 +59,7 @@ Partial build log:
 2023-02-22 12:14:58 INFO   (cmake) App /tmp/test/esp/esp-idf/examples/get-started/hello_world/, target esp32s3, sdkconfig (default), build in /tmp/test/esp/esp-idf/examples/get-started/hello_world/build_esp32s3 (preserve: True)
 ```
 
-For detailed information, please refer to our documentation site.
+For detailed information, please refer to [our documentation site][doc]!
 
 ## Contributing
 
@@ -65,3 +69,4 @@ Thanks for your contribution! Please refer to our [Contributing Guide](CONTRIBUT
 [sdkconfig]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/kconfig.html
 [hello-world]: https://github.com/espressif/esp-idf/tree/master/examples/get-started/hello_world
 [supported-targets]: https://github.com/espressif/esp-idf/tree/v5.0#esp-idf-release-and-soc-compatibility
+[doc]: https://docs.espressif.com/projects/idf-build-apps/en/latest/
