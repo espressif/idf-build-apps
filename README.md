@@ -1,22 +1,48 @@
 # idf-build-apps
 
-## Getting Started
+`idf-build-apps` is a tool that helps users find and build [ESP-IDF][esp-idf] projects faster.
 
-### Installation
+## What is an `app`?
+
+An [ESP-IDF][esp-idf] project would typically contain:
+
+- Build recipe in CMake and the main component with app sources
+- (Optional) One or more [sdkconfig][sdkconfig] files
+
+`app` is the abbreviation for application. An application is the binary that is being built with the specified [sdkconfig][sdkconfig] and the target chip. `idf-build-apps` could build one project into a number of applications.
+
+## Installation
 
 ```shell
 pip install idf-build-apps
 ```
 
-### Quick Example
+## Basic Usage
 
-To build the apps for all targets of [ESP-IDF hello world example](https://github.com/espressif/esp-idf/tree/master/examples/get-started/hello_world)
+`idf-build-apps` is a callable python package. It contains two sub-commands.
+
+- `find` to find the buildable applications
+- `build` to build the found applications
+
+For detailed explanation to all CLI options, you may run
+
+```shell
+python -m idf_build_apps -h
+python -m idf_build_apps find -h
+python -m idf_build_apps build -h
+```
+
+## Quick Example
+
+To build the applications for all targets of the [ESP-IDF hello world example project][hello-world] under ESP-IDF v5.0:
 
 ```shell
 python -m idf_build_apps build -p $IDF_PATH/examples/get-started/hello_world/ --target all --build-dir build_@t
 ```
 
-would build
+It would get the default [supported targets][supported-targets] from your IDF version, build the [hello world project][hello-world] with all targets and the default `sdkconfig` file.
+
+Partial build log:
 
 ```text
 2023-02-22 12:14:58 INFO Found 5 apps in total
@@ -34,3 +60,8 @@ For detailed information, please refer to our documentation site.
 ## Contributing
 
 Thanks for your contribution! Please refer to our [Contributing Guide](CONTRIBUTING.md)
+
+[esp-idf]: https://github.com/espressif/esp-idf
+[sdkconfig]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/kconfig.html
+[hello-world]: https://github.com/espressif/esp-idf/tree/master/examples/get-started/hello_world
+[supported-targets]: https://github.com/espressif/esp-idf/tree/v5.0#esp-idf-release-and-soc-compatibility

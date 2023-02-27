@@ -3,7 +3,7 @@ requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "idf_build_apps"
+name = "idf-build-apps"
 authors = [
     {name = "Fu Hanxi", email = "fuhanxi@espressif.com"}
 ]
@@ -42,8 +42,9 @@ doc = [
     # theme
     "sphinx-rtd-theme",
     # extensions
-    "sphinx_copybutton",  # copy button
-    "myst-parser",  # markdown support
+    "sphinx_copybutton",        # copy button
+    "myst-parser",              # markdown support
+    "sphinxcontrib-mermaid",    # mermaid graph support
 ]
 
 [project.urls]

@@ -1,52 +1,134 @@
 # Find and Build Apps
 
+This chapter mainly explains what's running behind the two main functions, `find` and `build`.
+
 ## Find Apps
+
+Finding apps is a process that collects all the buildable applications from the specified paths.
+
+To explain the process better, we would use the folder `/tmp/test/examples` as an example. The folder structure looks like this:
+
+```text
+/tmp/test/examples
+├── test-1
+│   ├── CMakeLists.txt
+│   ├── main
+│   │   ├── CMakeLists.txt
+│   │   └── test-1.c
+│   ├── sdkconfig.ci.bar
+│   ├── sdkconfig.ci.foo
+│   ├── sdkconfig.defaults
+│   └── sdkconfig.defaults.esp32
+└── test-2
+    ├── CMakeLists.txt
+    └── main
+        ├── CMakeLists.txt
+        └── test-2.c
+```
 
 ### Basics
 
+The basic command to find all the buildable apps under `/tmp/test/examples` recursively with target `esp32` is:
+
 ```shell
-cd examples
+cd /tmp/test/examples
 python -m idf_build_apps find -p . --recursive --target esp32
 ```
 
 The output would be:
 
 ```text
-(cmake) App ./test1, target esp32, sdkconfig (default), build in /tmp/test/examples/test1/build
-(cmake) App ./test2, target esp32, sdkconfig (default), build in /tmp/test/examples/test2/build
+(cmake) App ./test-1, target esp32, sdkconfig (default), build in /tmp/test/examples/test-1/build
+(cmake) App ./test-2, target esp32, sdkconfig (default), build in /tmp/test/examples/test-2/build
 ```
 
-By default, `idf-build-apps` would build the default app.
+By default, when you're building an [ESP-IDF][esp-idf] project, it would generate a default [sdkconfig][sdkconfig] file. `idf-build-apps` would use this configuration file to build the default app.
 
-### Advanced
+The default sdkconfig file for test-1 would be generated in this order:
 
-You may also notice that there are two sdkconfig files in app `test1`, we could also find apps for each sdkconfig files.
+```{mermaid}
+flowchart TB
+    kconfig(Kconfig default values)
+    sdkconfig(sdkconfig.defaults)
+    sdkconfig_target(sdkconfig.defaults.TARGET)
 
-```shell
-python -m idf_build_apps find -p . --recursive --target esp32 --config "sdkconfig.ci.*="
+    kconfig -- be overriden by --> sdkconfig -- be overriden by --> sdkconfig_target
+
+    subgraph "which would only be applied when building with the corresponding target"
+    sdkconfig_target
+    end
 ```
 
-The output would be:
+### Config Rules
 
-```text
-(cmake) App ./test1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/test/examples/test1/build
-(cmake) App ./test1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/test/examples/test1/build
-(cmake) App ./test2, target esp32, sdkconfig (default), build in /tmp/test/examples/test2/build
+Config rule represents the sdkconfig file pattern and the config name. The syntax is simple: `[FILE_PATTERN]=[CONFIG_NAME]`.
+
+- `FILE_PATTERN`: Name of the sdkconfig file, optionally with a single wildcard (`*`) character.
+- `CONFIG_NAME`: Name of the corresponding build configuration, or None if the value of wildcard is to be used.
+
+For example, in project `test-1`:
+
+```{eval-rst}
+
+.. list-table:: Config Rules
+   :widths: 15 15 55 15
+   :header-rows: 1
+
+   *  - Config Rule
+      - Config Name
+      - Explanation
+      - Extra sdkconfig file
+   *  - ``=``
+      - ``default``
+      - The default value of config name is ``default``
+      -
+   *  - ``sdkconfig.ci.foo=test``
+      - ``test``
+      -
+      - ``sdkconfig.ci.foo``
+   *  - ``sdkconfig.not_exists=test``
+      - ``default``
+      - The config rule doesn't match any sdkconfig file. Use the default value instead.
+      -
+   *  - ``sdkconfig.ci.*=``
+      -  - ``foo``
+         - ``bar``
+      - The wildcard matches two files. Build two apps based on each sdkconfig file.
+      -  - ``sdkconfig.ci.foo``
+         - ``sdkconfig.ci.bar``
+
+.. note::
+
+   For each config rule, only one wildcard is supported.
 ```
 
-Here we're using a wildcard symbol `*` to indicate that we want to build one app for each sdkconfig file that matches the wildcard pattern.
+### Placeholders for Work Directory and Build Directory
 
-### Build Directory
+Here we defined two new terms of directories, work directory and build directory.
 
-Here you may notice that all the build directories are `build` by default. We also defined a few placeholders to let you change the build directories.
+#### Work Directory
 
-- `@t`: would be replaced by the target chip type
-- `@w`: would be replaced by the wildcard, usually the sdkconfig
-- `@n`: would be replaced by the app name
-- `@f`: would be replaced by the escaped app path (replaced "/" to "_")
-- `@i`: would be replaced by the build index
+Work directory is the directory where the build actually happens. `idf-build-apps` would first copy the whole project to the work directory, then start the real build process. The benefit of specifying work directory is that you could keep your local build directory and `sdkconfig` file untouched.
 
-For example, if you want to set the build directory to `build_<target>_<wildcard>`
+By default, `idf-build-apps` would use the project directory as the work directory.
+
+#### Build Directory
+
+Build directory is the directory where the binary files output would be generated. If it is set to a relative path, the full path would be calculated based on the work directory. If it is a absolute path, it would override the work directory settings.
+
+By default, `idf-build-apps` would follow what ESP-IDF does, use `build` as the build directory.
+
+#### Placeholders
+
+Placeholders are a set of symbols, which could be used when setting work directory and build directory. The placeholders would be replaced while building as follows:
+
+- `@t`: Would be replaced by the target chip type.
+- `@w`: Would be replaced by the wildcard if exists, otherwise would be replaced by the config name.
+- `@n`: Would be replaced by the project name.
+- `@f`: Would be replaced by the escaped project path (replaced "/" to "_").
+- `@i`: Would be replaced by the build index. (only available in `build` command)
+
+For example,
 
 ```shell
 python -m idf_build_apps find -p . --recursive --target esp32 --config "sdkconfig.ci.*=" --build-dir build_@t_@w
@@ -55,12 +137,12 @@ python -m idf_build_apps find -p . --recursive --target esp32 --config "sdkconfi
 The output would be:
 
 ```text
-(cmake) App ./test1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/test/examples/test1/build_esp32_bar
-(cmake) App ./test1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/test/examples/test1/build_esp32_foo
-(cmake) App ./test2, target esp32, sdkconfig (default), build in /tmp/test/examples/test2/build_esp32
+(cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/test/examples/test-1/build_esp32_bar
+(cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/test/examples/test-1/build_esp32_foo
+(cmake) App ./test-2, target esp32, sdkconfig (default), build in /tmp/test/examples/test-2/build_esp32
 ```
 
-You may also set an absolute path as the build directory. `/tmp/build/<app_name>.<target>.<wildcard>`
+Another example to set an absolute path with the wildcard symbols as the build directory:
 
 ```shell
 python -m idf_build_apps find -p . --recursive --target esp32 --config "sdkconfig.ci.*=" --build-dir /tmp/build/@n_@t_@w
@@ -69,24 +151,31 @@ python -m idf_build_apps find -p . --recursive --target esp32 --config "sdkconfi
 The output would be:
 
 ```text
-(cmake) App ./test1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/build/test1_esp32_bar
-(cmake) App ./test1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/build/test1_esp32_foo
-(cmake) App ./test2, target esp32, sdkconfig (default), build in /tmp/build/test2_esp32
+(cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/build/test-1_esp32_bar
+(cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/build/test-1_esp32_foo
+(cmake) App ./test-2, target esp32, sdkconfig (default), build in /tmp/build/test-2_esp32
 ```
 
 ## Build Apps
 
-Almost all CLI options that `find` supported are also supported in `build` command. You may call `python -m idf_build_apps find -h` or `python -m idf_build_apps build -h` for all possible CLI options.
+Building apps is a process that build all the applications that are collected by the "finding apps" process.
 
-### Useful Tips
+```{eval-rst}
+
+.. note::
+
+   Almost all CLI options that `find` supported are also supported in `build` command. You may call `python -m idf_build_apps find -h` or `python -m idf_build_apps build -h` for all possible CLI options.
+```
+
+### Tips on `build` CLI Options
 
 #### Check Build Warnings
 
-You may use `--check-warnings` to enable this check. Also we provide `--ignore-warnings-str` and `--ignore-warnings-file` to let you bypass some false alarm.
+You may use `--check-warnings` to enable this check. If any warning is captured while the building process, the exit code would turn to a non-zero value. Besides, `idf-build-apps` provides CLI options `--ignore-warnings-str` and `--ignore-warnings-file` to let you bypass some false alarms.
 
 #### Dry Run
 
-It's useful to call `--dry-run` with verbose mode `-vv` to know the whole build process better in advance.
+It's useful to call `--dry-run` with verbose mode `-vv` to know the whole build process in detail before the build actually happens.
 
 For example:
 
@@ -97,46 +186,50 @@ python -m idf_build_apps build -p . --recursive --target esp32 --dry-run -vv --c
 The output would be:
 
 ```text
-2023-02-22 11:16:25 DEBUG Looking for cmake apps in . recursively
-2023-02-22 11:16:25 DEBUG Entering .
-2023-02-22 11:16:25 DEBUG Skipping. . is not an app
-2023-02-22 11:16:25 DEBUG Entering ./test1
-2023-02-22 11:16:25 DEBUG Found cmake app: ./test1, sdkconfig sdkconfig.ci.bar, config name "bar"
-2023-02-22 11:16:25 DEBUG Found cmake app: ./test1, sdkconfig sdkconfig.ci.foo, config name "foo"
-2023-02-22 11:16:25 DEBUG Stop iteration sub dirs of ./test1 since it has apps
-2023-02-22 11:16:25 DEBUG Entering ./test2
-2023-02-22 11:16:25 DEBUG Found cmake app: ./test2, default sdkconfig, config name ""
-2023-02-22 11:16:25 DEBUG Stop iteration sub dirs of ./test2 since it has apps
-2023-02-22 11:16:25 INFO Found 3 apps in total
-2023-02-22 11:16:25 INFO Total 3 apps. running build for app 1-3
-2023-02-22 11:16:25 INFO Building the following apps:
-2023-02-22 11:16:25 INFO   (cmake) App ./test1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/test/examples/test1/build (preserve: True)
-2023-02-22 11:16:25 INFO   (cmake) App ./test1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/test/examples/test1/build (preserve: True)
-2023-02-22 11:16:25 INFO   (cmake) App ./test2, target esp32, sdkconfig (default), build in /tmp/test/examples/test2/build (preserve: True)
-2023-02-22 11:16:25 DEBUG => Building app 1: (cmake) App ./test1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/test/examples/test1/build
-2023-02-22 11:16:25 DEBUG Build directory /tmp/test/examples/test1/build exists, removing
-2023-02-22 11:16:25 DEBUG Removing sdkconfig file: ./test1/sdkconfig
-2023-02-22 11:16:25 DEBUG Creating sdkconfig file: ./test1/sdkconfig
-2023-02-22 11:16:25 DEBUG Considering sdkconfig ./test1/sdkconfig.defaults
-2023-02-22 11:16:25 DEBUG Considering sdkconfig ./test1/sdkconfig.defaults.esp32
-2023-02-22 11:16:25 DEBUG Considering sdkconfig ./test1/sdkconfig.ci.bar
-2023-02-22 11:16:25 DEBUG Appending sdkconfig.ci.bar to sdkconfig
-2023-02-22 11:16:25 INFO Running /tmp/test/.espressif/python_env/idf5.1_py3.11_env/bin/python /tmp/test/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test1/build -C ./test1 -DIDF_TARGET=esp32 build
-2023-02-22 11:16:25 DEBUG Skipping... (dry run)
-2023-02-22 11:16:25 DEBUG => Building app 2: (cmake) App ./test1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/test/examples/test1/build
-2023-02-22 11:16:25 DEBUG Build directory /tmp/test/examples/test1/build exists, removing
-2023-02-22 11:16:25 DEBUG Removing sdkconfig file: ./test1/sdkconfig
-2023-02-22 11:16:25 DEBUG Creating sdkconfig file: ./test1/sdkconfig
-2023-02-22 11:16:25 DEBUG Considering sdkconfig ./test1/sdkconfig.defaults
-2023-02-22 11:16:25 DEBUG Considering sdkconfig ./test1/sdkconfig.defaults.esp32
-2023-02-22 11:16:25 DEBUG Considering sdkconfig ./test1/sdkconfig.ci.foo
-2023-02-22 11:16:25 DEBUG Appending sdkconfig.ci.foo to sdkconfig
-2023-02-22 11:16:25 INFO Running /tmp/test/.espressif/python_env/idf5.1_py3.11_env/bin/python /tmp/test/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test1/build -C ./test1 -DIDF_TARGET=esp32 build
-2023-02-22 11:16:25 DEBUG Skipping... (dry run)
-2023-02-22 11:16:25 DEBUG => Building app 3: (cmake) App ./test2, target esp32, sdkconfig (default), build in /tmp/test/examples/test2/build
-2023-02-22 11:16:25 DEBUG Creating sdkconfig file: ./test2/sdkconfig
-2023-02-22 11:16:25 DEBUG Considering sdkconfig ./test2/sdkconfig.defaults
-2023-02-22 11:16:25 DEBUG Considering sdkconfig ./test2/sdkconfig.defaults.esp32
-2023-02-22 11:16:25 INFO Running /tmp/test/.espressif/python_env/idf5.1_py3.11_env/bin/python /tmp/test/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test2/build -C ./test2 -DIDF_TARGET=esp32 build
-2023-02-22 11:16:25 DEBUG Skipping... (dry run)
+2023-02-27 10:59:14 DEBUG Looking for cmake apps in . recursively
+2023-02-27 10:59:14 DEBUG [ConfigRule <sdkconfig.ci.* >]
+2023-02-27 10:59:14 DEBUG Entering .
+2023-02-27 10:59:14 DEBUG Skipping. . is not an app
+2023-02-27 10:59:14 DEBUG Entering ./test-2
+2023-02-27 10:59:14 DEBUG Found cmake app: ./test-2, default sdkconfig, config name ""
+2023-02-27 10:59:14 DEBUG Stop iteration sub dirs of ./test-2 since it has apps
+2023-02-27 10:59:14 DEBUG Entering ./test-1
+2023-02-27 10:59:14 DEBUG Found cmake app: ./test-1, sdkconfig sdkconfig.ci.bar, config name "bar"
+2023-02-27 10:59:14 DEBUG Found cmake app: ./test-1, sdkconfig sdkconfig.ci.foo, config name "foo"
+2023-02-27 10:59:14 DEBUG Stop iteration sub dirs of ./test-1 since it has apps
+2023-02-27 10:59:14 INFO Found 3 apps in total
+2023-02-27 10:59:14 INFO Total 3 apps. running build for app 1-3
+2023-02-27 10:59:14 INFO Building the following apps:
+2023-02-27 10:59:14 INFO   (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/test/examples/test-1/build (preserve: True)
+2023-02-27 10:59:14 INFO   (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/test/examples/test-1/build (preserve: True)
+2023-02-27 10:59:14 INFO   (cmake) App ./test-2, target esp32, sdkconfig (default), build in /tmp/test/examples/test-2/build (preserve: True)
+2023-02-27 10:59:14 DEBUG => Building app 1: (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/test/examples/test-1/build
+2023-02-27 10:59:14 DEBUG Creating sdkconfig file: ./test-1/sdkconfig
+2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.defaults
+2023-02-27 10:59:14 DEBUG Appending sdkconfig.defaults to sdkconfig
+2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.defaults.esp32
+2023-02-27 10:59:14 DEBUG Appending sdkconfig.defaults.esp32 to sdkconfig
+2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.ci.bar
+2023-02-27 10:59:14 DEBUG Appending sdkconfig.ci.bar to sdkconfig
+2023-02-27 10:59:14 INFO Running /home/fuhanxi/.espressif/python_env/idf5.1_py3.11_env/bin/python /home/fuhanxi/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test-1/build -C ./test-1 -DIDF_TARGET=esp32 build
+2023-02-27 10:59:14 DEBUG Skipping... (dry run)
+2023-02-27 10:59:14 DEBUG => Building app 2: (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/test/examples/test-1/build
+2023-02-27 10:59:14 DEBUG Creating sdkconfig file: ./test-1/sdkconfig
+2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.defaults
+2023-02-27 10:59:14 DEBUG Appending sdkconfig.defaults to sdkconfig
+2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.defaults.esp32
+2023-02-27 10:59:14 DEBUG Appending sdkconfig.defaults.esp32 to sdkconfig
+2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.ci.foo
+2023-02-27 10:59:14 DEBUG Appending sdkconfig.ci.foo to sdkconfig
+2023-02-27 10:59:14 INFO Running /home/fuhanxi/.espressif/python_env/idf5.1_py3.11_env/bin/python /home/fuhanxi/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test-1/build -C ./test-1 -DIDF_TARGET=esp32 build
+2023-02-27 10:59:14 DEBUG Skipping... (dry run)
+2023-02-27 10:59:14 DEBUG => Building app 3: (cmake) App ./test-2, target esp32, sdkconfig (default), build in /tmp/test/examples/test-2/build
+2023-02-27 10:59:14 DEBUG Creating sdkconfig file: ./test-2/sdkconfig
+2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-2/sdkconfig.defaults
+2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-2/sdkconfig.defaults.esp32
+2023-02-27 10:59:14 INFO Running /home/fuhanxi/.espressif/python_env/idf5.1_py3.11_env/bin/python /home/fuhanxi/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test-2/build -C ./test-2 -DIDF_TARGET=esp32 build
+2023-02-27 10:59:14 DEBUG Skipping... (dry run)
 ```
+
+[esp-idf]: https://github.com/espressif/esp-idf
+[sdkconfig]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/kconfig.html
