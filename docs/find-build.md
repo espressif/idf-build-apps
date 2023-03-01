@@ -187,7 +187,6 @@ The output would be:
 
 ```text
 2023-02-27 10:59:14 DEBUG Looking for cmake apps in . recursively
-2023-02-27 10:59:14 DEBUG [ConfigRule <sdkconfig.ci.* >]
 2023-02-27 10:59:14 DEBUG Entering .
 2023-02-27 10:59:14 DEBUG Skipping. . is not an app
 2023-02-27 10:59:14 DEBUG Entering ./test-2
@@ -211,7 +210,7 @@ The output would be:
 2023-02-27 10:59:14 DEBUG Appending sdkconfig.defaults.esp32 to sdkconfig
 2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.ci.bar
 2023-02-27 10:59:14 DEBUG Appending sdkconfig.ci.bar to sdkconfig
-2023-02-27 10:59:14 INFO Running /home/fuhanxi/.espressif/python_env/idf5.1_py3.11_env/bin/python /home/fuhanxi/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test-1/build -C ./test-1 -DIDF_TARGET=esp32 build
+2023-02-27 10:59:14 INFO Running /tmp/test/.espressif/python_env/idf5.1_py3.11_env/bin/python /tmp/test/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test-1/build -C ./test-1 -DIDF_TARGET=esp32 build
 2023-02-27 10:59:14 DEBUG Skipping... (dry run)
 2023-02-27 10:59:14 DEBUG => Building app 2: (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/test/examples/test-1/build
 2023-02-27 10:59:14 DEBUG Creating sdkconfig file: ./test-1/sdkconfig
@@ -221,13 +220,13 @@ The output would be:
 2023-02-27 10:59:14 DEBUG Appending sdkconfig.defaults.esp32 to sdkconfig
 2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.ci.foo
 2023-02-27 10:59:14 DEBUG Appending sdkconfig.ci.foo to sdkconfig
-2023-02-27 10:59:14 INFO Running /home/fuhanxi/.espressif/python_env/idf5.1_py3.11_env/bin/python /home/fuhanxi/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test-1/build -C ./test-1 -DIDF_TARGET=esp32 build
+2023-02-27 10:59:14 INFO Running /tmp/test/.espressif/python_env/idf5.1_py3.11_env/bin/python /tmp/test/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test-1/build -C ./test-1 -DIDF_TARGET=esp32 build
 2023-02-27 10:59:14 DEBUG Skipping... (dry run)
 2023-02-27 10:59:14 DEBUG => Building app 3: (cmake) App ./test-2, target esp32, sdkconfig (default), build in /tmp/test/examples/test-2/build
 2023-02-27 10:59:14 DEBUG Creating sdkconfig file: ./test-2/sdkconfig
 2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-2/sdkconfig.defaults
 2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-2/sdkconfig.defaults.esp32
-2023-02-27 10:59:14 INFO Running /home/fuhanxi/.espressif/python_env/idf5.1_py3.11_env/bin/python /home/fuhanxi/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test-2/build -C ./test-2 -DIDF_TARGET=esp32 build
+2023-02-27 10:59:14 INFO Running /tmp/test/.espressif/python_env/idf5.1_py3.11_env/bin/python /tmp/test/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test-2/build -C ./test-2 -DIDF_TARGET=esp32 build
 2023-02-27 10:59:14 DEBUG Skipping... (dry run)
 ```
 
