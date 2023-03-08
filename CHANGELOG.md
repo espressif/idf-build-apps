@@ -7,6 +7,12 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Support new keywords `IDF_VERSION_MAJOR`, `IDF_VERSION_MINOR`, `IDF_VERSION_PATCH`
+- Support colored output by default in UNIX-like systems.
+- Add `--no-color` CLI option.
+
+### Fixed
+
+- Improve the readability of the generated logs.
 
 ## [0.3.2]
 

@@ -12,6 +12,9 @@ import sys
 from . import (
     LOGGER,
 )
+from .logging import (
+    ColoredFormatter,
+)
 
 try:
     import typing as t
@@ -77,7 +80,7 @@ def config_rules_from_str(rule_strings):  # type: (list[str]) -> list[ConfigRule
     return sorted(rules, key=lambda x: x.file_name)
 
 
-def setup_logging(verbose=0, log_file=None):  # type: (int, str | None) -> None
+def setup_logging(verbose=0, log_file=None, colored=True):  # type: (int, str | None) -> None
     if not verbose:
         level = logging.WARNING
     elif verbose == 1:
@@ -92,8 +95,7 @@ def setup_logging(verbose=0, log_file=None):  # type: (int, str | None) -> None
         stream = sys.stderr
     handler = logging.StreamHandler(stream)
     handler.setLevel(level)
-    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
-
+    handler.setFormatter(ColoredFormatter(colored))
     LOGGER.handlers = [handler]
     LOGGER.propagate = False
 
@@ -184,7 +186,7 @@ def subprocess_run(
     :return: return code
     :rtype: int
     """
-    LOGGER.info('Running %s', ' '.join(cmd))
+    LOGGER.debug('==> Running %s', ' '.join(cmd))
 
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     for line in p.stdout:
