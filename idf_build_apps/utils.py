@@ -142,7 +142,7 @@ class BuildError(RuntimeError):
 
 class InvalidCommand(SystemExit):
     def __init__(self, msg):
-        super().__init__('Invalid Command: ' + msg.strip())
+        super(InvalidCommand, self).__init__('Invalid Command: ' + msg.strip())
 
 
 def rmdir(path, exclude_file_patterns=None):

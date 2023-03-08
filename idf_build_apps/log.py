@@ -29,7 +29,7 @@ class ColoredFormatter(logging.Formatter):
         if sys.platform == 'win32':  # does not support it
             self.colored = False
 
-        super().__init__(datefmt=self.datefmt)
+        super(ColoredFormatter, self).__init__(datefmt=self.datefmt)
 
     def format(self, record):
         if self.colored:
