@@ -1,12 +1,20 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import os.path
-from pathlib import Path
+from pathlib import (
+    Path,
+)
 
 import yaml
 
-from ..constants import ALL_TARGETS, SUPPORTED_TARGETS
-from .if_parser import BOOL_EXPR, BoolExpr
+from ..constants import (
+    ALL_TARGETS,
+    SUPPORTED_TARGETS,
+)
+from .if_parser import (
+    BOOL_EXPR,
+    BoolExpr,
+)
 
 
 class InvalidManifestError(ValueError):

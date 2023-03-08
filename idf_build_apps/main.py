@@ -3,14 +3,30 @@
 import os
 import re
 import shutil
-from pathlib import Path
+from pathlib import (
+    Path,
+)
 
-from . import LOGGER
-from .app import App
-from .constants import ALL_TARGETS
-from .finder import _find_apps
-from .manifest.manifest import FolderRule, Manifest
-from .utils import BuildError, get_parallel_start_stop
+from . import (
+    LOGGER,
+)
+from .app import (
+    App,
+)
+from .constants import (
+    ALL_TARGETS,
+)
+from .finder import (
+    _find_apps,
+)
+from .manifest.manifest import (
+    FolderRule,
+    Manifest,
+)
+from .utils import (
+    BuildError,
+    get_parallel_start_stop,
+)
 
 try:
     import typing as t

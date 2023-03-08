@@ -5,8 +5,13 @@ import inspect
 import logging
 import os
 
-from idf_build_apps.constants import DEFAULT_SDKCONFIG, IDF_PATH
-from idf_build_apps.main import find_apps
+from idf_build_apps.constants import (
+    DEFAULT_SDKCONFIG,
+    IDF_PATH,
+)
+from idf_build_apps.main import (
+    find_apps,
+)
 
 
 def test_finder(tmpdir):
@@ -159,3 +164,23 @@ def test_finder_custom_root_dir():
     assert not find_apps(
         str(test_dir), 'esp32', recursive=True, manifest_files=yaml_file, manifest_rootpath=str(IDF_PATH / 'examples')
     )
+
+
+def test_finder_idf_version():
+    test_dir = IDF_PATH / 'examples' / 'get-started'
+    apps = find_apps(str(test_dir), 'esp32', recursive=True)
+    assert apps
+
+    yaml_file = str(test_dir / 'test.yml')
+    with open(yaml_file, 'w') as fw:
+        fw.write(
+            inspect.cleandoc(
+                '''
+            get-started:
+                enable:
+                    - if: IDF_VERSION_MAJOR > 0 and IDF_VERSION_MINOR < 999 and IDF_VERSION_PATCH in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        '''
+            )
+        )
+
+    assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=yaml_file) == apps

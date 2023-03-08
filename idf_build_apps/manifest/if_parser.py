@@ -1,7 +1,9 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-from ast import literal_eval
+from ast import (
+    literal_eval,
+)
 
 from pyparsing import (
     Keyword,
@@ -17,7 +19,14 @@ from pyparsing import (
     opAssoc,
 )
 
-from .soc_header import SOC_HEADERS
+from ..constants import (
+    IDF_VERSION_MAJOR,
+    IDF_VERSION_MINOR,
+    IDF_VERSION_PATCH,
+)
+from .soc_header import (
+    SOC_HEADERS,
+)
 
 
 class Stmt:
@@ -38,7 +47,14 @@ class Stmt:
 
 class ChipAttr(Stmt):
     """
-    Attributes defined in SOC Header Files
+    Attributes defined in SOC Header Files and some other keywords
+
+    Supported keywords:
+    - IDF_TARGET: target
+    - INCLUDE_DEFAULT: take the default build targets into account or not
+    - IDF_VERSION_MAJOR: major version of ESP-IDF
+    - IDF_VERSION_MINOR: minor version of ESP-IDF
+    - IDF_VERSION_PATCH: patch version of ESP-IDF
     """
 
     def __init__(self, t):
@@ -52,6 +68,15 @@ class ChipAttr(Stmt):
 
         if self.attr == 'INCLUDE_DEFAULT':
             return 1 if target in FolderRule.DEFAULT_BUILD_TARGETS else 0
+
+        if self.attr == 'IDF_VERSION_MAJOR':
+            return IDF_VERSION_MAJOR
+
+        if self.attr == 'IDF_VERSION_MINOR':
+            return IDF_VERSION_MINOR
+
+        if self.attr == 'IDF_VERSION_PATCH':
+            return IDF_VERSION_PATCH
 
         if self.attr in SOC_HEADERS[target]:
             return SOC_HEADERS[target][self.attr]
