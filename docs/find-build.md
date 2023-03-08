@@ -186,48 +186,51 @@ python -m idf_build_apps build -p . --recursive --target esp32 --dry-run -vv --c
 The output would be:
 
 ```text
-2023-02-27 10:59:14 DEBUG Looking for cmake apps in . recursively
-2023-02-27 10:59:14 DEBUG Entering .
-2023-02-27 10:59:14 DEBUG Skipping. . is not an app
-2023-02-27 10:59:14 DEBUG Entering ./test-2
-2023-02-27 10:59:14 DEBUG Found cmake app: ./test-2, default sdkconfig, config name ""
-2023-02-27 10:59:14 DEBUG Stop iteration sub dirs of ./test-2 since it has apps
-2023-02-27 10:59:14 DEBUG Entering ./test-1
-2023-02-27 10:59:14 DEBUG Found cmake app: ./test-1, sdkconfig sdkconfig.ci.bar, config name "bar"
-2023-02-27 10:59:14 DEBUG Found cmake app: ./test-1, sdkconfig sdkconfig.ci.foo, config name "foo"
-2023-02-27 10:59:14 DEBUG Stop iteration sub dirs of ./test-1 since it has apps
-2023-02-27 10:59:14 INFO Found 3 apps in total
-2023-02-27 10:59:14 INFO Total 3 apps. running build for app 1-3
-2023-02-27 10:59:14 INFO Building the following apps:
-2023-02-27 10:59:14 INFO   (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/test/examples/test-1/build (preserve: True)
-2023-02-27 10:59:14 INFO   (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/test/examples/test-1/build (preserve: True)
-2023-02-27 10:59:14 INFO   (cmake) App ./test-2, target esp32, sdkconfig (default), build in /tmp/test/examples/test-2/build (preserve: True)
-2023-02-27 10:59:14 DEBUG => Building app 1: (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/test/examples/test-1/build
-2023-02-27 10:59:14 DEBUG Creating sdkconfig file: ./test-1/sdkconfig
-2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.defaults
-2023-02-27 10:59:14 DEBUG Appending sdkconfig.defaults to sdkconfig
-2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.defaults.esp32
-2023-02-27 10:59:14 DEBUG Appending sdkconfig.defaults.esp32 to sdkconfig
-2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.ci.bar
-2023-02-27 10:59:14 DEBUG Appending sdkconfig.ci.bar to sdkconfig
-2023-02-27 10:59:14 INFO Running /tmp/test/.espressif/python_env/idf5.1_py3.11_env/bin/python /tmp/test/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test-1/build -C ./test-1 -DIDF_TARGET=esp32 build
-2023-02-27 10:59:14 DEBUG Skipping... (dry run)
-2023-02-27 10:59:14 DEBUG => Building app 2: (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/test/examples/test-1/build
-2023-02-27 10:59:14 DEBUG Creating sdkconfig file: ./test-1/sdkconfig
-2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.defaults
-2023-02-27 10:59:14 DEBUG Appending sdkconfig.defaults to sdkconfig
-2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.defaults.esp32
-2023-02-27 10:59:14 DEBUG Appending sdkconfig.defaults.esp32 to sdkconfig
-2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-1/sdkconfig.ci.foo
-2023-02-27 10:59:14 DEBUG Appending sdkconfig.ci.foo to sdkconfig
-2023-02-27 10:59:14 INFO Running /tmp/test/.espressif/python_env/idf5.1_py3.11_env/bin/python /tmp/test/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test-1/build -C ./test-1 -DIDF_TARGET=esp32 build
-2023-02-27 10:59:14 DEBUG Skipping... (dry run)
-2023-02-27 10:59:14 DEBUG => Building app 3: (cmake) App ./test-2, target esp32, sdkconfig (default), build in /tmp/test/examples/test-2/build
-2023-02-27 10:59:14 DEBUG Creating sdkconfig file: ./test-2/sdkconfig
-2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-2/sdkconfig.defaults
-2023-02-27 10:59:14 DEBUG Considering sdkconfig ./test-2/sdkconfig.defaults.esp32
-2023-02-27 10:59:14 INFO Running /tmp/test/.espressif/python_env/idf5.1_py3.11_env/bin/python /tmp/test/esp/esp-idf/tools/idf.py -B /tmp/test/examples/test-2/build -C ./test-2 -DIDF_TARGET=esp32 build
-2023-02-27 10:59:14 DEBUG Skipping... (dry run)
+2023-03-08 16:26:41    DEBUG Looking for cmake apps in . recursively
+2023-03-08 16:26:41    DEBUG Entering .
+2023-03-08 16:26:41    DEBUG Skipping. . is not an app
+2023-03-08 16:26:41    DEBUG Entering ./test-2
+2023-03-08 16:26:41    DEBUG Found cmake app: ./test-2, default sdkconfig, config name ""
+2023-03-08 16:26:41    DEBUG Stop iteration sub dirs of ./test-2 since it has apps
+2023-03-08 16:26:41    DEBUG Entering ./test-1
+2023-03-08 16:26:41    DEBUG Found cmake app: ./test-1, sdkconfig sdkconfig.ci.bar, config name "bar"
+2023-03-08 16:26:41    DEBUG Found cmake app: ./test-1, sdkconfig sdkconfig.ci.foo, config name "foo"
+2023-03-08 16:26:41    DEBUG Stop iteration sub dirs of ./test-1 since it has apps
+2023-03-08 16:26:41     INFO Found 3 apps in total
+2023-03-08 16:26:41     INFO Total 3 apps. running build for app 1-3
+2023-03-08 16:26:41     INFO Building the following apps:
+2023-03-08 16:26:41     INFO   (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/test/examples/test-1/build (preserve: True)
+2023-03-08 16:26:41     INFO   (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/test/examples/test-1/build (preserve: True)
+2023-03-08 16:26:41     INFO   (cmake) App ./test-2, target esp32, sdkconfig (default), build in /tmp/test/examples/test-2/build (preserve: True)
+2023-03-08 16:26:41     INFO Building app 1: (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.bar, build in /tmp/test/examples/test-1/build
+2023-03-08 16:26:41    DEBUG => Preparing Folders
+2023-03-08 16:26:41    DEBUG => Generating sdkconfig file
+2023-03-08 16:26:41    DEBUG ==> Creating sdkconfig file: ./test-1/sdkconfig
+2023-03-08 16:26:41    DEBUG ==> Considering sdkconfig ./test-1/sdkconfig.defaults
+2023-03-08 16:26:41    DEBUG ==> Appending sdkconfig.defaults to sdkconfig
+2023-03-08 16:26:41    DEBUG ==> Considering sdkconfig ./test-1/sdkconfig.defaults.esp32
+2023-03-08 16:26:41    DEBUG ==> Appending sdkconfig.defaults.esp32 to sdkconfig
+2023-03-08 16:26:41    DEBUG ==> Considering sdkconfig ./test-1/sdkconfig.ci.bar
+2023-03-08 16:26:41    DEBUG ==> Appending sdkconfig.ci.bar to sdkconfig
+2023-03-08 16:26:41    DEBUG ==> Skipping... (dry run)
+2023-03-08 16:26:41     INFO Building app 2: (cmake) App ./test-1, target esp32, sdkconfig sdkconfig.ci.foo, build in /tmp/test/examples/test-1/build
+2023-03-08 16:26:41    DEBUG => Preparing Folders
+2023-03-08 16:26:41    DEBUG => Generating sdkconfig file
+2023-03-08 16:26:41    DEBUG ==> Creating sdkconfig file: ./test-1/sdkconfig
+2023-03-08 16:26:41    DEBUG ==> Considering sdkconfig ./test-1/sdkconfig.defaults
+2023-03-08 16:26:41    DEBUG ==> Appending sdkconfig.defaults to sdkconfig
+2023-03-08 16:26:41    DEBUG ==> Considering sdkconfig ./test-1/sdkconfig.defaults.esp32
+2023-03-08 16:26:41    DEBUG ==> Appending sdkconfig.defaults.esp32 to sdkconfig
+2023-03-08 16:26:41    DEBUG ==> Considering sdkconfig ./test-1/sdkconfig.ci.foo
+2023-03-08 16:26:41    DEBUG ==> Appending sdkconfig.ci.foo to sdkconfig
+2023-03-08 16:26:41    DEBUG ==> Skipping... (dry run)
+2023-03-08 16:26:41     INFO Building app 3: (cmake) App ./test-2, target esp32, sdkconfig (default), build in /tmp/test/examples/test-2/build
+2023-03-08 16:26:41    DEBUG => Preparing Folders
+2023-03-08 16:26:41    DEBUG => Generating sdkconfig file
+2023-03-08 16:26:41    DEBUG ==> Creating sdkconfig file: ./test-2/sdkconfig
+2023-03-08 16:26:41    DEBUG ==> Considering sdkconfig ./test-2/sdkconfig.defaults
+2023-03-08 16:26:41    DEBUG ==> Considering sdkconfig ./test-2/sdkconfig.defaults.esp32
+2023-03-08 16:26:41    DEBUG ==> Skipping... (dry run)
 ```
 
 [esp-idf]: https://github.com/espressif/esp-idf
