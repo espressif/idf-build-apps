@@ -164,7 +164,7 @@ Building apps is a process that build all the applications that are collected by
 
 .. note::
 
-   Almost all CLI options that `find` supported are also supported in `build` command. You may call `python -m idf_build_apps find -h` or `python -m idf_build_apps build -h` for all possible CLI options.
+   Almost all CLI options that ``find`` supported are also supported in ``build`` command. You may call ``python -m idf_build_apps find -h`` or ``python -m idf_build_apps build -h`` for all possible CLI options.
 ```
 
 ### Tips on `build` CLI Options
