@@ -449,6 +449,9 @@ class CMakeApp(App):
             log_file = tempfile.NamedTemporaryFile('w', delete=False)
 
         if depends_on_components:
+            if isinstance(depends_on_components, str):
+                depends_on_components = [depends_on_components]
+
             reconfigure_args = [
                 sys.executable,
                 str(IDF_PY),
