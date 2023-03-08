@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- `idf.py reconfigure` without setting `IDF_TARGET`
+- wrong log level on "Loading manifest file: ...". Set from `INFO` to `DEBUG`
+- wrong log level on "Building app <ID>: ...". Set from `DEBUG` to `INFO`
+
 ## [0.3.1]
 
 ### Fixed

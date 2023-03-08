@@ -6,9 +6,16 @@ import logging
 import os
 import re
 import shutil
+import subprocess
 import sys
 
 from . import LOGGER
+
+try:
+    import typing as t
+except ImportError:
+    pass
+
 
 _SDKCONFIG_KV_RE = re.compile(r'^([^#=]+)=(.+)$')
 
@@ -94,9 +101,13 @@ def get_parallel_start_stop(total, parallel_count, parallel_index):  # type: (in
     Calculate the start and stop indices for a parallel task (1-based).
 
     :param total: total number of tasks
+    :type total: int
     :param parallel_count: number of parallel tasks to run
-    :param parallel_index: index of the parallel task
-    :return: start and stop indices
+    :type parallel_count: int
+    :param parallel_index: index of the parallel task to run
+    :type parallel_index: int
+    :return: start and stop indices, [start, stop]
+    :rtype: (int, int)
     """
     if parallel_count == 1:
         return 1, total
@@ -149,3 +160,43 @@ def find_first_match(pattern, path):
         if res:
             return os.path.join(root, res[0])
     return None
+
+
+def subprocess_run(
+    cmd,  # type: list[str]
+    log_terminal=True,  # type: bool
+    log_fs=None,  # type: t.TextIO | None
+    check=False,  # type: bool
+):  # type: (...) -> int
+    """
+    Subprocess.run for older python versions
+
+    :param cmd: cmd
+    :type cmd: list[str]
+    :param log_terminal: print to `sys.stdout` if set to `True`
+    :type log_terminal: bool
+    :param log_fs: write to this file stream if not `None`
+    :type log_fs: TextIO
+    :param check: raise `subprocess.CalledProcessError` when return code is non-zero
+    :type check: bool
+    :return: return code
+    :rtype: int
+    """
+    LOGGER.info('Running %s', ' '.join(cmd))
+
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    for line in p.stdout:
+        if isinstance(line, bytes):
+            line = line.decode('utf-8')
+
+        if log_terminal:
+            sys.stdout.write(line)
+
+        if log_fs:
+            log_fs.write(line)
+
+    returncode = p.wait()
+    if check and returncode != 0:
+        raise subprocess.CalledProcessError(returncode, cmd)
+
+    return returncode

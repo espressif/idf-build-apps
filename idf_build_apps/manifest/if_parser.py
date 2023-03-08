@@ -21,11 +21,26 @@ from .soc_header import SOC_HEADERS
 
 
 class Stmt:
+    """
+    Statement
+    """
+
     def get_value(self, target):  # type: (str) -> any
+        """
+        Lazy calculated. All subclasses of `Stmt` should implement this function.
+
+        :param target: ESP-IDF target
+        :type target: str
+        :return: the value of the statement
+        """
         raise NotImplementedError('Please implement this function in sub classes')
 
 
 class ChipAttr(Stmt):
+    """
+    Attributes defined in SOC Header Files
+    """
+
     def __init__(self, t):
         self.attr = t[0]
 
