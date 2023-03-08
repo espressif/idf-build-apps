@@ -157,7 +157,7 @@ def build_apps(
         app.index = index
         app.verbose = build_verbose
 
-        LOGGER.info('=> Building app %s: %s', index, repr(app))
+        LOGGER.info('Building app %s: %s', index, repr(app))
         is_built = False
         try:
             is_built = app.build(depends_on_components)

@@ -5,7 +5,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 import tempfile
 from abc import (
@@ -224,17 +223,18 @@ class App:
         return None
 
     def build_prepare(self):  # type: () -> dict[str, str]
+        LOGGER.debug('=> Preparing Folders')
         if self.work_dir != self.app_dir:
             if os.path.exists(self.work_dir):
-                LOGGER.debug('Work directory %s exists, removing', self.work_dir)
+                LOGGER.debug('==> Work directory %s exists, removing', self.work_dir)
                 if not self.dry_run:
                     shutil.rmtree(self.work_dir)
-            LOGGER.debug('Copying app from %s to %s', self.app_dir, self.work_dir)
+            LOGGER.debug('==> Copying app from %s to %s', self.app_dir, self.work_dir)
             if not self.dry_run:
                 shutil.copytree(self.app_dir, self.work_dir)
 
         if os.path.exists(self.build_path):
-            LOGGER.debug('Build directory %s exists, removing', self.build_path)
+            LOGGER.debug('==> Build directory %s exists, removing', self.build_path)
             if not self.dry_run:
                 shutil.rmtree(self.build_path)
 
@@ -254,13 +254,14 @@ class App:
         if self.sdkconfig_path:
             sdkconfig_defaults_list.append(self.sdkconfig_path)
 
+        LOGGER.debug('=> Generating sdkconfig file')
         sdkconfig_file = os.path.join(self.work_dir, 'sdkconfig')
         if os.path.exists(sdkconfig_file):
-            LOGGER.debug('Removing sdkconfig file: %s', sdkconfig_file)
+            LOGGER.debug('==> Removing sdkconfig file: %s', sdkconfig_file)
             if not self.dry_run:
                 os.unlink(sdkconfig_file)
 
-        LOGGER.debug('Creating sdkconfig file: %s', sdkconfig_file)
+        LOGGER.debug('==> Creating sdkconfig file: %s', sdkconfig_file)
         cmake_vars = {}
         if not self.dry_run:
             with open(sdkconfig_file, 'w') as f_out:
@@ -268,7 +269,7 @@ class App:
                     sdkconfig_path = os.path.join(self.work_dir, sdkconfig_name)
                     if not sdkconfig_path or not os.path.exists(sdkconfig_path):
                         continue
-                    LOGGER.debug('Appending %s to sdkconfig', sdkconfig_name)
+                    LOGGER.debug('==> Appending %s to sdkconfig', sdkconfig_name)
                     with open(sdkconfig_path, 'r') as f_in:
                         for line in f_in:
                             if not line.endswith('\n'):
@@ -287,10 +288,10 @@ class App:
                 sdkconfig_path = os.path.join(self.work_dir, sdkconfig_name)
                 if not sdkconfig_path:
                     continue
-                LOGGER.debug('Considering sdkconfig %s', sdkconfig_path)
+                LOGGER.debug('==> Considering sdkconfig %s', sdkconfig_path)
                 if not os.path.exists(sdkconfig_path):
                     continue
-                LOGGER.debug('Appending %s to sdkconfig', sdkconfig_name)
+                LOGGER.debug('==> Appending %s to sdkconfig', sdkconfig_name)
 
         return cmake_vars
 
@@ -354,39 +355,6 @@ class App:
         depends_on_components=None,  # type: list[str] | str | None
     ):  # type: (...) -> bool
         pass
-
-    def write_size_json(self):
-        map_file = find_first_match('*.map', self.build_path)
-        if not map_file:
-            LOGGER.warning(
-                '.map file not found. Cannot write size json to file: %s',
-                self.size_json_path,
-            )
-            return
-
-        if IDF_VERSION < Version('5.1'):
-            format_args = ['--json']
-        else:
-            format_args = ['--format', 'json']
-
-        idf_size_args = (
-            [
-                sys.executable,
-                str(IDF_SIZE_PY),
-            ]
-            + format_args
-            + [
-                '-o',
-                self.size_json_path,
-                map_file,
-            ]
-        )
-        try:
-            subprocess.check_call(idf_size_args)
-        except subprocess.CalledProcessError as e:
-            raise BuildError('Failed to run idf_size.py: {}'.format(e))
-
-        LOGGER.debug('write size info to %s', self.size_json_path)
 
     def collect_size_info(self, output_fs):  # type: (TextIO) -> None
         if not os.path.isfile(self.size_json_path):
@@ -454,7 +422,7 @@ class CMakeApp(App):
         cmake_vars = self.build_prepare()
 
         if self.build_log_path:
-            LOGGER.info('Writing build log to %s', self.build_log_path)
+            LOGGER.info('=> Writing build log to %s', self.build_log_path)
             log_file = open(self.build_log_path, 'w')
         else:
             # delete manually later, used for tracking debugging info
@@ -483,7 +451,7 @@ class CMakeApp(App):
 
             if not set(depends_on_components).intersection(set(build_components)):
                 LOGGER.debug(
-                    'app %s depends on components: %s, which is not in depends_on_components list: %s',
+                    '==> app %s depends on components: %s, which is not in depends_on_components list: %s',
                     self.app_dir,
                     build_components,
                     depends_on_components,
@@ -514,7 +482,7 @@ class CMakeApp(App):
             build_args.append('-v')
 
         if self.dry_run:
-            LOGGER.debug('Skipping... (dry run)')
+            LOGGER.debug('==> Skipping... (dry run)')
             return True
 
         old_idf_target_env = os.getenv('IDF_TARGET')
@@ -537,25 +505,47 @@ class CMakeApp(App):
             for line in lines:
                 is_error_or_warning, ignored = self.is_error_or_warning(line)
                 if is_error_or_warning:
-                    LOGGER.warning('>>> %s', line)
+                    LOGGER.warning('%s', line)
                     if not ignored:
                         has_unignored_warning = True
 
             if returncode != 0:
                 # print last few lines to help debug
-                LOGGER.debug(
+                LOGGER.error(
                     'Last %s lines from the build log "%s":',
                     self.LOG_DEBUG_LINES,
                     self.build_log_path,
                 )
                 for line in lines[-self.LOG_DEBUG_LINES :]:
-                    LOGGER.debug('>>> %s', line)
+                    LOGGER.error('%s', line)
 
         if returncode == 0 and self.size_json_path:
-            self.write_size_json()
+            map_file = find_first_match('*.map', self.build_path)
+            if not map_file:
+                LOGGER.warning(
+                    '.map file not found. Cannot write size json to file: %s',
+                    self.size_json_path,
+                )
+            else:
+                subprocess_run(
+                    (
+                        [
+                            sys.executable,
+                            str(IDF_SIZE_PY),
+                        ]
+                        + (['--json'] if IDF_VERSION < Version('5.1') else ['--format', 'json'])
+                        + [
+                            '-o',
+                            self.size_json_path,
+                            map_file,
+                        ]
+                    ),
+                    check=True,
+                )
+                LOGGER.info('=> Generated size info to %s', self.size_json_path)
 
         if not self.preserve:
-            LOGGER.info('Removing build directory %s', self.build_path)
+            LOGGER.info('=> Removing build directory %s', self.build_path)
             rmdir(
                 self.build_path,
                 exclude_file_patterns=[

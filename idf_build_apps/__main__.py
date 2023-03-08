@@ -114,6 +114,11 @@ if __name__ == '__main__':
         default=[],
         help='space-separated components list, app would only be built if depends on any of the specified components',
     )
+    common_args.add_argument(
+        '--no-color',
+        action='store_true',
+        help='enable colored output by default on UNIX-like systems. enable this flag to make the logs uncolored.',
+    )
 
     find_parser = actions.add_parser('find', parents=[common_args])
     find_parser.add_argument(
@@ -197,7 +202,7 @@ if __name__ == '__main__':
 
         raise InvalidCommand('Must specify at least one search path with CLI option "-p <path>" or "--path <path>"')
 
-    setup_logging(args.verbose, args.log_file)
+    setup_logging(args.verbose, args.log_file, not args.no_color)
 
     default_build_targets = []
     if args.default_build_targets:
