@@ -3,11 +3,22 @@
 
 import os.path
 import re
-from pathlib import Path
+from pathlib import (
+    Path,
+)
 
-from . import LOGGER
-from .app import App, CMakeApp
-from .utils import ConfigRule, config_rules_from_str, dict_from_sdkconfig
+from . import (
+    LOGGER,
+)
+from .app import (
+    App,
+    CMakeApp,
+)
+from .utils import (
+    ConfigRule,
+    config_rules_from_str,
+    dict_from_sdkconfig,
+)
 
 
 def _get_apps_from_path(

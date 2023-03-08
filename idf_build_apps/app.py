@@ -8,11 +8,17 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from abc import abstractmethod
+from abc import (
+    abstractmethod,
+)
 
-from packaging.version import Version
+from packaging.version import (
+    Version,
+)
 
-from . import LOGGER
+from . import (
+    LOGGER,
+)
 from .constants import (
     DEFAULT_SDKCONFIG,
     IDF_PY,
@@ -20,7 +26,10 @@ from .constants import (
     IDF_VERSION,
     PROJECT_DESCRIPTION_JSON,
 )
-from .manifest.manifest import FolderRule, Manifest
+from .manifest.manifest import (
+    FolderRule,
+    Manifest,
+)
 from .utils import (
     BuildError,
     dict_from_sdkconfig,
@@ -30,7 +39,10 @@ from .utils import (
 )
 
 try:
-    from typing import Pattern, TextIO
+    from typing import (
+        Pattern,
+        TextIO,
+    )
 except ImportError:
     pass
 

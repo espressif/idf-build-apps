@@ -4,7 +4,9 @@
 import inspect
 import os
 
-from idf_build_apps.manifest.manifest import Manifest
+from idf_build_apps.manifest.manifest import (
+    Manifest,
+)
 
 
 def test_manifest(tmpdir):

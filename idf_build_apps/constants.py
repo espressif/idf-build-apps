@@ -6,9 +6,13 @@ import os
 import re
 import sys
 import tempfile
-from pathlib import Path
+from pathlib import (
+    Path,
+)
 
-from packaging.version import Version
+from packaging.version import (
+    Version,
+)
 
 _BUILDING_DOCS = bool(os.getenv('BUILDING_DOCS'))
 if _BUILDING_DOCS:

@@ -9,7 +9,9 @@ import shutil
 import subprocess
 import sys
 
-from . import LOGGER
+from . import (
+    LOGGER,
+)
 
 try:
     import typing as t

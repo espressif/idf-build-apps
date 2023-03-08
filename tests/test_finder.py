@@ -5,8 +5,13 @@ import inspect
 import logging
 import os
 
-from idf_build_apps.constants import DEFAULT_SDKCONFIG, IDF_PATH
-from idf_build_apps.main import find_apps
+from idf_build_apps.constants import (
+    DEFAULT_SDKCONFIG,
+    IDF_PATH,
+)
+from idf_build_apps.main import (
+    find_apps,
+)
 
 
 def test_finder(tmpdir):

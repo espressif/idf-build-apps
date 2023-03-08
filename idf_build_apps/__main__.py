@@ -4,9 +4,17 @@
 import argparse
 import sys
 
-from .constants import ALL_TARGETS
-from .main import build_apps, find_apps
-from .utils import InvalidCommand, setup_logging
+from .constants import (
+    ALL_TARGETS,
+)
+from .main import (
+    build_apps,
+    find_apps,
+)
+from .utils import (
+    InvalidCommand,
+    setup_logging,
+)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

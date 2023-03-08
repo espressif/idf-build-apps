@@ -1,11 +1,16 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-from pathlib import Path
+from pathlib import (
+    Path,
+)
 
 import pytest
 
-from idf_build_apps.utils import get_parallel_start_stop, rmdir
+from idf_build_apps.utils import (
+    get_parallel_start_stop,
+    rmdir,
+)
 
 
 @pytest.mark.parametrize(

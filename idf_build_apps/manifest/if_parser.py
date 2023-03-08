@@ -1,7 +1,9 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-from ast import literal_eval
+from ast import (
+    literal_eval,
+)
 
 from pyparsing import (
     Keyword,
@@ -17,8 +19,14 @@ from pyparsing import (
     opAssoc,
 )
 
-from ..constants import IDF_VERSION_MAJOR, IDF_VERSION_MINOR, IDF_VERSION_PATCH
-from .soc_header import SOC_HEADERS
+from ..constants import (
+    IDF_VERSION_MAJOR,
+    IDF_VERSION_MINOR,
+    IDF_VERSION_PATCH,
+)
+from .soc_header import (
+    SOC_HEADERS,
+)
 
 
 class Stmt:

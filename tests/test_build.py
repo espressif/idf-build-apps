@@ -4,8 +4,12 @@ import shutil
 
 import pytest
 
-from idf_build_apps.app import CMakeApp
-from idf_build_apps.constants import IDF_PATH
+from idf_build_apps.app import (
+    CMakeApp,
+)
+from idf_build_apps.constants import (
+    IDF_PATH,
+)
 
 
 @pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')

@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from pathlib import Path
+from pathlib import (
+    Path,
+)
 
 from pyparsing import (
     CaselessLiteral,
@@ -21,7 +23,10 @@ from pyparsing import (
     nums,
 )
 
-from ..constants import ALL_TARGETS, IDF_PATH
+from ..constants import (
+    ALL_TARGETS,
+    IDF_PATH,
+)
 
 
 def get_defines(header_path):  # type: (Path) -> list[str]

@@ -3,7 +3,9 @@
 
 import pytest
 
-from idf_build_apps import App
+from idf_build_apps import (
+    App,
+)
 
 
 @pytest.fixture(autouse=True)

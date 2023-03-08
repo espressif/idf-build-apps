@@ -11,9 +11,17 @@ __version__ = '0.3.2'
 
 LOGGER = logging.getLogger('idf_build_apps')
 
-from .app import App, CMakeApp
-from .main import build_apps, find_apps
-from .utils import setup_logging
+from .app import (
+    App,
+    CMakeApp,
+)
+from .main import (
+    build_apps,
+    find_apps,
+)
+from .utils import (
+    setup_logging,
+)
 
 __all__ = [
     'App',
