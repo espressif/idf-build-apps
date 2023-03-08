@@ -12,7 +12,7 @@ import sys
 from . import (
     LOGGER,
 )
-from .logging import (
+from .log import (
     ColoredFormatter,
 )
 
