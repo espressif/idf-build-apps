@@ -21,7 +21,13 @@ from .constants import (
     PROJECT_DESCRIPTION_JSON,
 )
 from .manifest.manifest import FolderRule, Manifest
-from .utils import BuildError, dict_from_sdkconfig, find_first_match, rmdir
+from .utils import (
+    BuildError,
+    dict_from_sdkconfig,
+    find_first_match,
+    rmdir,
+    subprocess_run,
+)
 
 try:
     from typing import Pattern, TextIO
@@ -435,6 +441,13 @@ class CMakeApp(App):
     ):  # type: (...) -> bool
         cmake_vars = self.build_prepare()
 
+        if self.build_log_path:
+            LOGGER.info('Writing build log to %s', self.build_log_path)
+            log_file = open(self.build_log_path, 'w')
+        else:
+            # delete manually later, used for tracking debugging info
+            log_file = tempfile.NamedTemporaryFile('w', delete=False)
+
         if depends_on_components:
             reconfigure_args = [
                 sys.executable,
@@ -443,9 +456,12 @@ class CMakeApp(App):
                 self.build_path,
                 '-C',
                 self.work_dir,
+                '-DIDF_TARGET=' + self.target,
                 'reconfigure',
             ]
-            subprocess.run(reconfigure_args, check=True)
+            subprocess_run(
+                reconfigure_args, log_terminal=False if self.build_log_path else True, log_fs=log_file, check=True
+            )
 
             with open(os.path.join(self.build_path, PROJECT_DESCRIPTION_JSON)) as fr:
                 build_components = set(json.load(fr)['build_components'])
@@ -476,39 +492,30 @@ class CMakeApp(App):
             if 'CONFIG_APP_BUILD_BOOTLOADER' in cmake_vars:
                 # In case if secure_boot is enabled then for bootloader build need to add `bootloader` cmd
                 build_args.append('bootloader')
+
         build_args.append('build')
 
         if self.verbose:
             build_args.append('-v')
 
-        LOGGER.info('Running %s', ' '.join(build_args))
-
         if self.dry_run:
             LOGGER.debug('Skipping... (dry run)')
             return True
 
-        if self.build_log_path:
-            LOGGER.info('Writing build log to %s', self.build_log_path)
-            log_file = open(self.build_log_path, 'w')
-        else:
-            # delete manually later, used for tracking debugging info
-            log_file = tempfile.NamedTemporaryFile('w', delete=False)
-
         old_idf_target_env = os.getenv('IDF_TARGET')
         os.environ['IDF_TARGET'] = self.target  # pass the cmake check
-        p = subprocess.Popen(build_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        for line in p.stdout:
-            if isinstance(line, bytes):
-                line = line.decode('utf-8')
-            if not self.build_log_path:
-                sys.stdout.write(line)
-            log_file.write(line)
-        returncode = p.wait()
+
+        returncode = subprocess_run(
+            build_args,
+            log_terminal=False if self.build_log_path else True,
+            log_fs=log_file,
+        )
+
         if old_idf_target_env is not None:
             os.environ['IDF_TARGET'] = old_idf_target_env  # revert it back
+        log_file.close()
 
         # help debug
-        log_file.close()
         has_unignored_warning = False
         with open(log_file.name) as f:
             lines = [line.rstrip() for line in f.readlines() if line.rstrip()]

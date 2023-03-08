@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- `idf.py reconfigure` without setting `IDF_TARGET`
+
 ## [0.3.1]
 
 ### Fixed
