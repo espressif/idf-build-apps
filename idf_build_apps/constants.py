@@ -40,7 +40,7 @@ PREVIEW_TARGETS = getattr(_idf_py_constant_py, 'PREVIEW_TARGETS', [])
 ALL_TARGETS = SUPPORTED_TARGETS + PREVIEW_TARGETS
 
 
-def _idf_version_from_cmake():
+def _idf_version_from_cmake():  # type: () -> (int, int, int)
     version_path = str(IDF_PATH / 'tools' / 'cmake' / 'version.cmake')
     if not os.path.isfile(version_path):
         raise ValueError('File {} does not exist'.format(version_path))
@@ -55,12 +55,14 @@ def _idf_version_from_cmake():
                 if m:
                     ver[m.group(1)] = m.group(2)
 
-        return Version('{}.{}.{}'.format(ver['MAJOR'], ver['MINOR'], ver['PATCH']))
+        return ver['MAJOR'], ver['MINOR'], ver['PATCH']
     except (KeyError, OSError):
         raise ValueError('Cannot find ESP-IDF version in {}'.format(version_path))
 
 
 if _BUILDING_DOCS:
-    IDF_VERSION = '1.0.0'
+    IDF_VERSION_MAJOR, IDF_VERSION_MINOR, IDF_VERSION_PATCH = 1, 0, 0
 else:
-    IDF_VERSION = _idf_version_from_cmake()
+    IDF_VERSION_MAJOR, IDF_VERSION_MINOR, IDF_VERSION_PATCH = _idf_version_from_cmake()
+
+IDF_VERSION = Version('{}.{}.{}'.format(IDF_VERSION_MAJOR, IDF_VERSION_MINOR, IDF_VERSION_PATCH))
