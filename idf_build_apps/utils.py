@@ -80,7 +80,19 @@ def config_rules_from_str(rule_strings):  # type: (list[str]) -> list[ConfigRule
     return sorted(rules, key=lambda x: x.file_name)
 
 
-def setup_logging(verbose=0, log_file=None, colored=True):  # type: (int, str | None) -> None
+def setup_logging(verbose=0, log_file=None, colored=True):  # type: (int, str | None, bool) -> None
+    """
+    Setup logging stream handler
+
+    :param verbose: 0 - WARNING, 1 - INFO, 2+ - DEBUG
+    :type verbose: int
+    :param log_file: log file path
+    :type log_file: str
+    :param colored: colored output or not
+    :type colored: bool
+    :return: None
+    :rtype: None
+    """
     if not verbose:
         level = logging.WARNING
     elif verbose == 1:
