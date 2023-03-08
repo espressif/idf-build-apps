@@ -101,9 +101,13 @@ def get_parallel_start_stop(total, parallel_count, parallel_index):  # type: (in
     Calculate the start and stop indices for a parallel task (1-based).
 
     :param total: total number of tasks
+    :type total: int
     :param parallel_count: number of parallel tasks to run
-    :param parallel_index: index of the parallel task
-    :return: start and stop indices
+    :type parallel_count: int
+    :param parallel_index: index of the parallel task to run
+    :type parallel_index: int
+    :return: start and stop indices, [start, stop]
+    :rtype: (int, int)
     """
     if parallel_count == 1:
         return 1, total
