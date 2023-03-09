@@ -354,6 +354,7 @@ class App:
     def build(
         self,
         depends_on_components=None,  # type: list[str] | str | None
+        check_component_dependencies=False,  # type: bool
     ):  # type: (...) -> bool
         pass
 
@@ -445,6 +446,7 @@ class CMakeApp(App):
     def build(
         self,
         depends_on_components=None,  # type: list[str] | str | None
+        check_component_dependencies=False,  # type: bool
     ):  # type: (...) -> bool
         cmake_vars = self.build_prepare()
 
@@ -456,7 +458,7 @@ class CMakeApp(App):
             log_file = tempfile.NamedTemporaryFile('w', delete=False)
 
         depends_on_components = to_list(depends_on_components)
-        if depends_on_components is not None:
+        if depends_on_components is not None and check_component_dependencies:
             reconfigure_args = [
                 sys.executable,
                 str(IDF_PY),

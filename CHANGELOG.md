@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file.
 - Support new keywords `IDF_VERSION_MAJOR`, `IDF_VERSION_MINOR`, `IDF_VERSION_PATCH`
 - Support colored output by default in UNIX-like systems.
 - Add `--no-color` CLI option.
+- Support ignore check component dependencies based on changed files and specified file patterns
+  - Add `--ignore-component-dependencies-file-patterns` CLI option
+  - Add `--depends-on-files` CLI option
 
 ### Fixed
 

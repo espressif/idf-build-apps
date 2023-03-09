@@ -116,6 +116,22 @@ if __name__ == '__main__':
         'would only be built if depends on any of the specified components',
     )
     common_args.add_argument(
+        '-if',
+        '--ignore-component-dependencies-file-patterns',
+        nargs='*',
+        default=None,
+        help='ignore component dependencies when changed files matches any of the specified file patterns. must used '
+        'with --depends-on-files',
+    )
+    common_args.add_argument(
+        '--depends-on-files',
+        nargs='*',
+        default=None,
+        help='space-separated file pattern list, the `requires_components` set in the manifest files will be '
+        'ignored when specified files match any of the specified file patterns defined with '
+        '--ignore-component-dependencies-file-patterns. Must used with --ignore-component-dependencies-file-patterns',
+    )
+    common_args.add_argument(
         '--no-color',
         action='store_true',
         help='enable colored output by default on UNIX-like systems. enable this flag to make the logs uncolored.',
@@ -216,6 +232,11 @@ if __name__ == '__main__':
             if t not in default_build_targets:
                 default_build_targets.append(t)
 
+    if (args.ignore_component_dependencies_file_patterns is None) != (args.depends_on_files is None):
+        raise InvalidCommand(
+            'Must specify "--ignore-component-dependencies-file-patterns" and "--depends-on-files" together'
+        )
+
     apps = find_apps(
         args.paths,
         args.target,
@@ -232,6 +253,8 @@ if __name__ == '__main__':
         default_build_targets=default_build_targets,
         depends_on_components=args.depends_on_components,
         manifest_rootpath=args.manifest_rootpath,
+        ignore_component_dependencies_file_patterns=args.ignore_component_dependencies_file_patterns,
+        depends_on_files=args.depends_on_files,
     )
 
     if args.action == 'find':
@@ -262,6 +285,9 @@ if __name__ == '__main__':
         ignore_warning_file=args.ignore_warning_file,
         copy_sdkconfig=args.copy_sdkconfig,
         depends_on_components=args.depends_on_components,
+        manifest_rootpath=args.manifest_rootpath,
+        ignore_component_dependencies_file_patterns=args.ignore_component_dependencies_file_patterns,
+        depends_on_files=args.depends_on_files,
     )
 
     if args.depends_on_components is not None:

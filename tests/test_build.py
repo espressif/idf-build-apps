@@ -24,20 +24,26 @@ class TestBuild:
         assert 'Project build complete.' in captured.out
 
     @pytest.mark.parametrize(
-        'depends_on_components, assert_build_done',
+        'depends_on_components, check_component_dependencies, assert_build_done',
         [
-            (None, True),
-            ([], False),
-            ('fake', False),
-            ('soc', True),
-            (['soc', 'fake'], True),
+            (None, True, True),
+            ([], True, False),
+            ([], False, True),
+            ('fake', True, False),
+            ('fake', False, True),
+            ('soc', True, True),
+            ('soc', False, True),
+            (['soc', 'fake'], True, True),
         ],
     )
-    def test_build_with_depends_on_components(self, tmpdir, capsys, depends_on_components, assert_build_done):
+    def test_build_with_depends_on_components(
+        self, tmpdir, capsys, depends_on_components, check_component_dependencies, assert_build_done
+    ):
         path = IDF_PATH / 'examples' / 'get-started' / 'hello_world'
 
         CMakeApp(str(path), 'esp32', work_dir=str(tmpdir / 'test')).build(
             depends_on_components=depends_on_components,
+            check_component_dependencies=check_component_dependencies,
         )
 
         captured = capsys.readouterr()

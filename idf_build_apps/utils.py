@@ -8,6 +8,9 @@ import re
 import shutil
 import subprocess
 import sys
+from pathlib import (
+    Path,
+)
 
 from . import (
     LOGGER,
@@ -20,7 +23,6 @@ try:
     import typing as t
 except ImportError:
     pass
-
 
 _SDKCONFIG_KV_RE = re.compile(r'^([^#=]+)=(.+)$')
 
@@ -64,10 +66,12 @@ class ConfigRule:
 
 def config_rules_from_str(rule_strings):  # type: (list[str]) -> list[ConfigRule]
     """
-    Helper function to convert strings like 'file_name=config_name' into ConfigRule objects
+    Helper function to convert strings like 'file_name=config_name' into `ConfigRule` objects
 
     :param rule_strings: list of rules as strings
+    :type rule_strings: list[str]
     :return: list of ConfigRules
+    :rtype: list[ConfigRule]
     """
     if not rule_strings:
         return []
@@ -240,3 +244,31 @@ def to_list(s):
         return s
     else:
         return [s]
+
+
+def to_absolute_path(s, rootpath=None):  # type: (str, str | None) -> Path
+    rp = Path(rootpath or '.').expanduser().resolve()
+
+    sp = Path(s).expanduser()
+    if sp.is_absolute():
+        return sp.resolve()
+    else:
+        return (rp / sp).resolve()
+
+
+def files_matches_patterns(
+    files,  # type: list[str] | str
+    patterns,  # type: list[str] | str
+    rootpath=None,  # type: str
+):  # type: (...) -> bool
+    # can't match a absolute pattern with a relative path
+    # change all to absolute paths
+    files = [to_absolute_path(f, rootpath) for f in to_list(files)]
+    patterns = [to_absolute_path(p, rootpath) for p in to_list(patterns)]
+
+    for f in files:
+        for p in patterns:
+            if f.match(str(p)):
+                return True
+
+    return False
