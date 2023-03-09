@@ -37,7 +37,7 @@ except ImportError:
 
 
 def find_apps(
-    paths,  # type: (list[str] | str)
+    paths,  # type: list[str] | str
     target,  # type: str
     build_system='cmake',  # type: str
     recursive=False,  # type: bool
@@ -56,6 +56,55 @@ def find_apps(
     ignore_component_dependencies_file_patterns=None,  # type: list[str] | str | None
     depends_on_files=None,  # type: list[str] | str | None
 ):  # type: (...) -> list[App]
+    """
+    Find app directories in paths (possibly recursively), which contain apps for the given build system, compatible
+    with the given target
+
+    :param paths: list of app directories (can be / usually will be a relative path)
+    :type paths: list[str] | str
+    :param target: desired value of IDF_TARGET; apps incompatible with the given target are skipped.
+    :type target: str
+    :param build_system: name of the build system, now only support cmake
+    :type build_system: str
+    :param recursive: Recursively search into the nested sub-folders if no app is found or not
+    :type recursive: bool
+    :param exclude_list: list of paths to be excluded from the recursive search
+    :type exclude_list: list[str] | None
+    :param work_dir: directory where the app should be copied before building. Support placeholders
+    :type work_dir: str | None
+    :param build_dir: directory where the build will be done. Support placeholders.
+    :type build_dir: str
+    :param config_rules_str: mapping of sdkconfig file name patterns to configuration names
+    :type config_rules_str: list[str] | None
+    :param build_log_path: path of the build log. Support placeholders.
+        The logs will go to stdout/stderr if not specified
+    :type build_log_path: str | None
+    :param size_json_path: path of the size.json file. Support placeholders.
+        Will not generate size file for each app if not specified
+    :type size_json_path: str | None
+    :param check_warnings: Check for warnings in the build log or not
+    :type check_warnings: bool
+    :param preserve: Preserve the built binaries or not
+    :type preserve: bool
+    :param manifest_files: paths of the manifest files
+    :type manifest_files: list[str] | str | None
+    :param default_build_targets: default build targets used in manifest files
+    :type default_build_targets: list[str] | str | None
+    :param depends_on_components: app with ``requires_components`` set in the corresponding manifest files will only
+        be built if it depends on any of the specified components
+    :type depends_on_components: list[str] | str | None
+    :param manifest_rootpath: The root path of the manifest files. Usually the folders specified in the manifest files
+        are relative paths. Use the current directory if not specified
+    :type manifest_rootpath: str | None
+    :param ignore_component_dependencies_file_patterns: file patterns that use to ignore checking the component
+        dependencies
+    :type ignore_component_dependencies_file_patterns: list[str] | str | None
+    :param depends_on_files: skip check app's component dependencies if any of the specified files matches
+        ``ignore_component_dependencies_file_patterns``
+    :type depends_on_files: list[str] | str | None
+    :return: list of found apps
+    :rtype: list[App]
+    """
     if default_build_targets:
         default_build_targets = to_list(default_build_targets)
         LOGGER.info('Overriding DEFAULT_BUILD_TARGETS to %s', default_build_targets)
@@ -138,6 +187,49 @@ def build_apps(
     ignore_component_dependencies_file_patterns=None,  # type: list[str] | str | None
     depends_on_files=None,  # type: list[str] | str | None
 ):  # type: (...) -> (int, list[App]) | int
+    """
+    Build all the specified apps
+
+    :param apps: list of apps to be built
+    :type apps: list[App] | App
+    :param build_verbose: call ``--verbose`` in ``idf.py build`` or not
+    :type build_verbose: bool
+    :param parallel_count: number of parallel tasks to run
+    :type parallel_count: int
+    :param parallel_index: index of the parallel task to run
+    :type parallel_index: int
+    :param dry_run: simulate this run or not
+    :type dry_run: bool
+    :param keep_going: keep building or not if one app's build failed
+    :type keep_going: bool
+    :param collect_size_info: file path to record all generated size files' paths if specified
+    :type collect_size_info: TextIO | None
+    :param collect_app_info: file path to record all the built apps' info if specified
+    :type collect_app_info: TextIO | None
+    :param ignore_warning_strs: ignore build warnings that matches any of the specified regex patterns
+    :type ignore_warning_strs: list[str] | None
+    :param ignore_warning_file: ignore build warnings that matches any of the lines of the regex patterns in the
+        specified file
+    :type ignore_warning_file: list[str] | None
+    :param copy_sdkconfig: copy the sdkconfig file to the build directory or not
+    :type copy_sdkconfig: bool
+    :param depends_on_components: app with ``requires_components`` set in the corresponding manifest files would only be
+        built if it depends on any of the specified components
+    :type depends_on_components: list[str] | str | None
+    :param manifest_rootpath: The root path of the manifest files. Usually the folders specified in the manifest files
+        are relative paths. Use the current directory if not specified
+    :type manifest_rootpath: str | None
+    :param ignore_component_dependencies_file_patterns: file patterns that use to ignore checking the component
+        dependencies
+    :type ignore_component_dependencies_file_patterns: list[str] | str | None
+    :param depends_on_files: skip check app's component dependencies if any of the specified files matches
+        ``ignore_component_dependencies_file_patterns``
+    :type depends_on_files: list[str] | str | None
+    :return: exit_code, built_apps if specified ``depends_on_components``
+    :rtype: int, list[App]
+    :return: exit_code if not specified ``depends_on_components``
+    :rtype: int
+    """
     apps = to_list(apps)
 
     ignore_warnings_regexes = []

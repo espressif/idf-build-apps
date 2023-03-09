@@ -148,7 +148,7 @@ def _find_apps(
     build_system='cmake',  # type: str
     recursive=False,  # type: bool
     exclude_list=None,  # type: list[str] | None
-    **kwargs,
+    **kwargs
 ):  # type: (...) -> list[App]
     exclude_list = exclude_list or []
     LOGGER.debug(
@@ -162,12 +162,7 @@ def _find_apps(
         if exclude_list:
             LOGGER.warning('--exclude option is ignored when used without --recursive')
 
-        return _get_apps_from_path(
-            path,
-            target,
-            build_system,
-            **kwargs,
-        )
+        return _get_apps_from_path(path, target, build_system, **kwargs)
 
     # The remaining part is for recursive == True
     apps = []
@@ -183,12 +178,7 @@ def _find_apps(
             del dirs[:]
             continue
 
-        _found_apps = _get_apps_from_path(
-            root,
-            target,
-            build_system,
-            **kwargs,
-        )
+        _found_apps = _get_apps_from_path(root, target, build_system, **kwargs)
         if _found_apps:  # root has at least one app
             LOGGER.debug('=> Stop iteration sub dirs of %s since it has apps', root)
             del dirs[:]

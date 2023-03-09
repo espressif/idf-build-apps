@@ -228,11 +228,10 @@ def to_list(s):
 
     :param s: anything
     :type s: any
-    :return: List of the objects
-        - `list(s)`, if `s` is a tuple or a set
-        - itself, if `s` is a list
-        - `[s]`, if `s` is other type
-        - `None`, if `s` is None
+    :return: ``list(s)``, if ``s`` is a tuple or a set
+    :return: itself, if ``s`` is a list
+    :return: ``[s]``, if ``s`` is other type
+    :return: ``None``, if ``s`` is None
     :rtype: list | None
     """
     if s is None:

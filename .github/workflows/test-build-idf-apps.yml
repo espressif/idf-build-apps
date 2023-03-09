@@ -34,7 +34,6 @@ jobs:
           path: dist/idf_build_apps-*-py2.py3-none-any.whl
 
   build-apps-on-eariler-idf-branches:
-    if: ${{ github.ref == 'refs/heads/main' }}
     needs: build-python-packages
     strategy:
       matrix:
