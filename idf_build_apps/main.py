@@ -90,7 +90,7 @@ def find_apps(
     :type manifest_files: list[str] | str | None
     :param default_build_targets: default build targets used in manifest files
     :type default_build_targets: list[str] | str | None
-    :param depends_on_components: app with `requires_components` set in the corresponding manifest files will only
+    :param depends_on_components: app with ``requires_components`` set in the corresponding manifest files will only
         be built if it depends on any of the specified components
     :type depends_on_components: list[str] | str | None
     :param manifest_rootpath: The root path of the manifest files. Usually the folders specified in the manifest files
@@ -100,7 +100,7 @@ def find_apps(
         dependencies
     :type ignore_component_dependencies_file_patterns: list[str] | str | None
     :param depends_on_files: skip check app's component dependencies if any of the specified files matches
-        `ignore_component_dependencies_file_patterns`
+        ``ignore_component_dependencies_file_patterns``
     :type depends_on_files: list[str] | str | None
     :return: list of found apps
     :rtype: list[App]
@@ -192,7 +192,7 @@ def build_apps(
 
     :param apps: list of apps to be built
     :type apps: list[App] | App
-    :param build_verbose: call `--verbose` in `idf.py build` or not
+    :param build_verbose: call ``--verbose`` in ``idf.py build`` or not
     :type build_verbose: bool
     :param parallel_count: number of parallel tasks to run
     :type parallel_count: int
@@ -213,7 +213,7 @@ def build_apps(
     :type ignore_warning_file: list[str] | None
     :param copy_sdkconfig: copy the sdkconfig file to the build directory or not
     :type copy_sdkconfig: bool
-    :param depends_on_components: app with `requires_components` set in the corresponding manifest files would only be
+    :param depends_on_components: app with ``requires_components`` set in the corresponding manifest files would only be
         built if it depends on any of the specified components
     :type depends_on_components: list[str] | str | None
     :param manifest_rootpath: The root path of the manifest files. Usually the folders specified in the manifest files
@@ -223,11 +223,12 @@ def build_apps(
         dependencies
     :type ignore_component_dependencies_file_patterns: list[str] | str | None
     :param depends_on_files: skip check app's component dependencies if any of the specified files matches
-        `ignore_component_dependencies_file_patterns`
+        ``ignore_component_dependencies_file_patterns``
     :type depends_on_files: list[str] | str | None
-    :return: exit_code, built_apps if specified `depends_on_components`, otherwise exit_code
-    :rtype: int, list[App] if specified `depends_on_components`
-    :rtype: int if not specified `depends_on_components`
+    :return: exit_code, built_apps if specified ``depends_on_components``
+    :rtype: int, list[App]
+    :return: exit_code if not specified ``depends_on_components``
+    :rtype: int
     """
     apps = to_list(apps)
 
