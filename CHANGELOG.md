@@ -2,7 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.4.0]
+
+This is the last version to support ESP-IDF v4.1 since it's EOL on Feb. 24th, 2023.
 
 ### Added
 
