@@ -228,9 +228,10 @@ def to_list(s):
         - `list(s)`, if `s` is a tuple or a set
         - itself, if `s` is a list
         - `[s]`, if `s` is other type
-    :rtype: list
+        - `None`, if `s` is None
+    :rtype: list | None
     """
-    if not s:
+    if s is None:
         return s
 
     if isinstance(s, set) or isinstance(s, tuple):
