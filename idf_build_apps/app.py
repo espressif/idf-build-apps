@@ -357,6 +357,32 @@ class App:
     ):  # type: (...) -> bool
         pass
 
+    def write_size_json(self):
+        map_file = find_first_match('*.map', self.build_path)
+        if not map_file:
+            LOGGER.warning(
+                '.map file not found. Cannot write size json to file: %s',
+                self.size_json_path,
+            )
+            return
+
+        subprocess_run(
+            (
+                [
+                    sys.executable,
+                    str(IDF_SIZE_PY),
+                ]
+                + (['--json'] if IDF_VERSION < Version('5.1') else ['--format', 'json'])
+                + [
+                    '-o',
+                    self.size_json_path,
+                    map_file,
+                ]
+            ),
+            check=True,
+        )
+        LOGGER.info('=> Generated size info to %s', self.size_json_path)
+
     def collect_size_info(self, output_fs):  # type: (TextIO) -> None
         if not os.path.isfile(self.size_json_path):
             self.write_size_json()
@@ -519,29 +545,7 @@ class CMakeApp(App):
                     LOGGER.error('%s', line)
 
         if returncode == 0 and self.size_json_path:
-            map_file = find_first_match('*.map', self.build_path)
-            if not map_file:
-                LOGGER.warning(
-                    '.map file not found. Cannot write size json to file: %s',
-                    self.size_json_path,
-                )
-            else:
-                subprocess_run(
-                    (
-                        [
-                            sys.executable,
-                            str(IDF_SIZE_PY),
-                        ]
-                        + (['--json'] if IDF_VERSION < Version('5.1') else ['--format', 'json'])
-                        + [
-                            '-o',
-                            self.size_json_path,
-                            map_file,
-                        ]
-                    ),
-                    check=True,
-                )
-                LOGGER.info('=> Generated size info to %s', self.size_json_path)
+            self.write_size_json()
 
         if not self.preserve:
             LOGGER.info('=> Removing build directory %s', self.build_path)
