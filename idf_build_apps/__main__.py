@@ -111,8 +111,9 @@ if __name__ == '__main__':
     common_args.add_argument(
         '--depends-on-components',
         nargs='*',
-        default=[],
-        help='space-separated components list, app would only be built if depends on any of the specified components',
+        default=None,
+        help='space-separated components list, app with `requires_components` set in the corresponding manifest files '
+        'would only be built if depends on any of the specified components',
     )
     common_args.add_argument(
         '--no-color',
@@ -263,7 +264,7 @@ if __name__ == '__main__':
         depends_on_components=args.depends_on_components,
     )
 
-    if args.depends_on_components:
+    if args.depends_on_components is not None:
         sys.exit(res[0])
     else:
         sys.exit(res)

@@ -216,3 +216,26 @@ def subprocess_run(
         raise subprocess.CalledProcessError(returncode, cmd)
 
     return returncode
+
+
+def to_list(s):
+    """
+    Turn all objects to lists
+
+    :param s: anything
+    :type s: any
+    :return: List of the objects
+        - `list(s)`, if `s` is a tuple or a set
+        - itself, if `s` is a list
+        - `[s]`, if `s` is other type
+    :rtype: list
+    """
+    if not s:
+        return s
+
+    if isinstance(s, set) or isinstance(s, tuple):
+        return list(s)
+    elif isinstance(s, list):
+        return s
+    else:
+        return [s]

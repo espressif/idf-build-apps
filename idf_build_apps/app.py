@@ -35,6 +35,7 @@ from .utils import (
     find_first_match,
     rmdir,
     subprocess_run,
+    to_list,
 )
 
 try:
@@ -428,10 +429,8 @@ class CMakeApp(App):
             # delete manually later, used for tracking debugging info
             log_file = tempfile.NamedTemporaryFile('w', delete=False)
 
-        if depends_on_components:
-            if isinstance(depends_on_components, str):
-                depends_on_components = [depends_on_components]
-
+        depends_on_components = to_list(depends_on_components)
+        if depends_on_components is not None:
             reconfigure_args = [
                 sys.executable,
                 str(IDF_PY),

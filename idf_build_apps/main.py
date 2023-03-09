@@ -26,6 +26,7 @@ from .manifest.manifest import (
 from .utils import (
     BuildError,
     get_parallel_start_stop,
+    to_list,
 )
 
 try:
@@ -53,40 +54,29 @@ def find_apps(
     manifest_rootpath=None,  # type: str | None
 ):  # type: (...) -> list[App]
     if default_build_targets:
-        if isinstance(default_build_targets, str):
-            default_build_targets = [default_build_targets]
-
+        default_build_targets = to_list(default_build_targets)
         LOGGER.info('Overriding DEFAULT_BUILD_TARGETS to %s', default_build_targets)
         FolderRule.DEFAULT_BUILD_TARGETS = default_build_targets
 
-    # always set the manifest rootpath at the very beginning of find_apps
+    # always set the manifest rootpath at the very beginning of find_apps in case ESP-IDF switches the branch.
     Manifest.ROOTPATH = Path(manifest_rootpath or os.curdir).resolve()
 
     if manifest_files:
-        if isinstance(manifest_files, str):
-            manifest_files = [manifest_files]
-
         rules = set()
-        for _manifest_file in manifest_files:
+        for _manifest_file in to_list(manifest_files):
             LOGGER.debug('Loading manifest file: %s', _manifest_file)
             rules.update(Manifest.from_file(_manifest_file).rules)
         manifest = Manifest(rules)
         App.MANIFEST = manifest
 
     apps = []
-    if isinstance(paths, str):
-        paths = [paths]
-
     if target == 'all':
         targets = ALL_TARGETS
     else:
         targets = [target]
 
-    if isinstance(depends_on_components, str):
-        depends_on_components = [depends_on_components]
-
     for target in targets:
-        for path in paths:
+        for path in to_list(paths):
             apps.extend(
                 _find_apps(
                     path,
@@ -111,7 +101,7 @@ def find_apps(
 
 
 def build_apps(
-    apps,  # type: list[App]
+    apps,  # type: list[App] | App
     build_verbose=False,  # type: bool
     parallel_count=1,  # type: int
     parallel_index=1,  # type: int
@@ -123,7 +113,9 @@ def build_apps(
     ignore_warning_file=None,  # type: t.TextIO | None
     copy_sdkconfig=False,  # type: bool
     depends_on_components=None,  # type: list[str] | str | None
-):  # type: (...) -> t.Tuple[int, list[App]] | int
+):  # type: (...) -> (int, list[App]) | int
+    apps = to_list(apps)
+
     ignore_warnings_regexes = []
     if ignore_warning_strs:
         for s in ignore_warning_strs:
@@ -167,7 +159,7 @@ def build_apps(
                 failed_apps.append(app)
                 exit_code = 1
             else:
-                if depends_on_components:
+                if depends_on_components is not None:
                     return 1, actual_built_apps
                 else:
                     return 1
@@ -201,7 +193,7 @@ def build_apps(
         for app in failed_apps:
             LOGGER.error('  %s', app)
 
-    if depends_on_components:
+    if depends_on_components is not None:
         return exit_code, actual_built_apps
     else:
         return exit_code

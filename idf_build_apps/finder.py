@@ -18,6 +18,7 @@ from .utils import (
     ConfigRule,
     config_rules_from_str,
     dict_from_sdkconfig,
+    to_list,
 )
 
 
@@ -32,7 +33,7 @@ def _get_apps_from_path(
     size_json_path=None,  # type: str | None
     check_warnings=False,  # type: bool
     preserve=True,  # type: bool
-    depends_on_components=None,  # type: list[str] | None
+    depends_on_components=None,  # type: list[str] | str | None
 ):  # type: (...) -> list[App]
     """
     Get the list of buildable apps under the given path.
@@ -67,8 +68,9 @@ def _get_apps_from_path(
         LOGGER.debug('Skipping. %s only supports targets: %s', path, ', '.join(supported_targets))
         return []
 
+    depends_on_components = to_list(depends_on_components)
     requires_components = app_cls.requires_components(path)
-    if requires_components and depends_on_components:
+    if requires_components and depends_on_components is not None:
         if not set(requires_components).intersection(set(depends_on_components)):
             LOGGER.debug(
                 'Skipping. %s requires components: %s, but you passed "--depends-on-components %s"',
@@ -173,7 +175,7 @@ def _find_apps(
     size_json_path=None,  # type: str | None
     check_warnings=False,  # type: bool
     preserve=True,  # type: bool
-    depends_on_components=None,  # type: list[str] | None
+    depends_on_components=None,  # type: list[str] | str | None
 ):  # type: (...) -> list[App]
     """
     Find app directories in path (possibly recursively), which contain apps for the given build system, compatible
