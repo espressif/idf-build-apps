@@ -193,7 +193,7 @@ def subprocess_run(
     :type log_terminal: bool
     :param log_fs: write to this file stream if not `None`
     :type log_fs: TextIO
-    :param check: raise `subprocess.CalledProcessError` when return code is non-zero
+    :param check: raise `BuildError` when return code is non-zero
     :type check: bool
     :return: return code
     :rtype: int
@@ -213,7 +213,7 @@ def subprocess_run(
 
     returncode = p.wait()
     if check and returncode != 0:
-        raise subprocess.CalledProcessError(returncode, cmd)
+        raise BuildError('Command {} returned non-zero exit status {}'.format(cmd, returncode))
 
     return returncode
 
