@@ -23,35 +23,32 @@ class TestBuild:
         assert 'Configuring done' in captured.out
         assert 'Project build complete.' in captured.out
 
-    def test_build_with_depends_on_real_component(self, tmpdir, capsys):
+    @pytest.mark.parametrize(
+        'depends_on_components, check_component_dependencies, assert_build_done',
+        [
+            (None, True, True),
+            ([], True, False),
+            ([], False, True),
+            ('fake', True, False),
+            ('fake', False, True),
+            ('soc', True, True),
+            ('soc', False, True),
+            (['soc', 'fake'], True, True),
+        ],
+    )
+    def test_build_with_depends_on_components(
+        self, tmpdir, capsys, depends_on_components, check_component_dependencies, assert_build_done
+    ):
         path = IDF_PATH / 'examples' / 'get-started' / 'hello_world'
 
         CMakeApp(str(path), 'esp32', work_dir=str(tmpdir / 'test')).build(
-            depends_on_components='soc',
+            depends_on_components=depends_on_components,
+            check_component_dependencies=check_component_dependencies,
         )
 
         captured = capsys.readouterr()
         assert 'Configuring done' in captured.out
-        assert 'Project build complete.' in captured.out
-
-    def test_build_with_depends_on_fake_component(self, tmpdir, capsys):
-        path = IDF_PATH / 'examples' / 'get-started' / 'hello_world'
-
-        CMakeApp(str(path), 'esp32', work_dir=str(tmpdir / 'test')).build(
-            depends_on_components='foo',
-        )
-
-        captured = capsys.readouterr()
-        assert 'Configuring done' in captured.out
-        assert 'Project build complete.' not in captured.out
-
-    def test_build_with_depends_on_list_of_component(self, tmpdir, capsys):
-        path = IDF_PATH / 'examples' / 'get-started' / 'hello_world'
-
-        CMakeApp(str(path), 'esp32', work_dir=str(tmpdir / 'test')).build(
-            depends_on_components=['soc', 'foo', 'bar'],
-        )
-
-        captured = capsys.readouterr()
-        assert 'Configuring done' in captured.out
-        assert 'Project build complete.' in captured.out
+        if assert_build_done:
+            assert 'Project build complete.' in captured.out
+        else:
+            assert 'Project build complete.' not in captured.out

@@ -7,12 +7,15 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Support new keywords `IDF_VERSION_MAJOR`, `IDF_VERSION_MINOR`, `IDF_VERSION_PATCH`
-- Support colored output by default in UNIX-like systems.
-- Add `--no-color` CLI option.
+- Support colored output by default in UNIX-like systems
+  - Add `--no-color` CLI option
+- Support ignore check component dependencies based on changed files and specified file patterns
+  - Add `--ignore-component-dependencies-file-patterns` CLI option
+  - Add `--depends-on-files` CLI option
 
 ### Fixed
 
-- Improve the readability of the generated logs.
+- Improve the readability of the generated logs
 
 ## [0.3.2]
 
@@ -26,20 +29,20 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- Ralative path defined in the manifest files depend on the current work path.
+- Ralative path defined in the manifest files depend on the current work path
 
-  Added `manifest_rootpath` argument in `find_apps()`. Will use this value instead as the root folder for calculating absolute path.
+  Added `manifest_rootpath` argument in `find_apps()`. Will use this value instead as the root folder for calculating absolute path
 
 ## [0.3.0]
 
 ### Added
 
-- `find_apps`, `build_apps` support `--depends-on-components`, will only find or build apps that require specified components.
+- `find_apps`, `build_apps` support `--depends-on-components`, will only find or build apps that require specified components
 - manifest file support `requires_components`
 
 ### Fixed
 
--  Wrong `App.verified_targets` when `CONFIG_IDF_TARGET` set in app's `sdkconfig.defaults` file.
+-  Wrong `App.verified_targets` when `CONFIG_IDF_TARGET` set in app's `sdkconfig.defaults` file
 
 ## [0.2.1]
 

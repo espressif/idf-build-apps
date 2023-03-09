@@ -5,6 +5,8 @@ import inspect
 import logging
 import os
 
+import pytest
+
 from idf_build_apps.constants import (
     DEFAULT_SDKCONFIG,
     IDF_PATH,
@@ -68,7 +70,17 @@ def test_finder_with_sdkconfig_defaults():
             pass
 
 
-def test_finder_with_requires_and_depends_on_components(tmpdir):
+@pytest.mark.parametrize(
+    'depends_on_components, could_find_apps',
+    [
+        (None, True),
+        ([], False),
+        ('fake', False),
+        ('soc', True),
+        (['soc', 'fake'], True),
+    ],
+)
+def test_finder_with_requires_and_depends_on_components(tmpdir, depends_on_components, could_find_apps):
     test_dir = str(IDF_PATH / 'examples')
     apps = find_apps(test_dir, 'esp32', recursive=True)
     assert apps
@@ -80,45 +92,25 @@ def test_finder_with_requires_and_depends_on_components(tmpdir):
                 '''
             {}:
                 requires_components:
-                    - foo
-                    - bar
+                    - freertos
+                    - soc
         '''.format(
                     test_dir
                 )
             )
         )
-    filtered_apps = find_apps(
-        test_dir, 'esp32', recursive=True, manifest_files=yaml_file, depends_on_components=['baz']
-    )
-    assert not filtered_apps
 
     filtered_apps = find_apps(
-        test_dir, 'esp32', recursive=True, manifest_files=yaml_file, depends_on_components=['bar']
+        test_dir,
+        'esp32',
+        recursive=True,
+        manifest_files=yaml_file,
+        depends_on_components=depends_on_components,
     )
-    assert filtered_apps == apps
-
-
-def test_finder_with_requires_without_depends_on_components(tmpdir):
-    test_dir = str(IDF_PATH / 'examples')
-    apps = find_apps(test_dir, 'esp32', recursive=True)
-    assert apps
-
-    yaml_file = str(tmpdir / 'test.yml')
-    with open(yaml_file, 'w') as fw:
-        fw.write(
-            inspect.cleandoc(
-                '''
-            {}:
-                requires_components:
-                    - foo
-                    - bar
-        '''.format(
-                    test_dir
-                )
-            )
-        )
-    filtered_apps = find_apps(test_dir, 'esp32', recursive=True, manifest_files=yaml_file)
-    assert filtered_apps == apps
+    if could_find_apps:
+        assert filtered_apps == apps
+    else:
+        assert not filtered_apps
 
 
 def test_finder_after_chdir():

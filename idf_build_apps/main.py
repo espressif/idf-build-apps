@@ -25,7 +25,9 @@ from .manifest.manifest import (
 )
 from .utils import (
     BuildError,
+    files_matches_patterns,
     get_parallel_start_stop,
+    to_list,
 )
 
 try:
@@ -51,49 +53,57 @@ def find_apps(
     default_build_targets=None,  # type: list[str] | str | None
     depends_on_components=None,  # type: list[str] | str | None
     manifest_rootpath=None,  # type: str | None
+    ignore_component_dependencies_file_patterns=None,  # type: list[str] | str | None
+    depends_on_files=None,  # type: list[str] | str | None
 ):  # type: (...) -> list[App]
     if default_build_targets:
-        if isinstance(default_build_targets, str):
-            default_build_targets = [default_build_targets]
-
+        default_build_targets = to_list(default_build_targets)
         LOGGER.info('Overriding DEFAULT_BUILD_TARGETS to %s', default_build_targets)
         FolderRule.DEFAULT_BUILD_TARGETS = default_build_targets
 
-    # always set the manifest rootpath at the very beginning of find_apps
+    # always set the manifest rootpath at the very beginning of find_apps in case ESP-IDF switches the branch.
     Manifest.ROOTPATH = Path(manifest_rootpath or os.curdir).resolve()
 
     if manifest_files:
-        if isinstance(manifest_files, str):
-            manifest_files = [manifest_files]
-
         rules = set()
-        for _manifest_file in manifest_files:
+        for _manifest_file in to_list(manifest_files):
             LOGGER.debug('Loading manifest file: %s', _manifest_file)
             rules.update(Manifest.from_file(_manifest_file).rules)
         manifest = Manifest(rules)
         App.MANIFEST = manifest
 
-    apps = []
-    if isinstance(paths, str):
-        paths = [paths]
+    depends_on_components = to_list(depends_on_components)
+    if depends_on_components is None:
+        check_component_dependencies = False
+    elif (
+        ignore_component_dependencies_file_patterns
+        and depends_on_files
+        and files_matches_patterns(depends_on_files, ignore_component_dependencies_file_patterns)
+    ):
+        LOGGER.debug(
+            'Skipping check component dependencies for apps since files %s matches patterns: %s',
+            ', '.join(depends_on_files),
+            ', '.join(ignore_component_dependencies_file_patterns),
+        )
+        check_component_dependencies = False
+    else:
+        check_component_dependencies = True
 
+    apps = []
     if target == 'all':
         targets = ALL_TARGETS
     else:
         targets = [target]
 
-    if isinstance(depends_on_components, str):
-        depends_on_components = [depends_on_components]
-
     for target in targets:
-        for path in paths:
+        for path in to_list(paths):
             apps.extend(
                 _find_apps(
                     path,
                     target,
-                    build_system=build_system,
-                    recursive=recursive,
-                    exclude_list=exclude_list or [],
+                    build_system,
+                    recursive,
+                    exclude_list or [],
                     work_dir=work_dir,
                     build_dir=build_dir or 'build',
                     config_rules_str=config_rules_str,
@@ -102,6 +112,7 @@ def find_apps(
                     check_warnings=check_warnings,
                     preserve=preserve,
                     depends_on_components=depends_on_components,
+                    check_component_dependencies=check_component_dependencies,
                 )
             )
     apps.sort()
@@ -111,7 +122,7 @@ def find_apps(
 
 
 def build_apps(
-    apps,  # type: list[App]
+    apps,  # type: list[App] | App
     build_verbose=False,  # type: bool
     parallel_count=1,  # type: int
     parallel_index=1,  # type: int
@@ -123,7 +134,12 @@ def build_apps(
     ignore_warning_file=None,  # type: t.TextIO | None
     copy_sdkconfig=False,  # type: bool
     depends_on_components=None,  # type: list[str] | str | None
-):  # type: (...) -> t.Tuple[int, list[App]] | int
+    manifest_rootpath=None,  # type: str | None
+    ignore_component_dependencies_file_patterns=None,  # type: list[str] | str | None
+    depends_on_files=None,  # type: list[str] | str | None
+):  # type: (...) -> (int, list[App]) | int
+    apps = to_list(apps)
+
     ignore_warnings_regexes = []
     if ignore_warning_strs:
         for s in ignore_warning_strs:
@@ -132,6 +148,23 @@ def build_apps(
         for s in ignore_warning_file:
             ignore_warnings_regexes.append(re.compile(s.strip()))
     App.IGNORE_WARNS_REGEXES = ignore_warnings_regexes
+
+    depends_on_components = to_list(depends_on_components)
+    if depends_on_components is None:
+        check_component_dependencies = False
+    elif (
+        ignore_component_dependencies_file_patterns
+        and depends_on_files
+        and files_matches_patterns(depends_on_files, ignore_component_dependencies_file_patterns, manifest_rootpath)
+    ):
+        LOGGER.debug(
+            'Skipping check component dependencies for apps since files %s matches patterns: %s',
+            ', '.join(depends_on_files),
+            ', '.join(ignore_component_dependencies_file_patterns),
+        )
+        check_component_dependencies = False
+    else:
+        check_component_dependencies = True
 
     start, stop = get_parallel_start_stop(len(apps), parallel_count, parallel_index)
     LOGGER.info('Total %s apps. running build for app %s-%s', len(apps), start, stop)
@@ -160,14 +193,17 @@ def build_apps(
         LOGGER.info('Building app %s: %s', index, repr(app))
         is_built = False
         try:
-            is_built = app.build(depends_on_components)
+            is_built = app.build(
+                depends_on_components=depends_on_components,
+                check_component_dependencies=check_component_dependencies,
+            )
         except BuildError as e:
             LOGGER.error(str(e))
             if keep_going:
                 failed_apps.append(app)
                 exit_code = 1
             else:
-                if depends_on_components:
+                if depends_on_components is not None:
                     return 1, actual_built_apps
                 else:
                     return 1
@@ -201,7 +237,7 @@ def build_apps(
         for app in failed_apps:
             LOGGER.error('  %s', app)
 
-    if depends_on_components:
+    if depends_on_components is not None:
         return exit_code, actual_built_apps
     else:
         return exit_code

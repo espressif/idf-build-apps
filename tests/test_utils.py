@@ -8,6 +8,7 @@ from pathlib import (
 import pytest
 
 from idf_build_apps.utils import (
+    files_matches_patterns,
     get_parallel_start_stop,
     rmdir,
 )
@@ -59,3 +60,25 @@ def test_rmdir(tmpdir, patterns, expected):
 )
 def test_get_parallel_start_stop(total, parallel_count, parallel_index, start, stop):
     assert (start, stop) == get_parallel_start_stop(total, parallel_count, parallel_index)
+
+
+@pytest.mark.parametrize(
+    'files, patterns, rootpath, result',
+    [
+        ('c.py', '*.py', None, True),
+        ('c.py', '*.py', '/a', True),
+        ('/a/b/c.py', 'c.py', None, False),
+        ('/a/b/c.py', 'c.py', '/a/b', True),
+        ('/a/b/../b/c.py', '*.py', None, False),
+        ('/a/b/../b/c.py', '*.py', '/a/b', True),
+        ('/a/b/../b/c.py', '**/*.py', None, False),
+        ('/a/b/../b/c.py', '**/*.py', '/a', True),
+        ('c.py', '/a/**/*.py', None, False),
+        ('c.py', '/a/**/*.py', '/a', False),
+        ('c.py', '/a/**/*.py', '/a/b', True),
+        ('/a/b/c.py', '/a/**/*.py', None, True),
+        ('/a/b/c.py', '/a/**/*.py', 'foo', True),
+    ],
+)
+def test_files_matches_patterns(files, patterns, rootpath, result):
+    assert files_matches_patterns(files, patterns, rootpath) == result

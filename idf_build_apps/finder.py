@@ -15,7 +15,6 @@ from .app import (
     CMakeApp,
 )
 from .utils import (
-    ConfigRule,
     config_rules_from_str,
     dict_from_sdkconfig,
 )
@@ -27,32 +26,14 @@ def _get_apps_from_path(
     build_system='cmake',  # type: str
     work_dir=None,  # type: str | None
     build_dir='build',  # type: str
-    config_rules=None,  # type: list[ConfigRule] | None
+    config_rules_str=None,  # type: list[str] | None
     build_log_path=None,  # type: str | None
     size_json_path=None,  # type: str | None
     check_warnings=False,  # type: bool
     preserve=True,  # type: bool
-    depends_on_components=None,  # type: list[str] | None
+    depends_on_components=None,  # type: list[str] | str | None
+    check_component_dependencies=False,  # type: bool
 ):  # type: (...) -> list[App]
-    """
-    Get the list of buildable apps under the given path.
-
-    :param path: app directory (can be / usually will be a relative path)
-    :param target: the value of IDF_TARGET passed to the script. Used to filter out configurations with a different
-        CONFIG_IDF_TARGET value.
-    :param build_system: name of the build system, index into BUILD_SYSTEMS dictionary
-    :param work_dir: directory where the app should be copied before building. May contain env variables and
-        placeholders.
-    :param build_dir: directory where the build will be done, relative to the work_dir. May contain placeholders.
-    :param build_log_path: path of the build log. May contain placeholders. Maybe None, in which case the log should
-        go into stdout/stderr.
-    :param config_rules: mapping of sdkconfig file name patterns to configuration names
-    :param size_json_path: path of the size.json file. May contain placeholders.
-    :param check_warnings: whether to check for warnings in the build log
-    :param preserve: determine if the built binary will be uploaded as artifacts.
-    :return: list of Apps
-    """
-
     if build_system == 'cmake':
         app_cls = CMakeApp
     else:
@@ -68,7 +49,7 @@ def _get_apps_from_path(
         return []
 
     requires_components = app_cls.requires_components(path)
-    if requires_components and depends_on_components:
+    if requires_components and check_component_dependencies:
         if not set(requires_components).intersection(set(depends_on_components)):
             LOGGER.debug(
                 'Skipping. %s requires components: %s, but you passed "--depends-on-components %s"',
@@ -78,6 +59,7 @@ def _get_apps_from_path(
             )
             return []
 
+    config_rules = config_rules_from_str(config_rules_str)
     if not config_rules:
         config_rules = []
 
@@ -166,36 +148,8 @@ def _find_apps(
     build_system='cmake',  # type: str
     recursive=False,  # type: bool
     exclude_list=None,  # type: list[str] | None
-    work_dir=None,  # type: str | None
-    build_dir='build',  # type: str
-    config_rules_str=None,  # type: list[str] | None
-    build_log_path=None,  # type: str | None
-    size_json_path=None,  # type: str | None
-    check_warnings=False,  # type: bool
-    preserve=True,  # type: bool
-    depends_on_components=None,  # type: list[str] | None
+    **kwargs,
 ):  # type: (...) -> list[App]
-    """
-    Find app directories in path (possibly recursively), which contain apps for the given build system, compatible
-    with the given target.
-
-    :param path: path where to look for apps
-    :param target: desired value of IDF_TARGET; apps incompatible with the given target are skipped.
-    :param build_system: the build system in use
-    :param recursive: whether to recursively descend into nested directories if no app is found
-    :param exclude_list: list of paths to be excluded from the recursive search
-    :param work_dir: directory where the app should be copied before building. May contain env variables and
-        placeholders.
-    :param build_dir: directory where the build will be done, relative to the work_dir. May contain placeholders.
-    :param config_rules_str: mapping of sdkconfig file name patterns to configuration names
-    :param build_log_path: path of the build log. May contain placeholders. May be None, in which case the log should
-        go into stdout/stderr.
-    :param size_json_path: path of the size.json file. May contain placeholders.
-    :param check_warnings: whether to check for warnings in the build log
-    :param preserve: determine if the built binary will be uploaded as artifacts.
-    :param depends_on_components: one app would be found only if it requires any of the specified components
-    :return: list of apps found
-    """
     exclude_list = exclude_list or []
     LOGGER.debug(
         'Looking for %s apps in %s%s',
@@ -204,8 +158,6 @@ def _find_apps(
         ' recursively' if recursive else '',
     )
 
-    config_rules = config_rules_from_str(config_rules_str)
-
     if not recursive:
         if exclude_list:
             LOGGER.warning('--exclude option is ignored when used without --recursive')
@@ -213,15 +165,8 @@ def _find_apps(
         return _get_apps_from_path(
             path,
             target,
-            build_system=build_system,
-            work_dir=work_dir,
-            build_dir=build_dir,
-            config_rules=config_rules,
-            build_log_path=build_log_path,
-            size_json_path=size_json_path,
-            check_warnings=check_warnings,
-            preserve=preserve,
-            depends_on_components=depends_on_components,
+            build_system,
+            **kwargs,
         )
 
     # The remaining part is for recursive == True
@@ -229,30 +174,23 @@ def _find_apps(
     for root, dirs, _ in os.walk(path):
         LOGGER.debug('Entering %s', root)
         if root in exclude_list:
-            LOGGER.debug('Skipping %s (excluded)', root)
+            LOGGER.debug('=> Skipping %s (excluded)', root)
             del dirs[:]
             continue
 
         if root.endswith('managed_components'):  # idf-component-manager
-            LOGGER.debug('Skipping %s (managed components)', root)
+            LOGGER.debug('=> Skipping %s (managed components)', root)
             del dirs[:]
             continue
 
         _found_apps = _get_apps_from_path(
             root,
             target,
-            build_system=build_system,
-            work_dir=work_dir,
-            build_dir=build_dir,
-            config_rules=config_rules,
-            build_log_path=build_log_path,
-            size_json_path=size_json_path,
-            check_warnings=check_warnings,
-            preserve=preserve,
-            depends_on_components=depends_on_components,
+            build_system,
+            **kwargs,
         )
         if _found_apps:  # root has at least one app
-            LOGGER.debug('Stop iteration sub dirs of %s since it has apps', root)
+            LOGGER.debug('=> Stop iteration sub dirs of %s since it has apps', root)
             del dirs[:]
             apps.extend(_found_apps)
             continue
