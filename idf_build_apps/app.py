@@ -395,6 +395,7 @@ class App:
             'path': self.size_json_path,
         }
         output_fs.write(json.dumps(size_info_dict) + '\n')
+        LOGGER.info('=> Recorded size info file path in %s', output_fs.name)
 
     def to_json(self):
         # keeping backward compatibility, only provide these stuffs
@@ -474,11 +475,11 @@ class CMakeApp(App):
             )
 
             with open(os.path.join(self.build_path, PROJECT_DESCRIPTION_JSON)) as fr:
-                build_components = set(json.load(fr)['build_components'])
+                build_components = set(item for item in json.load(fr)['build_components'] if item)
 
             if not set(depends_on_components).intersection(set(build_components)):
-                LOGGER.debug(
-                    '==> app %s depends on components: %s, which is not in depends_on_components list: %s',
+                LOGGER.info(
+                    '=> Skip building... app %s depends on components: %s, while current build based on component dependencies: %s',
                     self.app_dir,
                     build_components,
                     depends_on_components,
@@ -565,6 +566,7 @@ class CMakeApp(App):
         if has_unignored_warning:
             raise BuildError('Build succeeded with warnings')
 
+        LOGGER.info('=> Build succeeded')
         return True
 
     @classmethod
