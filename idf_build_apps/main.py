@@ -303,26 +303,32 @@ def build_apps(
             if is_built:
                 actual_built_apps.append(app)
 
-            if collect_app_info:
-                collect_app_info.write(app.to_json() + '\n')
+                if collect_app_info:
+                    collect_app_info.write(app.to_json() + '\n')
+                    LOGGER.info('=> Recorded app info in %s', collect_app_info.name)
 
-            if collect_size_info:
-                try:
-                    # this may not work if the build is failed
-                    app.collect_size_info(collect_size_info)
-                except Exception as e:
-                    LOGGER.debug(e)
-                    pass
+                if collect_size_info:
+                    try:
+                        app.collect_size_info(collect_size_info)
+                    except Exception as e:
+                        LOGGER.warning('Adding size info for app %s failed:', app.name)
+                        LOGGER.warning(e)
+                        pass
 
-            if copy_sdkconfig:
-                try:
-                    shutil.copy(
-                        os.path.join(app.work_dir, 'sdkconfig'),
-                        os.path.join(app.build_path, 'sdkconfig'),
-                    )
-                except Exception as e:
-                    LOGGER.debug(e)
-                    pass
+                if copy_sdkconfig:
+                    try:
+                        shutil.copy(
+                            os.path.join(app.work_dir, 'sdkconfig'),
+                            os.path.join(app.build_path, 'sdkconfig'),
+                        )
+                    except Exception as e:
+                        LOGGER.warning('Copy sdkconfig file from app %s work dir %s failed:', app.name, app.work_dir)
+                        LOGGER.warning(e)
+                        pass
+                    else:
+                        LOGGER.info('=> Copied sdkconfig file from %s to %s', app.work_dir, app.build_path)
+
+            LOGGER.info('')  # add one empty line for separating different builds
 
     if failed_apps:
         LOGGER.error('Build failed for the following apps:')
