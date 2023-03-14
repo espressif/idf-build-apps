@@ -154,14 +154,11 @@ def rmdir(path, exclude_file_patterns=None):
         shutil.rmtree(path, ignore_errors=True)
         return
 
-    if isinstance(exclude_file_patterns, str):
-        exclude_file_patterns = [exclude_file_patterns]
-
     for root, dirs, files in os.walk(path, topdown=False):
         for f in files:
             fp = os.path.join(root, f)
             remove = True
-            for pattern in exclude_file_patterns:
+            for pattern in to_list(exclude_file_patterns):
                 if pattern and fnmatch.fnmatch(f, pattern):
                     remove = False
                     break
