@@ -16,7 +16,7 @@ from .app import (
 )
 from .utils import (
     config_rules_from_str,
-    dict_from_sdkconfig,
+    to_list,
 )
 
 
@@ -26,14 +26,34 @@ def _get_apps_from_path(
     build_system='cmake',  # type: str
     work_dir=None,  # type: str | None
     build_dir='build',  # type: str
-    config_rules_str=None,  # type: list[str] | None
+    config_rules_str=None,  # type: list[str] | str | None
     build_log_path=None,  # type: str | None
     size_json_path=None,  # type: str | None
     check_warnings=False,  # type: bool
     preserve=True,  # type: bool
     depends_on_components=None,  # type: list[str] | str | None
     check_component_dependencies=False,  # type: bool
+    sdkconfig_defaults_str=None,  # type: str | None
 ):  # type: (...) -> list[App]
+    depends_on_components = to_list(depends_on_components)
+
+    def _validate_app(_app):  # type: (App) -> bool
+        if target not in _app.supported_targets:
+            LOGGER.debug('=> Skipping. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
+            return False
+
+        if _app.requires_components and check_component_dependencies:
+            if not set(_app.requires_components).intersection(set(depends_on_components)):
+                LOGGER.debug(
+                    '=> Skipping. %s requires components: %s, but you passed "--depends-on-components %s"',
+                    _app,
+                    ', '.join(_app.requires_components),
+                    ', '.join(depends_on_components),
+                )
+                return False
+
+        return True
+
     if build_system == 'cmake':
         app_cls = CMakeApp
     else:
@@ -43,45 +63,27 @@ def _get_apps_from_path(
         LOGGER.debug('Skipping. %s is not an app', path)
         return []
 
-    supported_targets = app_cls.enable_build_targets(path)
-    if target not in supported_targets:
-        LOGGER.debug('Skipping. %s only supports targets: %s', path, ', '.join(supported_targets))
-        return []
-
-    requires_components = app_cls.requires_components(path)
-    if requires_components and check_component_dependencies:
-        if not set(requires_components).intersection(set(depends_on_components)):
-            LOGGER.debug(
-                'Skipping. %s requires components: %s, but you passed "--depends-on-components %s"',
-                path,
-                ', '.join(requires_components),
-                ', '.join(depends_on_components),
-            )
-            return []
-
     config_rules = config_rules_from_str(config_rules_str)
     if not config_rules:
         config_rules = []
 
     apps = []
     default_config_name = ''
+    sdkconfig_paths_matched = False
     for rule in config_rules:
         if not rule.file_name:
             default_config_name = rule.config_name
             continue
 
         sdkconfig_paths = Path(path).glob(rule.file_name)
-        sdkconfig_paths = sorted([str(p) for p in sdkconfig_paths])
+        sdkconfig_paths = sorted([str(p.relative_to(path)) for p in sdkconfig_paths])
+
+        if sdkconfig_paths:
+            sdkconfig_paths_matched = True  # skip the next block for no wildcard config rules
+
         for sdkconfig_path in sdkconfig_paths:
-            # Check if the sdkconfig file specifies IDF_TARGET, and if it is matches the --target argument.
-            sdkconfig_dict = dict_from_sdkconfig(sdkconfig_path)
-            target_from_config = sdkconfig_dict.get('CONFIG_IDF_TARGET')
-            if target_from_config is not None and target_from_config != target:
-                LOGGER.debug(
-                    'Skipping sdkconfig %s which requires target %s',
-                    sdkconfig_path,
-                    target_from_config,
-                )
+            if sdkconfig_path.endswith('.{}'.format(target)):
+                LOGGER.debug('=> Skipping sdkconfig %s which is target-specific', sdkconfig_path)
                 continue
 
             # Figure out the config name
@@ -93,53 +95,48 @@ def _get_apps_from_path(
                 assert groups
                 config_name = groups.group(1)
 
-            sdkconfig_path = os.path.relpath(sdkconfig_path, path)
-            LOGGER.debug(
-                'Found %s app: %s, sdkconfig %s, config name "%s"',
-                build_system,
-                path,
-                sdkconfig_path,
-                config_name,
-            )
-            apps.append(
-                app_cls(
-                    path,
-                    target,
-                    sdkconfig_path=sdkconfig_path,
-                    config_name=config_name,
-                    work_dir=work_dir,
-                    build_dir=build_dir,
-                    build_log_path=build_log_path,
-                    size_json_path=size_json_path,
-                    check_warnings=check_warnings,
-                    preserve=preserve,
-                )
-            )
-
-    # no wildcard config rules
-    if not apps:
-        LOGGER.debug(
-            'Found %s app: %s, default sdkconfig, config name "%s"',
-            build_system,
-            path,
-            default_config_name,
-        )
-        apps = [
-            app_cls(
+            app = app_cls(
                 path,
                 target,
-                sdkconfig_path=None,
-                config_name=default_config_name,
+                sdkconfig_path=sdkconfig_path,
+                config_name=config_name,
                 work_dir=work_dir,
                 build_dir=build_dir,
                 build_log_path=build_log_path,
                 size_json_path=size_json_path,
                 check_warnings=check_warnings,
                 preserve=preserve,
+                sdkconfig_defaults_str=sdkconfig_defaults_str,
             )
-        ]
+            if _validate_app(app):
+                LOGGER.debug('Found app: %s', app)
+                apps.append(app)
 
-    return apps
+            LOGGER.debug('')  # add one empty line for separating different finds
+
+    # no wildcard config rules matched
+    if not sdkconfig_paths_matched:
+        app = app_cls(
+            path,
+            target,
+            sdkconfig_path=None,
+            config_name=default_config_name,
+            work_dir=work_dir,
+            build_dir=build_dir,
+            build_log_path=build_log_path,
+            size_json_path=size_json_path,
+            check_warnings=check_warnings,
+            preserve=preserve,
+            sdkconfig_defaults_str=sdkconfig_defaults_str,
+        )
+
+        if _validate_app(app):
+            LOGGER.debug('Found app: %s', app)
+            apps.append(app)
+
+        LOGGER.debug('')  # add one empty line for separating different finds
+
+    return sorted(apps)
 
 
 def _find_apps(
@@ -152,10 +149,7 @@ def _find_apps(
 ):  # type: (...) -> list[App]
     exclude_list = exclude_list or []
     LOGGER.debug(
-        'Looking for %s apps in %s%s',
-        build_system,
-        path,
-        ' recursively' if recursive else '',
+        'Looking for %s apps in %s%s with target %s', build_system, path, ' recursively' if recursive else '', target
     )
 
     if not recursive:

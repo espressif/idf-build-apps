@@ -48,7 +48,7 @@ def find_apps(
     exclude_list=None,  # type: list[str] | None
     work_dir=None,  # type: str | None
     build_dir='build',  # type: str
-    config_rules_str=None,  # type: list[str] | None
+    config_rules_str=None,  # type: list[str] | str | None
     build_log_path=None,  # type: str | None
     size_json_path=None,  # type: str | None
     check_warnings=False,  # type: bool
@@ -59,6 +59,7 @@ def find_apps(
     manifest_rootpath=None,  # type: str | None
     ignore_component_dependencies_file_patterns=None,  # type: list[str] | str | None
     depends_on_files=None,  # type: list[str] | str | None
+    sdkconfig_defaults=None,  # type: str | None
 ):  # type: (...) -> list[App]
     """
     Find app directories in paths (possibly recursively), which contain apps for the given build system, compatible
@@ -79,7 +80,7 @@ def find_apps(
     :param build_dir: directory where the build will be done. Support placeholders.
     :type build_dir: str
     :param config_rules_str: mapping of sdkconfig file name patterns to configuration names
-    :type config_rules_str: list[str] | None
+    :type config_rules_str: list[str] | str | None
     :param build_log_path: path of the build log. Support placeholders.
         The logs will go to stdout/stderr if not specified
     :type build_log_path: str | None
@@ -106,6 +107,9 @@ def find_apps(
     :param depends_on_files: skip check app's component dependencies if any of the specified files matches
         ``ignore_component_dependencies_file_patterns``
     :type depends_on_files: list[str] | str | None
+    :param sdkconfig_defaults: semicolon-separated string, pass to idf.py -DSDKCONFIG_DEFAULTS if specified,
+        also could be set via environment variables "SDKCONFIG_DEFAULTS"
+    :type sdkconfig_defaults: str | None
     :return: list of found apps
     :rtype: list[App]
     """
@@ -166,6 +170,7 @@ def find_apps(
                     preserve=preserve,
                     depends_on_components=depends_on_components,
                     check_component_dependencies=check_component_dependencies,
+                    sdkconfig_defaults_str=sdkconfig_defaults,
                 )
             )
     apps.sort()
@@ -389,11 +394,12 @@ def main():
     )
     common_args.add_argument(
         '--build-log',
-        help='If specified, the build log will be written to this file. Can expand placeholders.',
+        help='Relative to build dir. The build log will be written to this file instead of sys.stdout if specified.'
+        'Can expand placeholders.',
     )
     common_args.add_argument(
         '--size-file',
-        help='the size json will be written to this file. Can expand placeholders.',
+        help='Relative to build dir. The size json will be written to this file if specified. Can expand placeholders.',
     )
     common_args.add_argument(
         '--config',
@@ -405,6 +411,11 @@ def main():
         'which can be used as a name of this configuration. FILEPATTERN is the name of '
         'the sdkconfig file, relative to the project directory, with at most one wildcard. '
         'The part captured by the wildcard is used as the name of the configuration.',
+    )
+    common_args.add_argument(
+        '--sdkconfig-defaults',
+        help='semicolon-separated string, pass to idf.py -DSDKCONFIG_DEFAULTS if specified, also could be set via '
+        'environment variables "SDKCONFIG_DEFAULTS"',
     )
     common_args.add_argument(
         '-v',
@@ -594,6 +605,7 @@ def main():
         manifest_rootpath=args.manifest_rootpath,
         ignore_component_dependencies_file_patterns=args.ignore_component_dependencies_file_patterns,
         depends_on_files=args.depends_on_files,
+        sdkconfig_defaults=args.sdkconfig_defaults,
     )
 
     if args.action == 'find':

@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Add an executable script `idf-build-apps`. Now this tool could be run via `idf-build-apps build ...` instead of `python -m idf_build_apps build ...`
+- Support specify `-DSDKCONFIG_DEFAULTS` for `idf.py build`
+  - via CLI option `--sdkconfig-defaults`
+  - via environment variable `SDKCONFIG_DEFAULTS`
 
 ### Fixed
 
