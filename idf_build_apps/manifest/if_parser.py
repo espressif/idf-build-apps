@@ -149,7 +149,7 @@ class BoolExpr(Stmt):
 class BoolAnd(BoolExpr):
     def __init__(self, t):
         self.left = t[0][0]  # type: BoolStmt
-        self.right = t[0][1]  # type: BoolStmt
+        self.right = t[0][2]  # type: BoolStmt
 
     def get_value(self, target):  # type: (str) -> any
         return self.left.get_value(target) and self.right.get_value(target)
