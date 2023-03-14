@@ -533,8 +533,10 @@ class CMakeApp(App):
             for line in lines:
                 is_error_or_warning, ignored = self.is_error_or_warning(line)
                 if is_error_or_warning:
-                    LOGGER.warning('%s', line)
-                    if not ignored:
+                    if ignored:
+                        LOGGER.info('[Ignored warning] %s', line)
+                    else:
+                        LOGGER.warning('%s', line)
                         has_unignored_warning = True
 
             if returncode != 0:
