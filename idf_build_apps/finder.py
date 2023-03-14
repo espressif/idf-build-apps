@@ -17,6 +17,7 @@ from .app import (
 from .utils import (
     config_rules_from_str,
     dict_from_sdkconfig,
+    get_sdkconfig_defaults,
 )
 
 
@@ -26,13 +27,14 @@ def _get_apps_from_path(
     build_system='cmake',  # type: str
     work_dir=None,  # type: str | None
     build_dir='build',  # type: str
-    config_rules_str=None,  # type: list[str] | None
+    config_rules_str=None,  # type: list[str] | str | None
     build_log_path=None,  # type: str | None
     size_json_path=None,  # type: str | None
     check_warnings=False,  # type: bool
     preserve=True,  # type: bool
     depends_on_components=None,  # type: list[str] | str | None
     check_component_dependencies=False,  # type: bool
+    sdkconfig_defaults_str=None,  # type: str | None
 ):  # type: (...) -> list[App]
     if build_system == 'cmake':
         app_cls = CMakeApp
@@ -43,7 +45,8 @@ def _get_apps_from_path(
         LOGGER.debug('Skipping. %s is not an app', path)
         return []
 
-    supported_targets = app_cls.enable_build_targets(path)
+    sdkconfig_defaults_list = get_sdkconfig_defaults(path, sdkconfig_defaults_str)
+    supported_targets = app_cls.enable_build_targets(path, sdkconfig_defaults_list)
     if target not in supported_targets:
         LOGGER.debug('Skipping. %s only supports targets: %s', path, ', '.join(supported_targets))
         return []
@@ -73,6 +76,10 @@ def _get_apps_from_path(
         sdkconfig_paths = Path(path).glob(rule.file_name)
         sdkconfig_paths = sorted([str(p) for p in sdkconfig_paths])
         for sdkconfig_path in sdkconfig_paths:
+            if sdkconfig_path.endswith('.{}'.format(target)):
+                LOGGER.debug('Skipping sdkconfig %s which is target-specific', sdkconfig_path)
+                continue
+
             # Check if the sdkconfig file specifies IDF_TARGET, and if it is matches the --target argument.
             sdkconfig_dict = dict_from_sdkconfig(sdkconfig_path)
             target_from_config = sdkconfig_dict.get('CONFIG_IDF_TARGET')
@@ -113,6 +120,7 @@ def _get_apps_from_path(
                     size_json_path=size_json_path,
                     check_warnings=check_warnings,
                     preserve=preserve,
+                    sdkconfig_defaults_list=sdkconfig_defaults_list,
                 )
             )
 
@@ -136,6 +144,7 @@ def _get_apps_from_path(
                 size_json_path=size_json_path,
                 check_warnings=check_warnings,
                 preserve=preserve,
+                sdkconfig_defaults_list=sdkconfig_defaults_list,
             )
         ]
 

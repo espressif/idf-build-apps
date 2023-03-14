@@ -51,7 +51,7 @@ doc = [
 Source = "https://github.com/espressif/idf-build-apps"
 
 [tool.pytest.ini_options]
-addopts = "-s"
+addopts = "-s --log-cli-level DEBUG"
 testpaths = [
     "tests",
 ]

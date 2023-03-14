@@ -38,9 +38,9 @@ class ColoredFormatter(logging.Formatter):
             log_fmt = self.fmt
 
         if record.levelno in [logging.WARNING, logging.ERROR]:
-            record.msg = '>>> ' + record.msg
+            record.msg = '>>> ' + str(record.msg)
         elif record.levelno in [logging.CRITICAL]:
-            record.msg = '!!! ' + record.msg
+            record.msg = '!!! ' + str(record.msg)
 
         formatter = logging.Formatter(log_fmt, datefmt=self.datefmt)
         return formatter.format(record)

@@ -4,8 +4,14 @@
 import inspect
 import logging
 import os
+from pathlib import (
+    Path,
+)
 
 import pytest
+from conftest import (
+    create_project,
+)
 
 from idf_build_apps.constants import (
     DEFAULT_SDKCONFIG,
@@ -176,3 +182,41 @@ def test_finder_idf_version():
         )
 
     assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=yaml_file) == apps
+
+
+def test_find_apps_config_rules(tmp_path):
+    create_project('test1', tmp_path)
+
+    (Path(tmp_path) / 'test1' / 'sdkconfig.ci.foo').touch()
+    (Path(tmp_path) / 'test1' / 'sdkconfig.ci.bar').touch()
+
+    apps = find_apps(str(tmp_path), 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=')
+    assert len(apps) == 2
+    assert apps[0].config_name == 'bar'
+    assert apps[1].config_name == 'foo'
+
+
+def test_find_apps_sdkconfig_defaults(tmp_path):
+    create_project('test1', tmp_path)
+
+    (Path(tmp_path) / 'test1' / 'sdkconfig.defaults').touch()
+    (Path(tmp_path) / 'test1' / 'sdkconfig.defaults_new').touch()
+
+    apps = find_apps(str(tmp_path), 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=')
+    assert len(apps) == 1
+    assert apps[0].sdkconfig_defaults_list == ['sdkconfig.defaults']
+
+    os.environ['SDKCONFIG_DEFAULTS'] = 'sdkconfig.defaults_new'
+    apps = find_apps(str(tmp_path), 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=')
+    assert len(apps) == 1
+    assert apps[0].sdkconfig_defaults_list == ['sdkconfig.defaults_new']
+
+    apps = find_apps(
+        str(tmp_path),
+        'esp32',
+        recursive=True,
+        config_rules_str='sdkconfig.ci.*=',  # wrong one
+        sdkconfig_defaults='notexists;sdkconfig.defaults_new;sdkconfig.defaults',
+    )
+    assert len(apps) == 1
+    assert apps[0].sdkconfig_defaults_list == ['sdkconfig.defaults_new', 'sdkconfig.defaults']

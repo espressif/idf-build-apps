@@ -60,11 +60,12 @@ if __name__ == '__main__':
     )
     common_args.add_argument(
         '--build-log',
-        help='If specified, the build log will be written to this file. Can expand placeholders.',
+        help='Relative to build dir. The build log will be written to this file instead of sys.stdout if specified.'
+        'Can expand placeholders.',
     )
     common_args.add_argument(
         '--size-file',
-        help='the size json will be written to this file. Can expand placeholders.',
+        help='Relative to build dir. The size json will be written to this file if specified. Can expand placeholders.',
     )
     common_args.add_argument(
         '--config',
@@ -205,6 +206,11 @@ if __name__ == '__main__':
         action='store_true',
         help='Copy the sdkconfig file to the build directory.',
     )
+    build_parser.add_argument(
+        '--sdkconfig-defaults',
+        help='semicolon-separated string, pass to idf.py -DSDKCONFIG_DEFAULTS if specified, also could be set via '
+        'environment variables "SDKCONFIG_DEFAULTS"',
+    )
 
     args = parser.parse_args()
     if args.action not in ['find', 'build']:
@@ -255,6 +261,7 @@ if __name__ == '__main__':
         manifest_rootpath=args.manifest_rootpath,
         ignore_component_dependencies_file_patterns=args.ignore_component_dependencies_file_patterns,
         depends_on_files=args.depends_on_files,
+        sdkconfig_defaults=args.sdkconfig_defaults,
     )
 
     if args.action == 'find':
