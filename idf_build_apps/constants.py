@@ -59,7 +59,7 @@ def _idf_version_from_cmake():  # type: () -> (int, int, int)
                 if m:
                     ver[m.group(1)] = m.group(2)
 
-        return ver['MAJOR'], ver['MINOR'], ver['PATCH']
+        return int(ver['MAJOR']), int(ver['MINOR']), int(ver['PATCH'])
     except (KeyError, OSError):
         raise ValueError('Cannot find ESP-IDF version in {}'.format(version_path))
 
