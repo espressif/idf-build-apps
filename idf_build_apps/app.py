@@ -552,12 +552,15 @@ class CMakeApp(App):
 
         if not self.preserve:
             LOGGER.info('=> Removing build directory %s', self.build_path)
+            exclude_list = []
+            if self.size_json_path:
+                exclude_list.append(os.path.basename(self.size_json_path))
+            if self.build_log_path:
+                exclude_list.append(os.path.basename(self.build_log_path))
+
             rmdir(
                 self.build_path,
-                exclude_file_patterns=[
-                    os.path.basename(self.size_json_path),
-                    os.path.basename(self.build_log_path),
-                ],
+                exclude_file_patterns=exclude_list,
             )
 
         if returncode != 0:
