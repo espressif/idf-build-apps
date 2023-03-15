@@ -2,15 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.4.1]
 
 ### Fixed
 
 - Stop writing `app_info` and `size_info` if the build got skipped
 - `IDF_VERSION_MAJOR`, `IDF_VERSION_MINOR`, `IDF_VERSION_PATCH` now are integers
 - Skip exclude files while removing build directory if files not exist
-- Use log level `INFO` for ignored warnings.
-- Can't use `and` expression
+- Use log level `INFO` for ignored warnings
+- Can't use `and` in if clauses
 
 ## [0.4.0]
 
