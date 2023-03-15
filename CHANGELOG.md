@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - `IDF_VERSION_MAJOR`, `IDF_VERSION_MINOR`, `IDF_VERSION_PATCH` now are integers
 - Skip exclude files while removing build directory if files not exist
 - Use log level `INFO` for ignored warnings.
+- Can't use `and` expression
 
 ## [0.4.0]
 
