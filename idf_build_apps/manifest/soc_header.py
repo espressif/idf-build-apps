@@ -12,6 +12,7 @@ from pyparsing import (
     Combine,
     Group,
     Literal,
+    MatchFirst,
     OneOrMore,
     Optional,
     ParseException,
@@ -37,11 +38,11 @@ _name = Word(alphas, alphas + nums + '_')
 
 # Define value, either a hex, int or a string
 _hex_value = Combine(Literal('0x') + Word(hexnums) + Optional(_literal_suffix).suppress())('hex_value')
-_int_value = Word(nums)('int_value') + ~Char('.') + Optional(_literal_suffix)('literal_suffix')
 _str_value = QuotedString('"')('str_value')
+_int_value = Word(nums)('int_value') + ~Char('.') + Optional(_literal_suffix)('literal_suffix')
 
 # Remove optional parenthesis around values
-_value = Optional('(').suppress() + (_hex_value ^ _int_value ^ _str_value)('value') + Optional(')').suppress()
+_value = Optional('(').suppress() + MatchFirst(_hex_value | _str_value | _int_value)('value') + Optional(')').suppress()
 
 _define_expr = '#define' + Optional(_name)('name') + Optional(_value)
 
