@@ -32,7 +32,7 @@ The basic command to find all the buildable apps under `/tmp/test/examples` recu
 
 ```shell
 cd /tmp/test/examples
-python -m idf_build_apps find -p . --recursive --target esp32
+idf-build-apps find -p . --recursive --target esp32
 ```
 
 The output would be:
@@ -131,7 +131,7 @@ Placeholders are a set of symbols, which could be used when setting work directo
 For example,
 
 ```shell
-python -m idf_build_apps find -p . --recursive --target esp32 --config "sdkconfig.ci.*=" --build-dir build_@t_@w
+idf-build-apps find -p . --recursive --target esp32 --config "sdkconfig.ci.*=" --build-dir build_@t_@w
 ```
 
 The output would be:
@@ -145,7 +145,7 @@ The output would be:
 Another example to set an absolute path with the wildcard symbols as the build directory:
 
 ```shell
-python -m idf_build_apps find -p . --recursive --target esp32 --config "sdkconfig.ci.*=" --build-dir /tmp/build/@n_@t_@w
+idf-build-apps find -p . --recursive --target esp32 --config "sdkconfig.ci.*=" --build-dir /tmp/build/@n_@t_@w
 ```
 
 The output would be:
@@ -164,7 +164,7 @@ Building apps is a process that build all the applications that are collected by
 
 .. note::
 
-   Almost all CLI options that ``find`` supported are also supported in ``build`` command. You may call ``python -m idf_build_apps find -h`` or ``python -m idf_build_apps build -h`` for all possible CLI options.
+   Almost all CLI options that ``find`` supported are also supported in ``build`` command. You may call ``idf-build-apps find -h`` or ``idf-build-apps build -h`` for all possible CLI options.
 ```
 
 ### Tips on `build` CLI Options
@@ -180,7 +180,7 @@ It's useful to call `--dry-run` with verbose mode `-vv` to know the whole build 
 For example:
 
 ```shell
-python -m idf_build_apps build -p . --recursive --target esp32 --dry-run -vv --config "sdkconfig.ci.*="
+idf-build-apps build -p . --recursive --target esp32 --dry-run -vv --config "sdkconfig.ci.*="
 ```
 
 The output would be:
