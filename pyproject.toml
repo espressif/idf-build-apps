@@ -48,10 +48,24 @@ doc = [
 ]
 
 [project.urls]
-Source = "https://github.com/espressif/idf-build-apps"
+homepage = "https://github.com/espressif/idf-build-apps"
+repository = "https://github.com/espressif/idf-build-apps"
+documentation = "https://docs.espressif.com/projects/idf-build-apps"
+changelog = "https://github.com/espressif/idf-build-apps/blob/master/CHANGELOG.md"
+
+[project.scripts]
+idf-build-apps = "idf_build_apps:main.main"
 
 [tool.pytest.ini_options]
 addopts = "-s"
 testpaths = [
     "tests",
 ]
+
+[tool.isort]
+profile = 'black'
+force_grid_wrap = 1
+
+[tool.black]
+line-length = 120
+skip-string-normalization = true

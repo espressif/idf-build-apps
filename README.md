@@ -21,9 +21,15 @@ An [ESP-IDF][esp-idf] project would typically contain:
 pip install idf-build-apps
 ```
 
+or `pipx`
+
+```shell
+pipx install idf-build-apps
+```
+
 ## Basic Usage
 
-`idf-build-apps` is a callable python package. It contains two sub-commands.
+`idf-build-apps` is a callable python package, and an executable script with the same name would also be installed. It contains two sub-commands.
 
 - `find` to find the buildable applications
 - `build` to build the found applications
@@ -31,9 +37,9 @@ pip install idf-build-apps
 For detailed explanation to all CLI options, you may run
 
 ```shell
-python -m idf_build_apps -h
-python -m idf_build_apps find -h
-python -m idf_build_apps build -h
+idf-build-apps -h
+idf-build-apps find -h
+idf-build-apps build -h
 ```
 
 ## Quick Example
@@ -41,7 +47,7 @@ python -m idf_build_apps build -h
 To build the applications for all targets of the [ESP-IDF hello world example project][hello-world] under ESP-IDF v5.0:
 
 ```shell
-python -m idf_build_apps build -p $IDF_PATH/examples/get-started/hello_world/ --target all --build-dir build_@t
+idf-build-apps build -p $IDF_PATH/examples/get-started/hello_world/ --target all --build-dir build_@t
 ```
 
 It would get the default [supported targets][supported-targets] from your IDF version, build the [hello world project][hello-world] with all targets and the default `sdkconfig` file.
