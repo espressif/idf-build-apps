@@ -15,7 +15,7 @@ from pyparsing import (
     OneOrMore,
     Optional,
     ParseException,
-    ParserElement,
+    ParseResults,
     QuotedString,
     Word,
     alphas,
@@ -27,6 +27,23 @@ from ..constants import (
     ALL_TARGETS,
     IDF_PATH,
 )
+
+# Group for parsing literal suffix of a numbers, e.g. 100UL
+_literal_symbol = Group(CaselessLiteral('L') | CaselessLiteral('U'))
+_literal_suffix = OneOrMore(_literal_symbol)
+
+# Define name
+_name = Word(alphas, alphas + nums + '_')
+
+# Define value, either a hex, int or a string
+_hex_value = Combine(Literal('0x') + Word(hexnums) + Optional(_literal_suffix).suppress())('hex_value')
+_int_value = Word(nums)('int_value') + ~Char('.') + Optional(_literal_suffix)('literal_suffix')
+_str_value = QuotedString('"')('str_value')
+
+# Remove optional parenthesis around values
+_value = Optional('(').suppress() + (_hex_value ^ _int_value ^ _str_value)('value') + Optional(')').suppress()
+
+_define_expr = '#define' + Optional(_name)('name') + Optional(_value)
 
 
 def get_defines(header_path):  # type: (Path) -> list[str]
@@ -43,24 +60,8 @@ def get_defines(header_path):  # type: (Path) -> list[str]
     return defines
 
 
-def parse_define(define_line):  # type: (str) -> ParserElement
-    # Group for parsing literal suffix of a numbers, e.g. 100UL
-    literal_symbol = Group(CaselessLiteral('L') | CaselessLiteral('U'))
-    literal_suffix = OneOrMore(literal_symbol)
-
-    # Define name
-    name = Word(alphas, alphas + nums + '_')
-
-    # Define value, either a hex, int or a string
-    hex_value = Combine(Literal('0x') + Word(hexnums) + Optional(literal_suffix).suppress())('hex_value')
-    int_value = Word(nums)('int_value') + ~Char('.') + Optional(literal_suffix)('literal_suffix')
-    str_value = QuotedString('"')('str_value')
-
-    # Remove optional parenthesis around values
-    value = Optional('(').suppress() + (hex_value ^ int_value ^ str_value)('value') + Optional(')').suppress()
-
-    expr = '#define' + Optional(name)('name') + Optional(value)
-    res = expr.parseString(define_line)
+def parse_define(define_line):  # type: (str) -> ParseResults
+    res = _define_expr.parseString(define_line)
 
     return res
 
