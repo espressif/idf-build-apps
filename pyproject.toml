@@ -48,7 +48,10 @@ doc = [
 ]
 
 [project.urls]
-Source = "https://github.com/espressif/idf-build-apps"
+homepage = "https://github.com/espressif/idf-build-apps"
+repository = "https://github.com/espressif/idf-build-apps"
+documentation = "https://docs.espressif.com/projects/idf-build-apps"
+changelog = "https://github.com/espressif/idf-build-apps/blob/master/CHANGELOG.md"
 
 [tool.pytest.ini_options]
 addopts = "-s"
