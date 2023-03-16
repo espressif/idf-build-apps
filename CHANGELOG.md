@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 - Executable script `idf-build-apps`. Now this tool could be run via `idf-build-apps build ...` instead of `python -m idf_build_apps build ...`
 
-## [0.4.1]
+## [0.4.1] (2023-03-15)
 
 ### Fixed
 
@@ -18,7 +18,7 @@ All notable changes to this project will be documented in this file.
 - Use log level `INFO` for ignored warnings
 - Can't use `and` in if clauses
 
-## [0.4.0]
+## [0.4.0] (2023-03-09)
 
 This is the last version to support ESP-IDF v4.1 since it's EOL on Feb. 24th, 2023.
 
@@ -35,7 +35,7 @@ This is the last version to support ESP-IDF v4.1 since it's EOL on Feb. 24th, 20
 
 - Improve the readability of the generated logs
 
-## [0.3.2]
+## [0.3.2] (2023-03-08)
 
 ### Fixed
 
@@ -43,7 +43,7 @@ This is the last version to support ESP-IDF v4.1 since it's EOL on Feb. 24th, 20
 - wrong log level on "Loading manifest file: ...". Set from `INFO` to `DEBUG`
 - wrong log level on "Building app \[ID\]: ...". Set from `DEBUG` to `INFO`
 
-## [0.3.1]
+## [0.3.1] (2023-02-20)
 
 ### Fixed
 
@@ -51,7 +51,7 @@ This is the last version to support ESP-IDF v4.1 since it's EOL on Feb. 24th, 20
 
   Added `manifest_rootpath` argument in `find_apps()`. Will use this value instead as the root folder for calculating absolute path
 
-## [0.3.0]
+## [0.3.0] (2023-01-10)
 
 ### Added
 
@@ -62,7 +62,7 @@ This is the last version to support ESP-IDF v4.1 since it's EOL on Feb. 24th, 20
 
 -  Wrong `App.verified_targets` when `CONFIG_IDF_TARGET` set in app's `sdkconfig.defaults` file
 
-## [0.2.1]
+## [0.2.1] (2022-09-02)
 
 ### Fixed
 
@@ -71,7 +71,7 @@ This is the last version to support ESP-IDF v4.1 since it's EOL on Feb. 24th, 20
 - Fix f-string incompatible issue for python versions earlier than 3.7
 - Fix unpack dictionary ending comma syntax error for python 3.4
 
-## [0.2.0]
+## [0.2.0] (2022-08-31)
 
 ### Added
 
