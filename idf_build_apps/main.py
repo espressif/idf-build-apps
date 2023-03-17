@@ -435,7 +435,8 @@ def main():
     )
     common_args.add_argument(
         '--default-build-targets',
-        help='comma-separated target list. IDF supported targets would be used if this option is not set',
+        help='comma-separated list of supported targets. Targets supported in current ESP-IDF branch '
+        '(except preview ones) would be used if this option is not set',
     )
     common_args.add_argument(
         '--depends-on-components',
@@ -536,35 +537,44 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # validate cli options
     if args.action not in ['find', 'build']:
         parser.print_help()
         raise InvalidCommand('subcommand is required. {find, build}')
 
     if not args.paths:
-        if args.action == 'find':
-            find_parser.print_help()
-        elif args.action == 'build':
-            build_parser.print_help()
+        raise InvalidCommand(
+            'Must specify at least one path to search for the apps ' 'with CLI option "-p <path>" or "--path <path>"'
+        )
 
-        raise InvalidCommand('Must specify at least one search path with CLI option "-p <path>" or "--path <path>"')
-
-    setup_logging(args.verbose, args.log_file, not args.no_color)
+    if not args.target:
+        raise InvalidCommand(
+            'Must specify current build target with CLI option "-t <target>" or "--target <target>". '
+            '(choices: [{}]'.format(','.join(ALL_TARGETS + ['all']))
+        )
 
     default_build_targets = []
     if args.default_build_targets:
         for target in args.default_build_targets.split(','):
             target = target.strip()
             if target not in ALL_TARGETS:
-                print('Unrecognizable target {}, only know targets {}'.format(t, ALL_TARGETS))
-                sys.exit(1)
+                raise InvalidCommand(
+                    'Unrecognizable target {} specified with "--default-build-targets". '
+                    'Current ESP-IDF available targets: {}'.format(target, ALL_TARGETS)
+                )
 
             if target not in default_build_targets:
-                default_build_targets.append(t)
+                default_build_targets.append(target)
 
     if (args.ignore_component_dependencies_file_patterns is None) != (args.depends_on_files is None):
         raise InvalidCommand(
-            'Must specify "--ignore-component-dependencies-file-patterns" and "--depends-on-files" together'
+            'Must specify both "--ignore-component-dependencies-file-patterns" and "--depends-on-files" '
+            'or neither of them'
         )
+
+    # real call starts here
+    setup_logging(args.verbose, args.log_file, not args.no_color)
 
     apps = find_apps(
         args.paths,

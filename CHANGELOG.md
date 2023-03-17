@@ -6,7 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Executable script `idf-build-apps`. Now this tool could be run via `idf-build-apps build ...` instead of `python -m idf_build_apps build ...`
+- Add an executable script `idf-build-apps`. Now this tool could be run via `idf-build-apps build ...` instead of `python -m idf_build_apps build ...`
+
+### Fixed
+
+- CLI option `-t`, `--target` is required, improve the error message
 
 ## [0.4.1] (2023-03-15)
 
