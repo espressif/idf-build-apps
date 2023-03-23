@@ -10,6 +10,9 @@ import tempfile
 from abc import (
     abstractmethod,
 )
+from copy import (
+    deepcopy,
+)
 
 from packaging.version import (
     Version,
@@ -31,7 +34,6 @@ from .manifest.manifest import (
 )
 from .utils import (
     BuildError,
-    dict_from_sdkconfig,
     find_first_match,
     rmdir,
     subprocess_run,
@@ -39,15 +41,12 @@ from .utils import (
 )
 
 try:
-    from typing import (
-        Pattern,
-        TextIO,
-    )
+    import typing as t
 except ImportError:
     pass
 
 
-class App:
+class App(object):
     TARGET_PLACEHOLDER = '@t'  # replace it with self.target
     WILDCARD_PLACEHOLDER = '@w'  # replace it with the wildcard, usually the sdkconfig
     NAME_PLACEHOLDER = '@n'  # replace it with self.name
@@ -58,8 +57,6 @@ class App:
 
     SDKCONFIG_LINE_REGEX = re.compile(r"^([^=]+)=\"?([^\"\n]*)\"?\n*$")
 
-    SIZE_JSON = 'size.json'
-
     # could be assigned later, used for filtering out apps by supported_targets
     MANIFEST = None  # type: Manifest | None
 
@@ -68,21 +65,22 @@ class App:
     # Log this many trailing lines from a failed build log, also
     LOG_DEBUG_LINES = 25
     # IGNORE_WARNING_REGEX is a regex for warnings to be ignored. Could be assigned later
-    IGNORE_WARNS_REGEXES = []  # type: list[Pattern]
+    IGNORE_WARNS_REGEXES = []  # type: list[t.Pattern]
 
     def __init__(
         self,
-        app_dir,
-        target,
-        sdkconfig_path=None,
-        config_name=None,
-        work_dir=None,
-        build_dir='build',
-        build_log_path=None,
-        size_json_path=None,
-        check_warnings=False,
-        preserve=True,
-    ):  # type: (str, str, str | None, str | None, str | None, str, str | None, str | None, bool, bool) -> None
+        app_dir,  # type: str
+        target,  # type: str
+        sdkconfig_path=None,  # type: str | None
+        config_name=None,  # type: str | None
+        work_dir=None,  # type: str | None
+        build_dir='build',  # type: str
+        build_log_path=None,  # type: str | None
+        size_json_path=None,  # type: str | None
+        check_warnings=False,  # type: bool
+        preserve=True,  # type: bool
+        sdkconfig_defaults_str=None,  # type: str | None
+    ):  # type: (...) -> None
         # These internal variables store the paths with environment variables and placeholders;
         # Public properties with similar names use the _expand method to get the actual paths.
         self._app_dir = app_dir
@@ -102,6 +100,13 @@ class App:
         self.dry_run = False
         self.index = None
         self.verbose = False
+
+        # sdkconfig attrs, use properties instead
+        self._sdkconfig_defaults = self._get_sdkconfig_defaults(sdkconfig_defaults_str)
+        self._sdkconfig_files = None
+        self._sdkconfig_files_defined_target = None
+
+        self._process_sdkconfig_files()
 
     def __repr__(self):
         return '({}) App {}, target {}, sdkconfig {}, build in {}'.format(
@@ -126,7 +131,7 @@ class App:
             'work_dir',
             'build_dir',
             'size_json_path',
-            'sdkconfig_path',
+            'sdkconfig_files',
             'config_name',
             'target',
             'check_warnings',
@@ -146,13 +151,24 @@ class App:
                 self._build_log_path,
                 self._size_json_path,
                 self.name,
-                self.sdkconfig_path,
+                frozenset(self.sdkconfig_files),
                 self.config_name,
                 self.target,
                 self.check_warnings,
                 self.preserve,
             )
         )
+
+    @staticmethod
+    def _get_sdkconfig_defaults(sdkconfig_defaults_str=None):  # type: (str | None) -> list[str]
+        if sdkconfig_defaults_str is not None:
+            candidates = sdkconfig_defaults_str.split(';')
+        elif os.getenv('SDKCONFIG_DEFAULTS', None) is not None:
+            candidates = os.getenv('SDKCONFIG_DEFAULTS', None).split(';')
+        else:
+            candidates = [DEFAULT_SDKCONFIG]
+
+        return candidates
 
     def _expand(self, path):  # type: (str) -> str
         """
@@ -223,132 +239,87 @@ class App:
 
         return None
 
-    def build_prepare(self):  # type: () -> dict[str, str]
-        LOGGER.debug('=> Preparing Folders')
-        if self.work_dir != self.app_dir:
-            if os.path.exists(self.work_dir):
-                LOGGER.debug('==> Work directory %s exists, removing', self.work_dir)
-                if not self.dry_run:
-                    shutil.rmtree(self.work_dir)
-            LOGGER.debug('==> Copying app from %s to %s', self.app_dir, self.work_dir)
-            if not self.dry_run:
-                shutil.copytree(self.app_dir, self.work_dir)
+    def _process_sdkconfig_files(self):
+        """
+        Expand environment variables in default sdkconfig files and remove some CI
+        related settings.
+        """
+        res = []
 
-        if os.path.exists(self.build_path):
-            LOGGER.debug('==> Build directory %s exists, removing', self.build_path)
-            if not self.dry_run:
-                shutil.rmtree(self.build_path)
+        for f in self._sdkconfig_defaults + ([self.sdkconfig_path] if self.sdkconfig_path else []):
+            if not os.path.isabs(f):
+                f = os.path.join(self.work_dir, f)
 
-        if not self.dry_run:
-            os.makedirs(self.build_path)
+            if not os.path.isfile(f):
+                LOGGER.debug('=> sdkconfig file %s not exists, skipping...', f)
+                continue
 
-        # Prepare the sdkconfig file, from the contents of sdkconfig.defaults (if exists) and the contents of
-        # build_info.sdkconfig_path, i.e. the config-specific sdkconfig file.
-        #
-        # Note: the build system supports taking multiple sdkconfig.defaults files via SDKCONFIG_DEFAULTS
-        # CMake variable. However here we do this manually to perform environment variable expansion in the
-        # sdkconfig files.
-        sdkconfig_defaults_list = [
-            'sdkconfig.defaults',
-            'sdkconfig.defaults.' + self.target,
-        ]
-        if self.sdkconfig_path:
-            sdkconfig_defaults_list.append(self.sdkconfig_path)
+            expanded_fp = os.path.join(self.work_dir, 'expanded_' + os.path.basename(f))
+            if not os.path.isdir(os.path.dirname(expanded_fp)):
+                os.makedirs(os.path.dirname(expanded_fp))
 
-        LOGGER.debug('=> Generating sdkconfig file')
-        sdkconfig_file = os.path.join(self.work_dir, 'sdkconfig')
-        if os.path.exists(sdkconfig_file):
-            LOGGER.debug('==> Removing sdkconfig file: %s', sdkconfig_file)
-            if not self.dry_run:
-                os.unlink(sdkconfig_file)
+            with open(f) as fr:
+                with open(expanded_fp, 'w') as fw:
+                    for line in fr:
+                        line = os.path.expandvars(line)
 
-        LOGGER.debug('==> Creating sdkconfig file: %s', sdkconfig_file)
-        cmake_vars = {}
-        if not self.dry_run:
-            with open(sdkconfig_file, 'w') as f_out:
-                for sdkconfig_name in sdkconfig_defaults_list:
-                    sdkconfig_path = os.path.join(self.work_dir, sdkconfig_name)
-                    if not sdkconfig_path or not os.path.exists(sdkconfig_path):
-                        continue
-                    LOGGER.debug('==> Appending %s to sdkconfig', sdkconfig_name)
-                    with open(sdkconfig_path, 'r') as f_in:
-                        for line in f_in:
-                            if not line.endswith('\n'):
-                                line += '\n'
-                            if isinstance(self, CMakeApp):
-                                m = self.SDKCONFIG_LINE_REGEX.match(line)
-                                key = m.group(1) if m else None
-                                if key in self.SDKCONFIG_TEST_OPTS:
-                                    cmake_vars[key] = m.group(2)
-                                    continue
-                                if key in self.SDKCONFIG_IGNORE_OPTS:
-                                    continue
-                            f_out.write(os.path.expandvars(line))
-        else:
-            for sdkconfig_name in sdkconfig_defaults_list:
-                sdkconfig_path = os.path.join(self.work_dir, sdkconfig_name)
-                if not sdkconfig_path:
-                    continue
-                LOGGER.debug('==> Considering sdkconfig %s', sdkconfig_path)
-                if not os.path.exists(sdkconfig_path):
-                    continue
-                LOGGER.debug('==> Appending %s to sdkconfig', sdkconfig_name)
+                        m = self.SDKCONFIG_LINE_REGEX.match(line)
+                        key = m.group(1) if m else None
+                        if key == 'CONFIG_IDF_TARGET':
+                            self._sdkconfig_files_defined_target = m.group(2)
 
-        return cmake_vars
+                        if isinstance(self, CMakeApp):
+                            if key in self.SDKCONFIG_TEST_OPTS:
+                                self.cmake_vars[key] = m.group(2)
+                                continue
 
-    @classmethod
-    def _get_default_sdkconfig_target(cls, path):  # type: (str) -> str | None
-        # check if there's CONFIG_IDF_TARGET in sdkconfig.defaults
-        default_sdkconfig_target = None  # type: str | None
-        default_sdkconfig = os.path.join(path, DEFAULT_SDKCONFIG)
-        if os.path.isfile(default_sdkconfig):
-            sdkconfig_dict = dict_from_sdkconfig(default_sdkconfig)
-            if 'CONFIG_IDF_TARGET' in sdkconfig_dict:
-                default_sdkconfig_target = sdkconfig_dict['CONFIG_IDF_TARGET']
-                LOGGER.debug(
-                    'CONFIG_IDF_TARGET is set in %s. Set enable build targets to %s only.',
-                    default_sdkconfig,
-                    default_sdkconfig_target,
-                )
+                            if key in self.SDKCONFIG_IGNORE_OPTS:
+                                continue
 
-        return default_sdkconfig_target
+                        fw.write(line)
 
-    @classmethod
-    def enable_build_targets(cls, path):  # type: (str) -> list[str]
-        default_sdkconfig_target = cls._get_default_sdkconfig_target(path)
-        if cls.MANIFEST:
-            res = cls.MANIFEST.enable_build_targets(path, default_sdkconfig_target)
-        else:
-            if default_sdkconfig_target:
-                res = [default_sdkconfig_target]
-            else:
-                res = FolderRule.DEFAULT_BUILD_TARGETS
+            with open(f) as fr:
+                with open(expanded_fp) as new_fr:
+                    if fr.read() == new_fr.read():
+                        LOGGER.debug('=> Use sdkconfig file %s', f)
+                        res.append(f)
+                    else:
+                        LOGGER.debug('=> Expand sdkconfig file %s to %s', f, expanded_fp)
+                        res.append(expanded_fp)
 
-        return res
+        self._sdkconfig_files = res
 
-    @classmethod
-    def enable_test_targets(cls, path):  # type: (str) -> list[str]
-        default_sdkconfig_target = cls._get_default_sdkconfig_target(path)
+    @property
+    def sdkconfig_files_defined_idf_target(self):  # type: () -> str | None
+        return self._sdkconfig_files_defined_target
 
-        if cls.MANIFEST:
-            return cls.MANIFEST.enable_test_targets(path, default_sdkconfig_target)
+    @property
+    def sdkconfig_files(self):  # type: () -> list[str]
+        return [os.path.realpath(file) for file in self._sdkconfig_files]
 
-        return []
-
-    @classmethod
-    def requires_components(cls, path):  # type: (str) -> list[str]
-        if cls.MANIFEST:
-            return cls.MANIFEST.requires_components(path)
+    @property
+    def requires_components(self):  # type: () -> list[str]
+        if self.MANIFEST:
+            return self.MANIFEST.requires_components(self.app_dir)
 
         return []
 
     @property
     def supported_targets(self):
-        return self.enable_build_targets(self.app_dir)
+        if self.MANIFEST:
+            return self.MANIFEST.enable_build_targets(self.app_dir, self.sdkconfig_files_defined_idf_target)
+
+        if self.sdkconfig_files_defined_idf_target:
+            return [self.sdkconfig_files_defined_idf_target]
+
+        return FolderRule.DEFAULT_BUILD_TARGETS
 
     @property
     def verified_targets(self):
-        return self.enable_test_targets(self.app_dir)
+        if self.MANIFEST:
+            return self.MANIFEST.enable_test_targets(self.app_dir, self.sdkconfig_files_defined_idf_target)
+
+        return []
 
     @abstractmethod
     def build(
@@ -384,7 +355,7 @@ class App:
         )
         LOGGER.info('=> Generated size info to %s', self.size_json_path)
 
-    def collect_size_info(self, output_fs):  # type: (TextIO) -> None
+    def collect_size_info(self, output_fs):  # type: (t.TextIO) -> None
         if not os.path.isfile(self.size_json_path):
             self.write_size_json()
 
@@ -426,6 +397,10 @@ class App:
 
         return True, is_ignored
 
+    @classmethod
+    def is_app(cls, path):  # type: (str) -> bool
+        raise NotImplementedError('Please implement this function in sub classes')
+
 
 class CMakeApp(App):
     BUILD_SYSTEM = 'cmake'
@@ -444,34 +419,80 @@ class CMakeApp(App):
     # there is no equivalent for the project CMakeLists files. This seems to be the best option...
     CMAKE_PROJECT_LINE = r'include($ENV{IDF_PATH}/tools/cmake/project.cmake)'
 
+    def __init__(self, *args, **kwargs):
+        self.cmake_vars = {}
+        super(CMakeApp, self).__init__(*args, **kwargs)
+
     def build(
         self,
         depends_on_components=None,  # type: list[str] | str | None
         check_component_dependencies=False,  # type: bool
     ):  # type: (...) -> bool
-        cmake_vars = self.build_prepare()
+        LOGGER.debug('=> Preparing...')
+        if self.work_dir != self.app_dir:
+            if os.path.exists(self.work_dir):
+                LOGGER.debug('==> Work directory %s exists, removing', self.work_dir)
+                if not self.dry_run:
+                    shutil.rmtree(self.work_dir)
+            LOGGER.debug('==> Copying app from %s to %s', self.app_dir, self.work_dir)
+            if not self.dry_run:
+                shutil.copytree(self.app_dir, self.work_dir)
+
+        if os.path.exists(self.build_path):
+            LOGGER.debug('==> Build directory %s exists, removing', self.build_path)
+            if not self.dry_run:
+                shutil.rmtree(self.build_path)
+
+        if not self.dry_run:
+            os.makedirs(self.build_path)
+
+        sdkconfig_file = os.path.join(self.work_dir, 'sdkconfig')
+        if os.path.exists(sdkconfig_file):
+            LOGGER.debug('==> Removing sdkconfig file: %s', sdkconfig_file)
+            if not self.dry_run:
+                os.unlink(sdkconfig_file)
 
         if self.build_log_path:
             LOGGER.info('=> Writing build log to %s', self.build_log_path)
+
+        if self.dry_run:
+            LOGGER.debug('==> Skipping... (dry run)')
+            return True
+
+        if self.build_log_path:
             log_file = open(self.build_log_path, 'w')
         else:
             # delete manually later, used for tracking debugging info
             log_file = tempfile.NamedTemporaryFile('w', delete=False)
 
+        # additional env variables
+        # IDF_TARGET to bypass the idf.py build check
+        additional_env_dict = {
+            'IDF_TARGET': self.target,
+        }
+
+        # check if this app depends on components according to the project_description.json 'build_component' field.
+        # the file is generated by `idf.py reconfigure`.
+        common_args = [
+            sys.executable,
+            str(IDF_PY),
+            '-B',
+            self.build_path,
+            '-C',
+            self.work_dir,
+            '-DIDF_TARGET={}'.format(self.target),
+            # set to ";" to disable `default` when no such variable
+            '-DSDKCONFIG_DEFAULTS={}'.format(';'.join(self.sdkconfig_files) if self.sdkconfig_files else ';'),
+        ]
+
         depends_on_components = to_list(depends_on_components)
         if depends_on_components is not None and check_component_dependencies:
-            reconfigure_args = [
-                sys.executable,
-                str(IDF_PY),
-                '-B',
-                self.build_path,
-                '-C',
-                self.work_dir,
-                '-DIDF_TARGET=' + self.target,
-                'reconfigure',
-            ]
             subprocess_run(
-                reconfigure_args, log_terminal=False if self.build_log_path else True, log_fs=log_file, check=True
+                common_args + ['reconfigure'],
+                log_terminal=False if self.build_log_path else True,
+                log_fs=log_file,
+                check=True,
+                additional_env_dict=additional_env_dict,
             )
 
             with open(os.path.join(self.build_path, PROJECT_DESCRIPTION_JSON)) as fr:
@@ -486,44 +507,27 @@ class CMakeApp(App):
                 )
                 return False
 
-        build_args = [
-            sys.executable,
-            str(IDF_PY),
-            '-B',
-            self.build_path,
-            '-C',
-            self.work_dir,
-            '-DIDF_TARGET=' + self.target,
-        ]
-        if cmake_vars:
-            for key, val in cmake_vars.items():
+        # idf.py build
+        build_args = deepcopy(common_args)
+        if self.cmake_vars:
+            for key, val in self.cmake_vars.items():
                 build_args.append('-D{}={}'.format(key, val))
-            if 'TEST_EXCLUDE_COMPONENTS' in cmake_vars and 'TEST_COMPONENTS' not in cmake_vars:
+            if 'TEST_EXCLUDE_COMPONENTS' in self.cmake_vars and 'TEST_COMPONENTS' not in self.cmake_vars:
                 build_args.append('-DTESTS_ALL=1')
-            if 'CONFIG_APP_BUILD_BOOTLOADER' in cmake_vars:
+            if 'CONFIG_APP_BUILD_BOOTLOADER' in self.cmake_vars:
                 # In case if secure_boot is enabled then for bootloader build need to add `bootloader` cmd
                 build_args.append('bootloader')
-
         build_args.append('build')
-
         if self.verbose:
             build_args.append('-v')
-
-        if self.dry_run:
-            LOGGER.debug('==> Skipping... (dry run)')
-            return True
-
-        old_idf_target_env = os.getenv('IDF_TARGET')
-        os.environ['IDF_TARGET'] = self.target  # pass the cmake check
 
         returncode = subprocess_run(
             build_args,
             log_terminal=False if self.build_log_path else True,
             log_fs=log_file,
+            additional_env_dict=additional_env_dict,
         )
 
-        if old_idf_target_env is not None:
-            os.environ['IDF_TARGET'] = old_idf_target_env  # revert it back
         log_file.close()
 
         # help debug

@@ -4,10 +4,12 @@
 import fnmatch
 import logging
 import os
-import re
 import shutil
 import subprocess
 import sys
+from copy import (
+    deepcopy,
+)
 from pathlib import (
     Path,
 )
@@ -23,24 +25,6 @@ try:
     import typing as t
 except ImportError:
     pass
-
-_SDKCONFIG_KV_RE = re.compile(r'^([^#=]+)=(.+)$')
-
-
-def dict_from_sdkconfig(path):  # type: (str) -> dict[str, str]
-    """
-    Parse the sdkconfig file at 'path', return name:value pairs as a dict
-    """
-    result = {}
-    with open(path) as f:
-        for line in f:
-            m = _SDKCONFIG_KV_RE.match(line)
-            if m:
-                val = m.group(2)
-                if val.startswith('"') and val.endswith('"'):
-                    val = val[1:-1]
-                result[m.group(1)] = val
-    return result
 
 
 class ConfigRule:
@@ -64,12 +48,12 @@ class ConfigRule:
         self.config_name = config_name
 
 
-def config_rules_from_str(rule_strings):  # type: (list[str]) -> list[ConfigRule]
+def config_rules_from_str(rule_strings):  # type: (list[str] | str) -> list[ConfigRule]
     """
     Helper function to convert strings like 'file_name=config_name' into `ConfigRule` objects
 
-    :param rule_strings: list of rules as strings
-    :type rule_strings: list[str]
+    :param rule_strings: list of rules as strings or a single rule string
+    :type rule_strings: list[str] | str
     :return: list of ConfigRules
     :rtype: list[ConfigRule]
     """
@@ -77,7 +61,7 @@ def config_rules_from_str(rule_strings):  # type: (list[str]) -> list[ConfigRule
         return []
 
     rules = []
-    for rule_str in rule_strings:
+    for rule_str in to_list(rule_strings):
         items = rule_str.split('=', 2)
         rules.append(ConfigRule(items[0], items[1] if len(items) == 2 else None))
     # '' is the default config, sort this one to the front
@@ -184,6 +168,7 @@ def subprocess_run(
     log_terminal=True,  # type: bool
     log_fs=None,  # type: t.TextIO | None
     check=False,  # type: bool
+    additional_env_dict=None,  # type: dict[str, any] | None
 ):  # type: (...) -> int
     """
     Subprocess.run for older python versions
@@ -196,12 +181,19 @@ def subprocess_run(
     :type log_fs: TextIO
     :param check: raise `BuildError` when return code is non-zero
     :type check: bool
+    :param additional_env_dict: additional environment variables
+    :type additional_env_dict: dict[str, any] | None
     :return: return code
     :rtype: int
     """
     LOGGER.debug('==> Running %s', ' '.join(cmd))
 
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    subprocess_env = None
+    if additional_env_dict is not None:
+        subprocess_env = deepcopy(os.environ)
+        subprocess_env.update(additional_env_dict)
+
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=subprocess_env)
     for line in p.stdout:
         if isinstance(line, bytes):
             line = line.decode('utf-8')

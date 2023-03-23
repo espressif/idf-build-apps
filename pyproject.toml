@@ -57,7 +57,7 @@ changelog = "https://github.com/espressif/idf-build-apps/blob/master/CHANGELOG.m
 idf-build-apps = "idf_build_apps:main.main"
 
 [tool.pytest.ini_options]
-addopts = "-s"
+addopts = "-s --log-cli-level DEBUG"
 testpaths = [
     "tests",
 ]
