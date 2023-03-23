@@ -251,7 +251,10 @@ def build_apps(
     App.IGNORE_WARNS_REGEXES = ignore_warnings_regexes
 
     depends_on_components = to_list(depends_on_components)
-    if depends_on_components is None:
+    # here depends_on_components [''] means that the user use --depends-on-components
+    # the ones with `requires_components` are already been filtered out
+    # if we skip all build, that would be too aggressive
+    if depends_on_components is None or depends_on_components == ['']:
         check_component_dependencies = False
     elif (
         ignore_component_dependencies_file_patterns
