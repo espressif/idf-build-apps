@@ -114,7 +114,7 @@ def _get_apps_from_path(
 
             LOGGER.debug('')  # add one empty line for separating different finds
 
-    # no wildcard config rules matched
+    # no config rules matched, use default app
     if not sdkconfig_paths_matched:
         app = app_cls(
             path,

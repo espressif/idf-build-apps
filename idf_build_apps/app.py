@@ -282,6 +282,10 @@ class App(object):
                 with open(expanded_fp) as new_fr:
                     if fr.read() == new_fr.read():
                         LOGGER.debug('=> Use sdkconfig file %s', f)
+                        try:
+                            os.unlink(expanded_fp)
+                        except OSError:
+                            LOGGER.debug('=> Failed to remove file %s', expanded_fp)
                         res.append(f)
                     else:
                         LOGGER.debug('=> Expand sdkconfig file %s to %s', f, expanded_fp)
