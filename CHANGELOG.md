@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+### Fixed
+
+- Build with expanded sdkconfig file would respect the target-specific one under the original path
+
 ## [0.5.0] (2023-03-29)
 
 ### Added

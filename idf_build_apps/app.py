@@ -13,6 +13,9 @@ from abc import (
 from copy import (
     deepcopy,
 )
+from pathlib import (
+    Path,
+)
 
 from packaging.version import (
     Version,
@@ -254,9 +257,10 @@ class App(object):
                 LOGGER.debug('=> sdkconfig file %s not exists, skipping...', f)
                 continue
 
-            expanded_fp = os.path.join(self.work_dir, 'expanded_' + os.path.basename(f))
-            if not os.path.isdir(os.path.dirname(expanded_fp)):
-                os.makedirs(os.path.dirname(expanded_fp))
+            expanded_dir = os.path.join(self.work_dir, 'expanded_sdkconfig_files')
+            expanded_fp = os.path.join(expanded_dir, os.path.basename(f))
+            if not os.path.isdir(expanded_dir):
+                os.makedirs(expanded_dir)
 
             with open(f) as fr:
                 with open(expanded_fp, 'w') as fw:
@@ -290,6 +294,14 @@ class App(object):
                     else:
                         LOGGER.debug('=> Expand sdkconfig file %s to %s', f, expanded_fp)
                         res.append(expanded_fp)
+                        # copy the related target-specific sdkconfig files
+                        for target_specific_file in Path(f).parent.glob(
+                            os.path.basename(f) + '.{}'.format(self.target)
+                        ):
+                            LOGGER.debug(
+                                '=> Copy target-specific sdkconfig file %s to %s', target_specific_file, expanded_dir
+                            )
+                            shutil.copy(target_specific_file, expanded_dir)
 
         self._sdkconfig_files = res
 

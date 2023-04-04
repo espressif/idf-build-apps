@@ -21,7 +21,7 @@ test1:
 
 test2:
     enable:
-        - if: INCLUDE_DEFAULT == 0 and IDF_TARGET == "esp32c6"
+        - if: INCLUDE_DEFAULT == 0 and IDF_TARGET == "linux"
 """,
         encoding='utf8',
     )
@@ -32,5 +32,5 @@ test2:
 
     assert manifest.enable_build_targets('test1') == ['esp32', 'esp32c3', 'esp32s2']
     assert manifest.enable_test_targets('test1') == ['esp32', 'esp32s2']
-    assert manifest.enable_build_targets('test2') == ['esp32c6']
-    assert manifest.enable_test_targets('test2') == ['esp32c6']
+    assert manifest.enable_build_targets('test2') == ['linux']
+    assert manifest.enable_test_targets('test2') == ['linux']
