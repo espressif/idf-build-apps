@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- Remove empty expanded sdkconfig files folder after build
+
 ## [0.5.1] (2023-04-06)
 
 ### Fixed

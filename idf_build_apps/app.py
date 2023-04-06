@@ -303,6 +303,12 @@ class App(object):
                             )
                             shutil.copy(target_specific_file, expanded_dir)
 
+        # remove if expanded folder is empty
+        try:
+            os.rmdir(expanded_dir)
+        except OSError:
+            pass
+
         self._sdkconfig_files = res
 
     @property
