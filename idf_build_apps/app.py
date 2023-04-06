@@ -249,6 +249,10 @@ class App(object):
         """
         res = []
 
+        expanded_dir = os.path.join(self.work_dir, 'expanded_sdkconfig_files', os.path.basename(self.build_dir))
+        if not os.path.isdir(expanded_dir):
+            os.makedirs(expanded_dir)
+
         for f in self._sdkconfig_defaults + ([self.sdkconfig_path] if self.sdkconfig_path else []):
             if not os.path.isabs(f):
                 f = os.path.join(self.work_dir, f)
@@ -257,11 +261,7 @@ class App(object):
                 LOGGER.debug('=> sdkconfig file %s not exists, skipping...', f)
                 continue
 
-            expanded_dir = os.path.join(self.work_dir, 'expanded_sdkconfig_files')
             expanded_fp = os.path.join(expanded_dir, os.path.basename(f))
-            if not os.path.isdir(expanded_dir):
-                os.makedirs(expanded_dir)
-
             with open(f) as fr:
                 with open(expanded_fp, 'w') as fw:
                     for line in fr:
@@ -302,6 +302,17 @@ class App(object):
                                 '=> Copy target-specific sdkconfig file %s to %s', target_specific_file, expanded_dir
                             )
                             shutil.copy(target_specific_file, expanded_dir)
+
+        # remove if expanded folder is empty
+        try:
+            os.rmdir(expanded_dir)
+        except OSError:
+            pass
+
+        try:
+            os.rmdir(os.path.join(self.work_dir, 'expanded_sdkconfig_files'))
+        except OSError:
+            pass
 
         self._sdkconfig_files = res
 

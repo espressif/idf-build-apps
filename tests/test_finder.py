@@ -216,13 +216,17 @@ class TestFindWithSdkconfigFiles:
         monkeypatch.setenv('TEST_TARGET', 'esp32')
         apps = find_apps(str(tmp_path), 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=')
         assert len(apps) == 1
-        assert Path(apps[0].sdkconfig_files[0]).parts[-2:] == ('expanded_sdkconfig_files', 'sdkconfig.ci.foo')
+        assert Path(apps[0].sdkconfig_files[0]).parts[-3:] == ('expanded_sdkconfig_files', 'build', 'sdkconfig.ci.foo')
 
         # test relative paths
         os.chdir(str(tmp_path))
-        apps = find_apps('test1', 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=')
+        apps = find_apps('test1', 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=', build_dir='build_@t_@w')
         assert len(apps) == 1
-        assert Path(apps[0].sdkconfig_files[0]).parts[-2:] == ('expanded_sdkconfig_files', 'sdkconfig.ci.foo')
+        assert Path(apps[0].sdkconfig_files[0]).parts[-3:] == (
+            'expanded_sdkconfig_files',
+            'build_esp32_foo',
+            'sdkconfig.ci.foo',
+        )
 
         monkeypatch.setenv('TEST_TARGET', 'esp32s2')
         apps = find_apps('test1', 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=')
