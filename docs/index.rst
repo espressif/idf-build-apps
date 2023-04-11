@@ -12,8 +12,9 @@ Welcome to idf-build-apps's documentation!
 .. toctree::
    :hidden:
 
-   find-build
+   find_build
    manifest
+   config_file
    api
    CHANGELOG
    CONTRIBUTING
