@@ -10,6 +10,11 @@ All notable changes to this project will be documented in this file.
   - `tool.idf-build-apps` section under `pyproject.toml` file
   - `.idf_build_apps.toml` file
 - Improve help message, include default value, config name, and config type
+- Improve help message, add DeprecationWarning to change the CLI call method from "specify multiple times" to "space-separated list" for the following CLI options. (will be removed in 1.0.0)
+  - `--exclude`
+  - `--config`
+  - `--manifest-file`
+  - `--ignore-warning-str`
 
 ### Fixed
 

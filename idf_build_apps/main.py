@@ -384,21 +384,27 @@ class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
             return _help
 
         if action.default is not argparse.SUPPRESS:
-            defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
-            if action.option_strings or action.nargs in defaulting_nargs:
-                _help += '{} - default: %(default)s'.format(self.LINE_SEP)
-
             if action.default is None:
                 default_type = str
             else:
                 default_type = type(action.default)
 
-            if isinstance(action, argparse._AppendAction):
+            if isinstance(action, argparse._AppendAction):  # noqa
+                _help += (
+                    '. Could be specified for multiple times'
+                    '{} ! DeprecationWarning: will change to space-separated list in idf-build-apps 1.0.0 version'.format(
+                        self.LINE_SEP
+                    )
+                )
                 _type = 'list[{}]'.format(default_type.__name__)
             elif action.nargs in [argparse.ZERO_OR_MORE, argparse.ONE_OR_MORE]:
                 _type = 'list[{}]'.format(default_type.__name__)
             else:
                 _type = default_type.__name__
+
+            defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
+            if action.option_strings or action.nargs in defaulting_nargs:
+                _help += '{} - default: %(default)s'.format(self.LINE_SEP)
 
             _help += '{} - config name: {}'.format(self.LINE_SEP, action.dest)
             _help += '{} - config type: {}'.format(self.LINE_SEP, _type)
@@ -426,53 +432,49 @@ def main():
         help='Path to the default configuration file, toml file',
     )
 
-    common_args.add_argument('-p', '--paths', nargs='+', help='One or more paths to look for apps.')
-    common_args.add_argument('-t', '--target', help='filter apps by given target.')
+    common_args.add_argument('-p', '--paths', nargs='+', help='One or more paths to look for apps')
+    common_args.add_argument('-t', '--target', help='filter apps by given target')
     common_args.add_argument(
-        '--build-system',
-        default='cmake',
-        choices=['cmake'],
-        help='build with given build system',
+        '--build-system', default='cmake', choices=['cmake'], help='filter apps by given build system'
     )
     common_args.add_argument(
         '--recursive',
         action='store_true',
-        help='Look for apps in the specified directories recursively.',
+        help='Look for apps in the specified paths recursively',
     )
     common_args.add_argument(
         '--exclude',
         action='append',
-        help='Ignore specified directory (if --recursive is given). Can be used multiple times.',
+        help='Ignore specified directory (if --recursive is given)',
     )
     common_args.add_argument(
         '--work-dir',
         help='If set, the app is first copied into the specified directory, and then built. '
-        'If not set, the work directory is the directory of the app. Can expand placeholders.',
+        'If not set, the work directory is the directory of the app. Can expand placeholders',
     )
     common_args.add_argument(
         '--build-dir',
-        help='If set, specifies the build directory name. Can expand placeholders. Can be either a '
-        'name relative to the work directory, or an absolute path.',
+        default='build',
+        help='If set, specifies the build directory name. Can be either a name relative to the work directory, '
+        'or an absolute path. Can expand placeholders',
     )
     common_args.add_argument(
         '--build-log',
-        help='Relative to build dir. The build log will be written to this file instead of sys.stdout if specified.'
-        'Can expand placeholders.',
+        help='Relative to build dir. The build log will be written to this file instead of sys.stdout if specified. Can expand placeholders',
     )
     common_args.add_argument(
         '--size-file',
-        help='Relative to build dir. The size json will be written to this file if specified. Can expand placeholders.',
+        help='Relative to build dir. The size json will be written to this file if specified. Can expand placeholders',
     )
     common_args.add_argument(
         '--config',
         action='append',
-        help='Adds configurations (sdkconfig file names) to build. Could be specified for multiple times.'
-        'This can either be '
-        'FILENAME[=NAME] or FILEPATTERN. FILENAME is the name of the sdkconfig file, '
+        help='Adds configurations (sdkconfig file names) to build. '
+        'This can either be FILENAME[=NAME] or FILEPATTERN. FILENAME is the name of the sdkconfig file, '
         'relative to the project directory, to be used. Optional NAME can be specified, '
         'which can be used as a name of this configuration. FILEPATTERN is the name of '
         'the sdkconfig file, relative to the project directory, with at most one wildcard. '
-        'The part captured by the wildcard is used as the name of the configuration.',
+        'The part captured by the wildcard is used as the name of the configuration',
     )
     common_args.add_argument(
         '--sdkconfig-defaults',
@@ -484,27 +486,26 @@ def main():
         '--verbose',
         default=0,
         action='count',
-        help='Increase the logging level of the whole process. Can be specified multiple times.',
+        help='Increase the logging level of the whole process. Can be specified multiple times. '
+        'By default set to WARNING level. Specify once to set to INFO level. Specify twice or more to set to DEBUG level',
     )
     common_args.add_argument(
         '--log-file',
         type=argparse.FileType('w'),
-        help='Write the script log to the specified file, instead of stderr',
+        help='Write the log to the specified file, instead of stderr',
     )
     common_args.add_argument(
-        '--check-warnings',
-        action='store_true',
-        help='Check for warnings in the build output.',
+        '--check-warnings', action='store_true', help='If set, fail the build if warnings are found'
     )
     common_args.add_argument(
         '--manifest-file',
         action='append',
-        help='manifest file to specify the build test rules of the apps, could be specified multiple times.',
+        help='Manifest files which specify the build test rules of the apps',
     )
     common_args.add_argument(
         '--manifest-rootpath',
         help='Root directory for calculating the realpath of the relative path defined in the manifest files. '
-        'Would use the current directory if not set.',
+        'Would use the current directory if not set',
     )
     common_args.add_argument(
         '--default-build-targets',
@@ -541,31 +542,27 @@ def main():
     )
 
     find_parser = actions.add_parser('find', parents=[common_args], formatter_class=IdfBuildAppsCliFormatter)
-    find_parser.add_argument(
-        '-o',
-        '--output',
-        help='Output the found apps to the specified file instead of sys.stdout.',
-    )
+    find_parser.add_argument('-o', '--output', help='Print the found apps to the specified file instead of stdout')
 
     build_parser = actions.add_parser('build', parents=[common_args], formatter_class=IdfBuildAppsCliFormatter)
     build_parser.add_argument(
         '--build-verbose',
         action='store_true',
-        help='Enable verbose output from build system.',
+        help='Enable verbose output of the build system',
     )
     build_parser.add_argument(
         '--parallel-count',
         default=1,
         type=int,
-        help="Number of parallel build jobs. Note that this script doesn't start the jobs, "
-        + 'it needs to be executed multiple times with same value of --parallel-count and '
-        + 'different values of --parallel-index.',
+        help="Number of parallel build jobs. Note that this script doesn't start all jobs simultaneously. "
+        'It needs to be executed multiple times with same value of --parallel-count and '
+        'different values of --parallel-index',
     )
     build_parser.add_argument(
         '--parallel-index',
         default=1,
         type=int,
-        help='Index (1-based) of the job, out of the number specified by --parallel-count.',
+        help='Index (1-based) of the job, out of the number specified by --parallel-count',
     )
     build_parser.add_argument(
         '--dry-run',
@@ -575,38 +572,37 @@ def main():
     build_parser.add_argument(
         '--keep-going',
         action='store_true',
-        help="Don't exit immediately when a build fails.",
+        help="Don't exit immediately when a build fails",
     )
     build_parser.add_argument(
         '--no-preserve',
         action='store_true',
-        help="Don't preserve the build directory after a successful build.",
+        help="Don't preserve the build directory after a successful build",
     )
     build_parser.add_argument(
         '--collect-size-info',
         type=argparse.FileType('w'),
-        help='write size info json file while building into the specified file. each line is a json object.',
+        help='write size info json file while building into the specified file. each line is a json object',
     )
     build_parser.add_argument(
         '--collect-app-info',
         type=argparse.FileType('w'),
-        help='write app info json file while building into the specified file. each line is a json object.',
+        help='write app info json file while building into the specified file. each line is a json object',
     )
     build_parser.add_argument(
         '--ignore-warning-str',
         action='append',
-        help='Ignore the warning string that match the specified regex in the build output. '
-        'Can be specified multiple times.',
+        help='Ignore the warning string that match the specified regex in the build output',
     )
     build_parser.add_argument(
         '--ignore-warning-file',
         type=argparse.FileType('r'),
-        help='Ignore the warning strings in the specified file. Each line should be a regex string.',
+        help='Ignore the warning strings in the specified file. Each line should be a regex string',
     )
     build_parser.add_argument(
         '--copy-sdkconfig',
         action='store_true',
-        help='Copy the sdkconfig file to the build directory.',
+        help='Copy the sdkconfig file to the build directory',
     )
 
     args = parser.parse_args()
