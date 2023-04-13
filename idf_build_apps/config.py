@@ -61,11 +61,11 @@ def _get_config_from_path(dirpath):  # type: (Path) -> (dict | None, Path)
 
 def get_valid_config(starts_from=os.getcwd(), custom_path=None):  # type: (str, str | None) -> dict | None
     root_dir = Path('/').resolve()
-    cur_dir = Path(starts_from).expanduser().resolve()
+    cur_dir = Path(os.path.expanduser(starts_from)).resolve()
 
     config = None
     if custom_path and os.path.isfile(custom_path):
-        config, filepath = _get_config_from_file(Path(custom_path).expanduser().resolve())
+        config, filepath = _get_config_from_file(Path(os.path.expanduser(custom_path)).resolve())
         if config is not None:
             # use print here since the verbose settings may be set in the config file
             print('Using custom config file: {}'.format(filepath))

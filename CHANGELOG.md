@@ -11,6 +11,10 @@ All notable changes to this project will be documented in this file.
   - `.idf_build_apps.toml` file
 - Improve help message, include default value, config name, and config type
 
+### Fixed
+
+- Fix earlier python version pathlib does not support member function `expanduser` issue
+
 ## [0.5.2] (2023-04-07)
 
 ### Fixed
