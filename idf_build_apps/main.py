@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+
 import argparse
 import os
 import re
@@ -14,6 +15,9 @@ from . import (
 )
 from .app import (
     App,
+)
+from .config import (
+    get_valid_config,
 )
 from .constants import (
     ALL_TARGETS,
@@ -367,6 +371,12 @@ def main():
     actions = parser.add_subparsers(dest='action')
 
     common_args = argparse.ArgumentParser(add_help=False)
+    common_args.add_argument(
+        '-c',
+        '--config-file',
+        help='Path to the default configuration file, toml file',
+    )
+
     common_args.add_argument('-p', '--paths', nargs='+', help='One or more paths to look for apps.')
     common_args.add_argument('-t', '--target', help='filter apps by given target.')
     common_args.add_argument(
@@ -552,10 +562,16 @@ def main():
 
     args = parser.parse_args()
 
-    # validate cli options
+    # validate cli subcommands
     if args.action not in ['find', 'build']:
         parser.print_help()
         raise InvalidCommand('subcommand is required. {find, build}')
+
+    # support toml config file
+    config_dict = get_valid_config(custom_path=args.config_file)
+    if config_dict:
+        for k, v in config_dict.items():
+            setattr(args, k, v)
 
     if not args.paths:
         raise InvalidCommand(

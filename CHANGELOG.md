@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- Support configuration file with
+  - `tool.idf-build-apps` section under `pyproject.toml` file
+  - `.idf_build_apps.toml` file
+
 ## [0.5.2] (2023-04-07)
 
 ### Fixed
