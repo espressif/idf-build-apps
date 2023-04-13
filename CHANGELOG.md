@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- Support configuration file with
+  - `tool.idf-build-apps` section under `pyproject.toml` file
+  - `.idf_build_apps.toml` file
+- Improve help message, include default value, config name, and config type
+- Improve help message, add DeprecationWarning to change the CLI call method from "specify multiple times" to "space-separated list" for the following CLI options. (will be removed in 1.0.0)
+  - `--exclude`
+  - `--config`
+  - `--manifest-file`
+  - `--ignore-warning-str`
+
+### Fixed
+
+- Fix earlier python version pathlib does not support member function `expanduser` issue
+- Remove unused dependency `pyyaml`
+
 ## [0.5.2] (2023-04-07)
 
 ### Fixed

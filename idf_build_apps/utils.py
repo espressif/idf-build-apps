@@ -235,9 +235,9 @@ def to_list(s):
 
 
 def to_absolute_path(s, rootpath=None):  # type: (str, str | None) -> Path
-    rp = Path(rootpath or '.').expanduser().resolve()
+    rp = Path(os.path.expanduser(rootpath or '.')).resolve()
 
-    sp = Path(s).expanduser()
+    sp = Path(os.path.expanduser(s))
     if sp.is_absolute():
         return sp.resolve()
     else:
