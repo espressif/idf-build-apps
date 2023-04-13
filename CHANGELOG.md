@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - Fix earlier python version pathlib does not support member function `expanduser` issue
+- Remove unused dependency `pyyaml`
 
 ## [0.5.2] (2023-04-07)
 
