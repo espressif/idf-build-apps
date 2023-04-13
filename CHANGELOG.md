@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Support configuration file with
   - `tool.idf-build-apps` section under `pyproject.toml` file
   - `.idf_build_apps.toml` file
+- Improve help message, include default value, config name, and config type
 
 ## [0.5.2] (2023-04-07)
 

@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import sys
+import textwrap
 from pathlib import (
     Path,
 )
@@ -357,6 +358,54 @@ def build_apps(
         return exit_code
 
 
+class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
+    LINE_SEP = '$LINE_SEP$'
+
+    def _split_lines(self, text, width):
+        parts = text.split(self.LINE_SEP)
+
+        text = self._whitespace_matcher.sub(' ', parts[0]).strip()
+        return textwrap.wrap(text, width) + parts[1:]
+
+    def _get_help_string(self, action):
+        """
+        Add the default value to the option help message.
+
+        ArgumentDefaultsHelpFormatter and BooleanOptionalAction when it isn't
+        already present. This code will do that, detecting cornercases to
+        prevent duplicates or cases where it wouldn't make sense to the end
+        user.
+        """
+        _help = action.help
+        if _help is None:
+            _help = ''
+
+        if action.dest == 'config_file':
+            return _help
+
+        if action.default is not argparse.SUPPRESS:
+            defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
+            if action.option_strings or action.nargs in defaulting_nargs:
+                _help += '{} - default: %(default)s'.format(self.LINE_SEP)
+
+            if action.default is None:
+                default_type = str
+            else:
+                default_type = type(action.default)
+
+            if isinstance(action, argparse._AppendAction):
+                _type = 'list[{}]'.format(default_type.__name__)
+            elif action.nargs in [argparse.ZERO_OR_MORE, argparse.ONE_OR_MORE]:
+                _type = 'list[{}]'.format(default_type.__name__)
+            else:
+                _type = default_type.__name__
+
+            _help += '{} - config name: {}'.format(self.LINE_SEP, action.dest)
+            _help += '{} - config type: {}'.format(self.LINE_SEP, _type)
+
+        return _help
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Tools for building ESP-IDF related apps.'
@@ -491,14 +540,14 @@ def main():
         help='enable colored output by default on UNIX-like systems. enable this flag to make the logs uncolored.',
     )
 
-    find_parser = actions.add_parser('find', parents=[common_args])
+    find_parser = actions.add_parser('find', parents=[common_args], formatter_class=IdfBuildAppsCliFormatter)
     find_parser.add_argument(
         '-o',
         '--output',
         help='Output the found apps to the specified file instead of sys.stdout.',
     )
 
-    build_parser = actions.add_parser('build', parents=[common_args])
+    build_parser = actions.add_parser('build', parents=[common_args], formatter_class=IdfBuildAppsCliFormatter)
     build_parser.add_argument(
         '--build-verbose',
         action='store_true',
