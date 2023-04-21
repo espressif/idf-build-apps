@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import fnmatch
-import logging
 import os
 import shutil
 import subprocess
@@ -16,9 +15,6 @@ from pathlib import (
 
 from . import (
     LOGGER,
-)
-from .log import (
-    ColoredFormatter,
 )
 
 try:
@@ -66,38 +62,6 @@ def config_rules_from_str(rule_strings):  # type: (list[str] | str) -> list[Conf
         rules.append(ConfigRule(items[0], items[1] if len(items) == 2 else None))
     # '' is the default config, sort this one to the front
     return sorted(rules, key=lambda x: x.file_name)
-
-
-def setup_logging(verbose=0, log_file=None, colored=True):  # type: (int, str | None, bool) -> None
-    """
-    Setup logging stream handler
-
-    :param verbose: 0 - WARNING, 1 - INFO, 2+ - DEBUG
-    :type verbose: int
-    :param log_file: log file path
-    :type log_file: str
-    :param colored: colored output or not
-    :type colored: bool
-    :return: None
-    :rtype: None
-    """
-    if not verbose:
-        level = logging.WARNING
-    elif verbose == 1:
-        level = logging.INFO
-    else:
-        level = logging.DEBUG
-
-    LOGGER.setLevel(level)
-    if log_file:
-        stream = open(log_file, 'w')
-    else:
-        stream = sys.stderr
-    handler = logging.StreamHandler(stream)
-    handler.setLevel(level)
-    handler.setFormatter(ColoredFormatter(colored))
-    LOGGER.handlers = [handler]
-    LOGGER.propagate = False
 
 
 def get_parallel_start_stop(total, parallel_count, parallel_index):  # type: (int, int, int) -> (int, int)

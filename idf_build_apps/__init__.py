@@ -15,12 +15,12 @@ from .app import (
     App,
     CMakeApp,
 )
+from .log import (
+    setup_logging,
+)
 from .main import (
     build_apps,
     find_apps,
-)
-from .utils import (
-    setup_logging,
 )
 
 __all__ = [

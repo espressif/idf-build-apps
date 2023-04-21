@@ -15,11 +15,18 @@ All notable changes to this project will be documented in this file.
   - `--config`
   - `--manifest-file`
   - `--ignore-warning-str`
+- Support placeholder `@p` for parallel index
+- Support expand placeholders for CLI options `--collect-app-info` and `--collect-size-info`
 
 ### Fixed
 
 - Fix earlier python version pathlib does not support member function `expanduser` issue
 - Remove unused dependency `pyyaml`
+
+### Refactored
+
+- Move `utils.setup_logging()` to `log.setup_logging()`
+- Make CLI option `--default-build-targets` from comma-separated list to space-separated list (comma-separated list support will be removed in 1.0.0)
 
 ## [0.5.2] (2023-04-07)
 

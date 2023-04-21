@@ -55,6 +55,7 @@ class App(object):
     NAME_PLACEHOLDER = '@n'  # replace it with self.name
     FULL_NAME_PLACEHOLDER = '@f'  # replace it with escaped self.app_dir
     INDEX_PLACEHOLDER = '@i'  # replace it with the build index
+    PARALLEL_INDEX_PLACEHOLDER = '@p'  # replace it with the parallel index
 
     BUILD_SYSTEM = 'unknown'
 
@@ -103,6 +104,11 @@ class App(object):
         self.dry_run = False
         self.index = None
         self.verbose = False
+        self.parallel_index = 1
+        self.parallel_count = 1
+
+        self._collect_app_info = None
+        self._collect_size_info = None
 
         # sdkconfig attrs, use properties instead
         self._sdkconfig_defaults = self._get_sdkconfig_defaults(sdkconfig_defaults_str)
@@ -182,6 +188,7 @@ class App(object):
 
         if self.index is not None:
             path = path.replace(self.INDEX_PLACEHOLDER, str(self.index))
+        path = path.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
         path = path.replace(self.TARGET_PLACEHOLDER, self.target)
         path = path.replace(self.NAME_PLACEHOLDER, self.name)
         if self.FULL_NAME_PLACEHOLDER in path:  # to avoid recursion to the call to app_dir in the next line:
@@ -239,6 +246,20 @@ class App(object):
     def size_json_path(self):
         if self._size_json_path:
             return os.path.join(self.build_path, self._expand(self._size_json_path))
+
+        return None
+
+    @property
+    def collect_app_info(self):
+        if self._collect_app_info:
+            return self._expand(self._collect_app_info)
+
+        return None
+
+    @property
+    def collect_size_info(self):
+        if self._collect_size_info:
+            return self._expand(self._collect_size_info)
 
         return None
 
@@ -381,19 +402,6 @@ class App(object):
             check=True,
         )
         LOGGER.info('=> Generated size info to %s', self.size_json_path)
-
-    def collect_size_info(self, output_fs):  # type: (t.TextIO) -> None
-        if not os.path.isfile(self.size_json_path):
-            self.write_size_json()
-
-        size_info_dict = {
-            'app_name': self.name,
-            'config_name': self.config_name,
-            'target': self.target,
-            'path': self.size_json_path,
-        }
-        output_fs.write(json.dumps(size_info_dict) + '\n')
-        LOGGER.info('=> Recorded size info file path in %s', output_fs.name)
 
     def to_json(self):
         # keeping backward compatibility, only provide these stuffs

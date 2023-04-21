@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -26,6 +27,9 @@ from .constants import (
 from .finder import (
     _find_apps,
 )
+from .log import (
+    setup_logging,
+)
 from .manifest.manifest import (
     FolderRule,
     Manifest,
@@ -35,7 +39,6 @@ from .utils import (
     InvalidCommand,
     files_matches_patterns,
     get_parallel_start_stop,
-    setup_logging,
     to_list,
 )
 
@@ -191,8 +194,8 @@ def build_apps(
     parallel_index=1,  # type: int
     dry_run=False,  # type: bool
     keep_going=False,  # type: bool
-    collect_size_info=None,  # type: t.TextIO | None
-    collect_app_info=None,  # type: t.TextIO | None
+    collect_size_info=None,  # type: str | None
+    collect_app_info=None,  # type: str | None
     ignore_warning_strs=None,  # type: list[str] | None
     ignore_warning_file=None,  # type: t.TextIO | None
     copy_sdkconfig=False,  # type: bool
@@ -244,7 +247,7 @@ def build_apps(
     :return: exit_code if not specified ``depends_on_components``
     :rtype: int
     """
-    apps = to_list(apps)
+    apps = to_list(apps)  # type: list[App]
 
     ignore_warnings_regexes = []
     if ignore_warning_strs:
@@ -288,6 +291,25 @@ def build_apps(
     else:
         LOGGER.info('  parallel count is too large. build nothing...')
 
+    # cleanup collect files if exists at this early-stage
+    for app in apps[start - 1 : stop]:  # we use 1-based
+        app.parallel_index = parallel_index
+        app.parallel_count = parallel_count
+
+        app._collect_app_info = collect_app_info
+        app._collect_size_info = collect_size_info
+
+        if collect_app_info:
+            app._collect_app_info = collect_app_info
+            if os.path.isfile(app.collect_app_info):  # expand here
+                os.remove(app.collect_app_info)
+                LOGGER.info('=> Remove existing recorded_app_info file %s', app.collect_app_info)
+
+            app._collect_size_info = collect_size_info
+            if os.path.isfile(app.collect_size_info):  # expand here
+                os.remove(app.collect_size_info)
+                LOGGER.info('=> Remove existing recorded_size_info file %s', app.collect_size_info)
+
     actual_built_apps = []
     for i, app in enumerate(apps):
         index = i + 1  # we use 1-based
@@ -320,17 +342,32 @@ def build_apps(
             if is_built:
                 actual_built_apps.append(app)
 
-                if collect_app_info:
-                    collect_app_info.write(app.to_json() + '\n')
-                    LOGGER.info('=> Recorded app info in %s', collect_app_info.name)
+                if app.collect_app_info:
+                    with open(app.collect_app_info, 'a') as fw:
+                        fw.write(app.to_json() + '\n')
+                    LOGGER.info('=> Recorded app info in %s', app.collect_app_info)
 
-                if collect_size_info:
+                if app.collect_size_info and app.size_json_path:
                     try:
-                        app.collect_size_info(collect_size_info)
+                        if not os.path.isfile(app.size_json_path):
+                            app.write_size_json()
                     except Exception as e:
                         LOGGER.warning('Adding size info for app %s failed:', app.name)
                         LOGGER.warning(e)
-                        pass
+                    else:
+                        with open(app.collect_size_info, 'a') as fw:
+                            fw.write(
+                                json.dumps(
+                                    {
+                                        'app_name': app.name,
+                                        'config_name': app.config_name,
+                                        'target': app.target,
+                                        'path': app.size_json_path,
+                                    }
+                                )
+                                + '\n'
+                            )
+                        LOGGER.info('=> Recorded size info file path in %s', app.collect_size_info)
 
                 if copy_sdkconfig:
                     try:
@@ -372,7 +409,7 @@ class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
         Add the default value to the option help message.
 
         ArgumentDefaultsHelpFormatter and BooleanOptionalAction when it isn't
-        already present. This code will do that, detecting cornercases to
+        already present. This code will do that, detecting corner cases to
         prevent duplicates or cases where it wouldn't make sense to the end
         user.
         """
@@ -412,7 +449,7 @@ class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
         return _help
 
 
-def main():
+def get_parser():  # type: () -> argparse.ArgumentParser
     parser = argparse.ArgumentParser(
         description='Tools for building ESP-IDF related apps.'
         'Some CLI options can be expanded by the following placeholders, like "--work-dir", "--build-dir", etc.:\n'
@@ -420,7 +457,8 @@ def main():
         '- @w: would be replaced by the wildcard, usually the sdkconfig\n'
         '- @n: would be replaced by the app name\n'
         '- @f: would be replaced by the escaped app path (replaced "/" to "_")\n'
-        '- @i: would be replaced by the build index',
+        '- @i: would be replaced by the build index\n'
+        '- @p: would be replaced by the parallel index',
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     actions = parser.add_subparsers(dest='action')
@@ -491,7 +529,6 @@ def main():
     )
     common_args.add_argument(
         '--log-file',
-        type=argparse.FileType('w'),
         help='Write the log to the specified file, instead of stderr',
     )
     common_args.add_argument(
@@ -509,8 +546,12 @@ def main():
     )
     common_args.add_argument(
         '--default-build-targets',
-        help='comma-separated list of supported targets. Targets supported in current ESP-IDF branch '
-        '(except preview ones) would be used if this option is not set',
+        nargs='+',
+        help='space-separated list of supported targets. Targets supported in current ESP-IDF branch '
+        '(except preview ones) would be used if this option is not set.'
+        '{} ! DeprecationWarning: comma-separated list support will be removed in idf-build-apps 1.0.0 version'.format(
+            IdfBuildAppsCliFormatter.LINE_SEP
+        ),
     )
     common_args.add_argument(
         '--depends-on-components',
@@ -581,13 +622,11 @@ def main():
     )
     build_parser.add_argument(
         '--collect-size-info',
-        type=argparse.FileType('w'),
-        help='write size info json file while building into the specified file. each line is a json object',
+        help='write size info json file while building into the specified file. each line is a json object. Can expand placeholders',
     )
     build_parser.add_argument(
         '--collect-app-info',
-        type=argparse.FileType('w'),
-        help='write app info json file while building into the specified file. each line is a json object',
+        help='write app info json file while building into the specified file. each line is a json object. Can expand placeholders',
     )
     build_parser.add_argument(
         '--ignore-warning-str',
@@ -605,18 +644,14 @@ def main():
         help='Copy the sdkconfig file to the build directory',
     )
 
-    args = parser.parse_args()
+    return parser
 
+
+def validate_args(parser, args):  # type: (argparse.ArgumentParser, argparse.Namespace) -> None
     # validate cli subcommands
     if args.action not in ['find', 'build']:
         parser.print_help()
         raise InvalidCommand('subcommand is required. {find, build}')
-
-    # support toml config file
-    config_dict = get_valid_config(custom_path=args.config_file)
-    if config_dict:
-        for k, v in config_dict.items():
-            setattr(args, k, v)
 
     if not args.paths:
         raise InvalidCommand(
@@ -631,16 +666,19 @@ def main():
 
     default_build_targets = []
     if args.default_build_targets:
-        for target in args.default_build_targets.split(','):
-            target = target.strip()
-            if target not in ALL_TARGETS:
-                raise InvalidCommand(
-                    'Unrecognizable target {} specified with "--default-build-targets". '
-                    'Current ESP-IDF available targets: {}'.format(target, ALL_TARGETS)
-                )
+        for target in args.default_build_targets:
+            t_list = [_t.strip() for _t in target.split(',')] if ',' in target else [target.strip()]
+            for _t in t_list:
+                if _t not in ALL_TARGETS:
+                    raise InvalidCommand(
+                        'Unrecognizable target {} specified with "--default-build-targets". '
+                        'Current ESP-IDF available targets: {}'.format(_t, ALL_TARGETS)
+                    )
 
-            if target not in default_build_targets:
-                default_build_targets.append(target)
+                if _t not in default_build_targets:
+                    default_build_targets.append(_t)
+
+    args.default_build_targets = default_build_targets
 
     if (args.ignore_component_dependencies_file_patterns is None) != (args.depends_on_files is None):
         raise InvalidCommand(
@@ -648,9 +686,25 @@ def main():
             'or neither of them'
         )
 
-    # real call starts here
+
+def apply_config_args(args):  # type: (argparse.Namespace) -> None
+    # support toml config file
+    config_dict = get_valid_config(custom_path=args.config_file)
+    if config_dict:
+        for k, v in config_dict.items():
+            setattr(args, k, v)
+
     setup_logging(args.verbose, args.log_file, not args.no_color)
 
+
+def main():
+    parser = get_parser()
+    args = parser.parse_args()
+
+    apply_config_args(args)
+    validate_args(parser, args)
+
+    # real call starts here
     apps = find_apps(
         args.paths,
         args.target,
@@ -664,7 +718,7 @@ def main():
         size_json_path=args.size_file,
         check_warnings=args.check_warnings,
         manifest_files=args.manifest_file,
-        default_build_targets=default_build_targets,
+        default_build_targets=args.default_build_targets,
         depends_on_components=args.depends_on_components,
         manifest_rootpath=args.manifest_rootpath,
         ignore_component_dependencies_file_patterns=args.ignore_component_dependencies_file_patterns,
