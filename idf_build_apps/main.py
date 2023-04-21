@@ -414,7 +414,7 @@ class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
         return _help
 
 
-def main():
+def get_parser():  # type: () -> argparse.ArgumentParser
     parser = argparse.ArgumentParser(
         description='Tools for building ESP-IDF related apps.'
         'Some CLI options can be expanded by the following placeholders, like "--work-dir", "--build-dir", etc.:\n'
@@ -610,18 +610,14 @@ def main():
         help='Copy the sdkconfig file to the build directory',
     )
 
-    args = parser.parse_args()
+    return parser
 
+
+def validate_args(parser, args):  # type: (argparse.ArgumentParser, argparse.Namespace) -> None
     # validate cli subcommands
     if args.action not in ['find', 'build']:
         parser.print_help()
         raise InvalidCommand('subcommand is required. {find, build}')
-
-    # support toml config file
-    config_dict = get_valid_config(custom_path=args.config_file)
-    if config_dict:
-        for k, v in config_dict.items():
-            setattr(args, k, v)
 
     if not args.paths:
         raise InvalidCommand(
@@ -648,15 +644,33 @@ def main():
                 if _t not in default_build_targets:
                     default_build_targets.append(_t)
 
+    args.default_build_targets = default_build_targets
+
     if (args.ignore_component_dependencies_file_patterns is None) != (args.depends_on_files is None):
         raise InvalidCommand(
             'Must specify both "--ignore-component-dependencies-file-patterns" and "--depends-on-files" '
             'or neither of them'
         )
 
-    # real call starts here
+
+def apply_config_args(args):  # type: (argparse.Namespace) -> None
+    # support toml config file
+    config_dict = get_valid_config(custom_path=args.config_file)
+    if config_dict:
+        for k, v in config_dict.items():
+            setattr(args, k, v)
+
     setup_logging(args.verbose, args.log_file, not args.no_color)
 
+
+def main():
+    parser = get_parser()
+    args = parser.parse_args()
+
+    apply_config_args(args)
+    validate_args(parser, args)
+
+    # real call starts here
     apps = find_apps(
         args.paths,
         args.target,
@@ -670,7 +684,7 @@ def main():
         size_json_path=args.size_file,
         check_warnings=args.check_warnings,
         manifest_files=args.manifest_file,
-        default_build_targets=default_build_targets,
+        default_build_targets=args.default_build_targets,
         depends_on_components=args.depends_on_components,
         manifest_rootpath=args.manifest_rootpath,
         ignore_component_dependencies_file_patterns=args.ignore_component_dependencies_file_patterns,
