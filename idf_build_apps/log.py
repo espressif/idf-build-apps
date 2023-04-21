@@ -4,6 +4,10 @@
 import logging
 import sys
 
+from . import (
+    LOGGER,
+)
+
 
 class ColoredFormatter(logging.Formatter):
     grey = '\x1b[37;20m'
@@ -44,3 +48,35 @@ class ColoredFormatter(logging.Formatter):
 
         formatter = logging.Formatter(log_fmt, datefmt=self.datefmt)
         return formatter.format(record)
+
+
+def setup_logging(verbose=0, log_file=None, colored=True):  # type: (int, str | None, bool) -> None
+    """
+    Setup logging stream handler
+
+    :param verbose: 0 - WARNING, 1 - INFO, 2+ - DEBUG
+    :type verbose: int
+    :param log_file: log file path
+    :type log_file: str
+    :param colored: colored output or not
+    :type colored: bool
+    :return: None
+    :rtype: None
+    """
+    if not verbose:
+        level = logging.WARNING
+    elif verbose == 1:
+        level = logging.INFO
+    else:
+        level = logging.DEBUG
+
+    LOGGER.setLevel(level)
+    if log_file:
+        handler = logging.FileHandler(log_file)
+    else:
+        handler = logging.StreamHandler(sys.stderr)
+
+    handler.setLevel(level)
+    handler.setFormatter(ColoredFormatter(colored))
+    LOGGER.handlers = [handler]
+    LOGGER.propagate = False

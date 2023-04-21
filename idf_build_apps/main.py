@@ -26,6 +26,9 @@ from .constants import (
 from .finder import (
     _find_apps,
 )
+from .log import (
+    setup_logging,
+)
 from .manifest.manifest import (
     FolderRule,
     Manifest,
@@ -35,7 +38,6 @@ from .utils import (
     InvalidCommand,
     files_matches_patterns,
     get_parallel_start_stop,
-    setup_logging,
     to_list,
 )
 
@@ -491,7 +493,6 @@ def main():
     )
     common_args.add_argument(
         '--log-file',
-        type=argparse.FileType('w'),
         help='Write the log to the specified file, instead of stderr',
     )
     common_args.add_argument(

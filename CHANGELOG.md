@@ -21,6 +21,10 @@ All notable changes to this project will be documented in this file.
 - Fix earlier python version pathlib does not support member function `expanduser` issue
 - Remove unused dependency `pyyaml`
 
+### Refactored
+
+- Move `utils.setup_logging()` to `log.setup_logging()`
+
 ## [0.5.2] (2023-04-07)
 
 ### Fixed
