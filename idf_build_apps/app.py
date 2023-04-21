@@ -55,6 +55,7 @@ class App(object):
     NAME_PLACEHOLDER = '@n'  # replace it with self.name
     FULL_NAME_PLACEHOLDER = '@f'  # replace it with escaped self.app_dir
     INDEX_PLACEHOLDER = '@i'  # replace it with the build index
+    PARALLEL_INDEX_PLACEHOLDER = '@p'  # replace it with the parallel index
 
     BUILD_SYSTEM = 'unknown'
 
@@ -103,6 +104,8 @@ class App(object):
         self.dry_run = False
         self.index = None
         self.verbose = False
+        self.parallel_index = 1
+        self.parallel_count = 1
 
         # sdkconfig attrs, use properties instead
         self._sdkconfig_defaults = self._get_sdkconfig_defaults(sdkconfig_defaults_str)
@@ -182,6 +185,7 @@ class App(object):
 
         if self.index is not None:
             path = path.replace(self.INDEX_PLACEHOLDER, str(self.index))
+        path = path.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
         path = path.replace(self.TARGET_PLACEHOLDER, self.target)
         path = path.replace(self.NAME_PLACEHOLDER, self.name)
         if self.FULL_NAME_PLACEHOLDER in path:  # to avoid recursion to the call to app_dir in the next line:

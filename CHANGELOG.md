@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
   - `--config`
   - `--manifest-file`
   - `--ignore-warning-str`
+- Support placeholder `@p` for parallel index
 
 ### Fixed
 
