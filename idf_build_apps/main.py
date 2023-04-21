@@ -510,8 +510,12 @@ def main():
     )
     common_args.add_argument(
         '--default-build-targets',
-        help='comma-separated list of supported targets. Targets supported in current ESP-IDF branch '
-        '(except preview ones) would be used if this option is not set',
+        nargs='+',
+        help='space-separated list of supported targets. Targets supported in current ESP-IDF branch '
+        '(except preview ones) would be used if this option is not set.'
+        '{} ! DeprecationWarning: comma-separated list support will be removed in idf-build-apps 1.0.0 version'.format(
+            IdfBuildAppsCliFormatter.LINE_SEP
+        ),
     )
     common_args.add_argument(
         '--depends-on-components',
@@ -632,16 +636,17 @@ def main():
 
     default_build_targets = []
     if args.default_build_targets:
-        for target in args.default_build_targets.split(','):
-            target = target.strip()
-            if target not in ALL_TARGETS:
-                raise InvalidCommand(
-                    'Unrecognizable target {} specified with "--default-build-targets". '
-                    'Current ESP-IDF available targets: {}'.format(target, ALL_TARGETS)
-                )
+        for target in args.default_build_targets:
+            t_list = [_t.strip() for _t in target.split(',')] if ',' in target else [target.strip()]
+            for _t in t_list:
+                if _t not in ALL_TARGETS:
+                    raise InvalidCommand(
+                        'Unrecognizable target {} specified with "--default-build-targets". '
+                        'Current ESP-IDF available targets: {}'.format(_t, ALL_TARGETS)
+                    )
 
-            if target not in default_build_targets:
-                default_build_targets.append(target)
+                if _t not in default_build_targets:
+                    default_build_targets.append(_t)
 
     if (args.ignore_component_dependencies_file_patterns is None) != (args.depends_on_files is None):
         raise InvalidCommand(

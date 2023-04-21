@@ -24,6 +24,7 @@ All notable changes to this project will be documented in this file.
 ### Refactored
 
 - Move `utils.setup_logging()` to `log.setup_logging()`
+- Make CLI option `--default-build-targets` from comma-separated list to space-separated list (comma-separated list support will be removed in 1.0.0)
 
 ## [0.5.2] (2023-04-07)
 
