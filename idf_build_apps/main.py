@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -193,8 +194,8 @@ def build_apps(
     parallel_index=1,  # type: int
     dry_run=False,  # type: bool
     keep_going=False,  # type: bool
-    collect_size_info=None,  # type: t.TextIO | None
-    collect_app_info=None,  # type: t.TextIO | None
+    collect_size_info=None,  # type: str | None
+    collect_app_info=None,  # type: str | None
     ignore_warning_strs=None,  # type: list[str] | None
     ignore_warning_file=None,  # type: t.TextIO | None
     copy_sdkconfig=False,  # type: bool
@@ -246,7 +247,7 @@ def build_apps(
     :return: exit_code if not specified ``depends_on_components``
     :rtype: int
     """
-    apps = to_list(apps)
+    apps = to_list(apps)  # type: list[App]
 
     ignore_warnings_regexes = []
     if ignore_warning_strs:
@@ -290,6 +291,25 @@ def build_apps(
     else:
         LOGGER.info('  parallel count is too large. build nothing...')
 
+    # cleanup collect files if exists at this early-stage
+    for app in apps[start - 1 : stop]:  # we use 1-based
+        app.parallel_index = parallel_index
+        app.parallel_count = parallel_count
+
+        app._collect_app_info = collect_app_info
+        app._collect_size_info = collect_size_info
+
+        if collect_app_info:
+            app._collect_app_info = collect_app_info
+            if os.path.isfile(app.collect_app_info):  # expand here
+                os.remove(app.collect_app_info)
+                LOGGER.info('=> Remove existing recorded_app_info file %s', app.collect_app_info)
+
+            app._collect_size_info = collect_size_info
+            if os.path.isfile(app.collect_size_info):  # expand here
+                os.remove(app.collect_size_info)
+                LOGGER.info('=> Remove existing recorded_size_info file %s', app.collect_size_info)
+
     actual_built_apps = []
     for i, app in enumerate(apps):
         index = i + 1  # we use 1-based
@@ -322,17 +342,32 @@ def build_apps(
             if is_built:
                 actual_built_apps.append(app)
 
-                if collect_app_info:
-                    collect_app_info.write(app.to_json() + '\n')
-                    LOGGER.info('=> Recorded app info in %s', collect_app_info.name)
+                if app.collect_app_info:
+                    with open(app.collect_app_info, 'a') as fw:
+                        fw.write(app.to_json() + '\n')
+                    LOGGER.info('=> Recorded app info in %s', app.collect_app_info)
 
-                if collect_size_info:
+                if app.collect_size_info and app.size_json_path:
                     try:
-                        app.collect_size_info(collect_size_info)
+                        if not os.path.isfile(app.size_json_path):
+                            app.write_size_json()
                     except Exception as e:
                         LOGGER.warning('Adding size info for app %s failed:', app.name)
                         LOGGER.warning(e)
-                        pass
+                    else:
+                        with open(app.collect_size_info, 'a') as fw:
+                            fw.write(
+                                json.dumps(
+                                    {
+                                        'app_name': app.name,
+                                        'config_name': app.config_name,
+                                        'target': app.target,
+                                        'path': app.size_json_path,
+                                    }
+                                )
+                                + '\n'
+                            )
+                        LOGGER.info('=> Recorded size info file path in %s', app.collect_size_info)
 
                 if copy_sdkconfig:
                     try:
@@ -374,7 +409,7 @@ class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
         Add the default value to the option help message.
 
         ArgumentDefaultsHelpFormatter and BooleanOptionalAction when it isn't
-        already present. This code will do that, detecting cornercases to
+        already present. This code will do that, detecting corner cases to
         prevent duplicates or cases where it wouldn't make sense to the end
         user.
         """
@@ -422,7 +457,8 @@ def get_parser():  # type: () -> argparse.ArgumentParser
         '- @w: would be replaced by the wildcard, usually the sdkconfig\n'
         '- @n: would be replaced by the app name\n'
         '- @f: would be replaced by the escaped app path (replaced "/" to "_")\n'
-        '- @i: would be replaced by the build index',
+        '- @i: would be replaced by the build index\n'
+        '- @p: would be replaced by the parallel index',
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     actions = parser.add_subparsers(dest='action')
@@ -586,13 +622,11 @@ def get_parser():  # type: () -> argparse.ArgumentParser
     )
     build_parser.add_argument(
         '--collect-size-info',
-        type=argparse.FileType('w'),
-        help='write size info json file while building into the specified file. each line is a json object',
+        help='write size info json file while building into the specified file. each line is a json object. Can expand placeholders',
     )
     build_parser.add_argument(
         '--collect-app-info',
-        type=argparse.FileType('w'),
-        help='write app info json file while building into the specified file. each line is a json object',
+        help='write app info json file while building into the specified file. each line is a json object. Can expand placeholders',
     )
     build_parser.add_argument(
         '--ignore-warning-str',

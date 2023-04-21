@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
   - `--manifest-file`
   - `--ignore-warning-str`
 - Support placeholder `@p` for parallel index
+- Support expand placeholders for CLI options `--collect-app-info` and `--collect-size-info`
 
 ### Fixed
 
