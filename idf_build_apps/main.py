@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import io
 import json
 import os
 import re
 import shutil
 import sys
 import textwrap
+import warnings
 from pathlib import (
     Path,
 )
@@ -194,8 +196,8 @@ def build_apps(
     parallel_index=1,  # type: int
     dry_run=False,  # type: bool
     keep_going=False,  # type: bool
-    collect_size_info=None,  # type: str | None
-    collect_app_info=None,  # type: str | None
+    collect_size_info=None,  # type: str | t.TextIO | None
+    collect_app_info=None,  # type: str | t.TextIO | None
     ignore_warning_strs=None,  # type: list[str] | None
     ignore_warning_file=None,  # type: t.TextIO | None
     copy_sdkconfig=False,  # type: bool
@@ -292,23 +294,42 @@ def build_apps(
         LOGGER.info('  parallel count is too large. build nothing...')
 
     # cleanup collect files if exists at this early-stage
+    collect_files = []
     for app in apps[start - 1 : stop]:  # we use 1-based
         app.parallel_index = parallel_index
         app.parallel_count = parallel_count
 
-        app._collect_app_info = collect_app_info
-        app._collect_size_info = collect_size_info
-
         if collect_app_info:
-            app._collect_app_info = collect_app_info
-            if os.path.isfile(app.collect_app_info):  # expand here
-                os.remove(app.collect_app_info)
-                LOGGER.info('=> Remove existing recorded_app_info file %s', app.collect_app_info)
+            if isinstance(collect_app_info, io.TextIOWrapper):
+                warnings.warn(
+                    '"collect_app_info" does not support file stream in idf-build-apps 1.0.0, Please use str instead',
+                    DeprecationWarning,
+                )
+                app._collect_app_info = collect_app_info.name
+            else:
+                app._collect_app_info = collect_app_info
 
-            app._collect_size_info = collect_size_info
-            if os.path.isfile(app.collect_size_info):  # expand here
-                os.remove(app.collect_size_info)
-                LOGGER.info('=> Remove existing recorded_size_info file %s', app.collect_size_info)
+            if app.collect_app_info not in collect_files:
+                collect_files.append(app.collect_app_info)
+
+        if collect_size_info:
+            if isinstance(collect_size_info, io.TextIOWrapper):
+                warnings.warn(
+                    '"collect_size_info" does not support file stream in idf-build-apps 1.0.0, Please use str instead',
+                    DeprecationWarning,
+                )
+                app._collect_size_info = collect_size_info.name
+            else:
+                app._collect_size_info = collect_size_info
+
+            if app.collect_size_info not in collect_files:
+                collect_files.append(app.collect_size_info)
+
+    for f in collect_files:
+        if os.path.isfile(f):
+            os.remove(f)
+            LOGGER.info('=> Remove existing collect file %s', f)
+        Path(f).touch()
 
     actual_built_apps = []
     for i, app in enumerate(apps):
