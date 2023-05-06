@@ -30,8 +30,8 @@ class IfClause:
         if self.temporary is True and not self.reason:
             raise InvalidManifestError('"reason" must be set when "temporary: true"')
 
-    def get_value(self, target):  # type: (str) -> any
-        return self.stmt.get_value(target)
+    def get_value(self, target, config_name):  # type: (str, str) -> any
+        return self.stmt.get_value(target, config_name)
 
 
 class FolderRule:
@@ -64,11 +64,11 @@ class FolderRule:
     def __repr__(self):
         return 'FolderRule({})'.format(self.folder)
 
-    def _enable_build(self, target):  # type: (str) -> bool
+    def _enable_build(self, target, config_name):  # type: (str, str) -> bool
         if self.enable:
             res = False
             for clause in self.enable:
-                if clause.get_value(target):
+                if clause.get_value(target, config_name):
                     res = True
                     break
         else:
@@ -76,27 +76,31 @@ class FolderRule:
 
         if self.disable:
             for clause in self.disable:
-                if clause.get_value(target):
+                if clause.get_value(target, config_name):
                     res = False
                     break
 
         return res
 
-    def _enable_test(self, target, default_sdkconfig_target=None):  # type: (str, str | None) -> bool
-        res = target in self.enable_build_targets(default_sdkconfig_target)
+    def _enable_test(
+        self, target, default_sdkconfig_target=None, config_name=None
+    ):  # type: (str, str | None, str | None) -> bool
+        res = target in self.enable_build_targets(default_sdkconfig_target, config_name)
 
         if self.disable or self.disable_test:
             for clause in self.disable + self.disable_test:
-                if clause.get_value(target):
+                if clause.get_value(target, config_name):
                     res = False
                     break
 
         return res
 
-    def enable_build_targets(self, default_sdkconfig_target=None):  # type: (str | None) -> list[str]
+    def enable_build_targets(
+        self, default_sdkconfig_target=None, config_name=None
+    ):  # type: (str | None, str | None) -> list[str]
         res = []
         for target in ALL_TARGETS:
-            if self._enable_build(target):
+            if self._enable_build(target, config_name):
                 res.append(target)
 
         if default_sdkconfig_target and res != [default_sdkconfig_target]:
@@ -104,10 +108,12 @@ class FolderRule:
 
         return sorted(res)
 
-    def enable_test_targets(self, default_sdkconfig_target=None):  # type: (str | None) -> list[str]
+    def enable_test_targets(
+        self, default_sdkconfig_target=None, config_name=None
+    ):  # type: (str | None, str | None) -> list[str]
         res = []
         for target in ALL_TARGETS:
-            if self._enable_test(target, default_sdkconfig_target):
+            if self._enable_test(target, default_sdkconfig_target, config_name):
                 res.append(target)
 
         return sorted(res)
@@ -152,11 +158,15 @@ class Manifest:
 
         return DefaultRule(folder)
 
-    def enable_build_targets(self, folder, default_sdkconfig_target=None):  # type: (str, str | None) -> list[str]
-        return self._most_suitable_rule(folder).enable_build_targets(default_sdkconfig_target)
+    def enable_build_targets(
+        self, folder, default_sdkconfig_target=None, config_name=None
+    ):  # type: (str, str | None, str | None) -> list[str]
+        return self._most_suitable_rule(folder).enable_build_targets(default_sdkconfig_target, config_name)
 
-    def enable_test_targets(self, folder, default_sdkconfig_target=None):  # type: (str, str | None) -> list[str]
-        return self._most_suitable_rule(folder).enable_test_targets(default_sdkconfig_target)
+    def enable_test_targets(
+        self, folder, default_sdkconfig_target=None, config_name=None
+    ):  # type: (str, str | None, str | None) -> list[str]
+        return self._most_suitable_rule(folder).enable_test_targets(default_sdkconfig_target, config_name)
 
     def requires_components(self, folder):  # type: (str) -> list[str]
         return self._most_suitable_rule(folder).requires_components

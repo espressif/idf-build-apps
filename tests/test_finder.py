@@ -231,3 +231,67 @@ class TestFindWithSdkconfigFiles:
         monkeypatch.setenv('TEST_TARGET', 'esp32s2')
         apps = find_apps('test1', 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=')
         assert len(apps) == 0
+
+    def test_config_name_in_manifest(self, tmp_path):
+        create_project('test1', tmp_path)
+
+        (tmp_path / 'test1' / 'sdkconfig.defaults').touch()
+        (tmp_path / 'test1' / 'sdkconfig.ci').touch()
+        (tmp_path / 'test1' / 'sdkconfig.ci.foo').touch()
+        (tmp_path / 'test1' / 'sdkconfig.ci.bar').touch()
+
+        yaml_file = tmp_path / 'test.yml'
+        yaml_file.write_text(
+            f'''
+{tmp_path}:
+    enable:
+    - if: CONFIG_NAME == "foo" and IDF_TARGET == "esp32"
+    - if: CONFIG_NAME == "bar" and IDF_TARGET == "esp32s2"
+    - if: CONFIG_NAME == "default" and IDF_TARGET == "esp32s3"
+''',
+            encoding='utf8',
+        )
+
+        apps = find_apps(
+            str(tmp_path / 'test1'),
+            'esp32',
+            recursive=True,
+            config_rules_str=['sdkconfig.ci.*=', 'sdkconfig.ci=default'],
+            manifest_files=yaml_file,
+        )
+        assert len(apps) == 1
+        assert apps[0].sdkconfig_files == [
+            str(tmp_path / 'test1' / 'sdkconfig.defaults'),
+            str(tmp_path / 'test1' / 'sdkconfig.ci.foo'),
+        ]
+        apps = find_apps(
+            str(tmp_path / 'test1'),
+            'esp32s2',
+            recursive=True,
+            config_rules_str=['sdkconfig.ci.*=', 'sdkconfig.ci=default'],
+            manifest_files=yaml_file,
+        )
+        assert len(apps) == 1
+        assert apps[0].sdkconfig_files == [
+            str(tmp_path / 'test1' / 'sdkconfig.defaults'),
+            str(tmp_path / 'test1' / 'sdkconfig.ci.bar'),
+        ]
+        apps = find_apps(
+            str(tmp_path / 'test1'),
+            'esp32s3',
+            recursive=True,
+            config_rules_str=['sdkconfig.ci.*=', 'sdkconfig.ci=default'],
+            manifest_files=yaml_file,
+        )
+        assert len(apps) == 1
+        assert apps[0].sdkconfig_files == [
+            str(tmp_path / 'test1' / 'sdkconfig.defaults'),
+            str(tmp_path / 'test1' / 'sdkconfig.ci'),
+        ]
+        apps = find_apps(
+            str(tmp_path / 'test1'), 'esp32s3', recursive=True, config_rules_str=['=default'], manifest_files=yaml_file
+        )
+        assert len(apps) == 1
+        assert apps[0].sdkconfig_files == [
+            str(tmp_path / 'test1' / 'sdkconfig.defaults'),
+        ]

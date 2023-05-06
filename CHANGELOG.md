@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
   - `--ignore-warning-str`
 - Support placeholder `@p` for parallel index
 - Support expand placeholders for CLI options `--collect-app-info` and `--collect-size-info`
+- Support new keywords `CONFIG_NAME` in the manifest file
 
 ### Fixed
 
@@ -70,7 +71,7 @@ This is the last version to support ESP-IDF v4.1 since it's EOL on Feb. 24th, 20
 
 ### Added
 
-- Support new keywords `IDF_VERSION_MAJOR`, `IDF_VERSION_MINOR`, `IDF_VERSION_PATCH`
+- Support new keywords `IDF_VERSION_MAJOR`, `IDF_VERSION_MINOR`, `IDF_VERSION_PATCH` in the manifest file
 - Support colored output by default in UNIX-like systems
   - Add `--no-color` CLI option
 - Support ignore check component dependencies based on changed files and specified file patterns
