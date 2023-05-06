@@ -171,7 +171,7 @@ class TestFindWithSdkconfigFiles:
             except:  # noqa
                 pass
 
-    def test_with_config_rules(self, tmp_path):
+    def test_with_config_rules(self, tmp_path, monkeypatch):
         create_project('test1', tmp_path)
 
         (tmp_path / 'test1' / 'sdkconfig.defaults').touch()
@@ -185,7 +185,7 @@ class TestFindWithSdkconfigFiles:
             str(tmp_path / 'test1' / 'sdkconfig.ci.foo'),
         ]
 
-        os.environ['SDKCONFIG_DEFAULTS'] = 'sdkconfig.defaults_new'
+        monkeypatch.setenv('SDKCONFIG_DEFAULTS', 'sdkconfig.defaults_new')
         apps = find_apps(str(tmp_path / 'test1'), 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=')
         assert len(apps) == 1
         assert apps[0].sdkconfig_files == [
