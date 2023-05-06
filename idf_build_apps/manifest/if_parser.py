@@ -34,11 +34,13 @@ class Stmt:
     Statement
     """
 
-    def get_value(self, target):  # type: (str) -> any
+    def get_value(self, target, config_name):  # type: (str, str) -> any
         """
         Lazy calculated. All subclasses of `Stmt` should implement this function.
 
         :param target: ESP-IDF target
+        :type target: str
+        :param config_name: config name
         :type target: str
         :return: the value of the statement
         """
@@ -47,20 +49,20 @@ class Stmt:
 
 class ChipAttr(Stmt):
     """
-    Attributes defined in SOC Header Files and some other keywords
+    Attributes defined in SOC Header Files and other keywords as followed:
 
-    Supported keywords:
     - IDF_TARGET: target
     - INCLUDE_DEFAULT: take the default build targets into account or not
     - IDF_VERSION_MAJOR: major version of ESP-IDF
     - IDF_VERSION_MINOR: minor version of ESP-IDF
     - IDF_VERSION_PATCH: patch version of ESP-IDF
+    - CONFIG_NAME: config name defined in the config rules
     """
 
     def __init__(self, t):
         self.attr = t[0]
 
-    def get_value(self, target):  # type: (str) -> any
+    def get_value(self, target, config_name):  # type: (str, str) -> any
         from .manifest import FolderRule  # lazy-load
 
         if self.attr == 'IDF_TARGET':
@@ -78,6 +80,9 @@ class ChipAttr(Stmt):
         if self.attr == 'IDF_VERSION_PATCH':
             return IDF_VERSION_PATCH
 
+        if self.attr == 'CONFIG_NAME':
+            return config_name
+
         if self.attr in SOC_HEADERS[target]:
             return SOC_HEADERS[target][self.attr]
 
@@ -88,7 +93,7 @@ class Integer(Stmt):
     def __init__(self, t):
         self.expr = t[0]
 
-    def get_value(self, target):  # type: (str) -> any
+    def get_value(self, target, config_name):  # type: (str, str) -> any
         return literal_eval(self.expr)
 
 
@@ -96,7 +101,7 @@ class String(Stmt):
     def __init__(self, t):
         self.expr = t[0]
 
-    def get_value(self, target):  # type: (str) -> any
+    def get_value(self, target, config_name):  # type: (str, str) -> any
         return literal_eval('"{}"'.format(self.expr))  # double quotes is swallowed by QuotedString
 
 
@@ -104,8 +109,8 @@ class List_(Stmt):
     def __init__(self, t):
         self.expr = t
 
-    def get_value(self, target):  # type: (str) -> any
-        return [item.get_value(target) for item in self.expr]
+    def get_value(self, target, config_name):  # type: (str, str) -> any
+        return [item.get_value(target, config_name) for item in self.expr]
 
 
 class BoolStmt(Stmt):
@@ -114,30 +119,30 @@ class BoolStmt(Stmt):
         self.comparison = t[1]  # type: str
         self.right = t[2]  # type: Stmt
 
-    def get_value(self, target):  # type: (str) -> any
+    def get_value(self, target, config_name):  # type: (str, str) -> any
         if self.comparison == '==':
-            return self.left.get_value(target) == self.right.get_value(target)
+            return self.left.get_value(target, config_name) == self.right.get_value(target, config_name)
 
         if self.comparison == '!=':
-            return self.left.get_value(target) != self.right.get_value(target)
+            return self.left.get_value(target, config_name) != self.right.get_value(target, config_name)
 
         if self.comparison == '>':
-            return self.left.get_value(target) > self.right.get_value(target)
+            return self.left.get_value(target, config_name) > self.right.get_value(target, config_name)
 
         if self.comparison == '>=':
-            return self.left.get_value(target) >= self.right.get_value(target)
+            return self.left.get_value(target, config_name) >= self.right.get_value(target, config_name)
 
         if self.comparison == '<':
-            return self.left.get_value(target) < self.right.get_value(target)
+            return self.left.get_value(target, config_name) < self.right.get_value(target, config_name)
 
         if self.comparison == '<=':
-            return self.left.get_value(target) <= self.right.get_value(target)
+            return self.left.get_value(target, config_name) <= self.right.get_value(target, config_name)
 
         if self.comparison == 'not in':
-            return self.left.get_value(target) not in self.right.get_value(target)
+            return self.left.get_value(target, config_name) not in self.right.get_value(target, config_name)
 
         if self.comparison == 'in':
-            return self.left.get_value(target) in self.right.get_value(target)
+            return self.left.get_value(target, config_name) in self.right.get_value(target, config_name)
 
         raise ValueError('Unsupported comparison operator: "{}"'.format(self.comparison))
 
@@ -151,8 +156,8 @@ class BoolAnd(BoolExpr):
         self.left = t[0][0]  # type: BoolStmt
         self.right = t[0][2]  # type: BoolStmt
 
-    def get_value(self, target):  # type: (str) -> any
-        return self.left.get_value(target) and self.right.get_value(target)
+    def get_value(self, target, config_name):  # type: (str, str) -> any
+        return self.left.get_value(target, config_name) and self.right.get_value(target, config_name)
 
 
 class BoolOr(BoolExpr):
@@ -160,8 +165,8 @@ class BoolOr(BoolExpr):
         self.left = t[0][0]  # type: BoolStmt
         self.right = t[0][2]  # type: BoolStmt
 
-    def get_value(self, target):  # type: (str) -> any
-        return self.left.get_value(target) or self.right.get_value(target)
+    def get_value(self, target, config_name):  # type: (str, str) -> any
+        return self.left.get_value(target, config_name) or self.right.get_value(target, config_name)
 
 
 CAP_WORD = Word(alphas.upper(), nums + alphas.upper() + '_').setParseAction(ChipAttr)
