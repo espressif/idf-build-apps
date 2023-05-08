@@ -53,6 +53,33 @@ class TestBuild:
         else:
             assert 'Project build complete.' not in captured.out
 
+    @pytest.mark.parametrize(
+        'depends_on_files, is_built',
+        [
+            ('/foo', False),
+            (str(IDF_PATH / 'examples' / 'README.md'), False),
+            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], False),
+            (
+                [
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.c'),
+                ],
+                True,
+            ),
+        ],
+    )
+    def test_build_with_depends_on_files(self, depends_on_files, is_built):
+        test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
+
+        app = CMakeApp(test_dir, 'esp32')
+        built = app.build(
+            depends_on_components=[],
+            check_component_dependencies=True,
+            is_modified=app.is_modified(depends_on_files),
+        )
+
+        assert built == is_built
+
 
 @pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')
 def test_idf_version_keywords_type():

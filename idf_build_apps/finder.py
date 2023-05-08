@@ -32,15 +32,20 @@ def _get_apps_from_path(
     check_warnings=False,  # type: bool
     preserve=True,  # type: bool
     depends_on_components=None,  # type: list[str] | str | None
+    depends_on_files=None,  # type: list[str] | str | None,
     check_component_dependencies=False,  # type: bool
     sdkconfig_defaults_str=None,  # type: str | None
 ):  # type: (...) -> list[App]
     depends_on_components = to_list(depends_on_components)
+    depends_on_files = to_list(depends_on_files)
 
     def _validate_app(_app):  # type: (App) -> bool
         if target not in _app.supported_targets:
             LOGGER.debug('=> Skipping. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
             return False
+
+        if _app.is_modified(depends_on_files):
+            return True
 
         if _app.requires_components and check_component_dependencies:
             if not set(_app.requires_components).intersection(set(depends_on_components)):
