@@ -593,9 +593,10 @@ def get_parser():  # type: () -> argparse.ArgumentParser
         '--depends-on-files',
         nargs='*',
         default=None,
-        help='space-separated file pattern list, the `requires_components` set in the manifest files will be '
-        'ignored when specified files match any of the specified file patterns defined with '
-        '--ignore-component-dependencies-file-patterns. Must used with --ignore-component-dependencies-file-patterns',
+        help='space-separated file pattern list, usually specifies with the modified files. '
+        'The `requires_components` set in the manifest files will be ignored when the files defined here '
+        'match any of the specified file patterns defined with --ignore-component-dependencies-file-patterns. '
+        'Must be used together with --ignore-component-dependencies-file-patterns',
     )
     common_args.add_argument(
         '--no-color',
