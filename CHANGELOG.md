@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- Add missing dependency `pyyaml`. It's wrongly removed in 0.6.0.
+
 ## [0.6.0] (2023-05-08)
 
 ### Added
