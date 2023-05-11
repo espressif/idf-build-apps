@@ -139,6 +139,49 @@ get-started:
         else:
             assert not filtered_apps
 
+    @pytest.mark.parametrize(
+        'depends_on_files, could_find_apps',
+        [
+            ('/foo', False),
+            (str(IDF_PATH / 'examples' / 'README.md'), False),
+            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], False),
+            (
+                [
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.c'),
+                ],
+                True,
+            ),
+        ],
+    )
+    def test_with_requires_components_but_modified(self, tmp_path, depends_on_files, could_find_apps):
+        test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
+        apps = find_apps(test_dir, 'esp32', recursive=True)
+        assert apps
+
+        yaml_file = tmp_path / 'test.yml'
+        yaml_file.write_text(
+            f'''
+{test_dir}:
+    requires_components:
+        - soc
+''',
+            encoding='utf8',
+        )
+
+        filtered_apps = find_apps(
+            test_dir,
+            'esp32',
+            recursive=True,
+            manifest_files=yaml_file,
+            depends_on_components=[],
+            depends_on_files=depends_on_files,
+        )
+        if could_find_apps:
+            assert filtered_apps == apps
+        else:
+            assert not filtered_apps
+
 
 class TestFindWithSdkconfigFiles:
     def test_with_sdkconfig_defaults_idf_target(self):

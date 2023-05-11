@@ -179,6 +179,7 @@ def find_apps(
                     check_warnings=check_warnings,
                     preserve=preserve,
                     depends_on_components=depends_on_components,
+                    depends_on_files=depends_on_files,
                     check_component_dependencies=check_component_dependencies,
                     sdkconfig_defaults_str=sdkconfig_defaults,
                 )
@@ -261,6 +262,7 @@ def build_apps(
     App.IGNORE_WARNS_REGEXES = ignore_warnings_regexes
 
     depends_on_components = to_list(depends_on_components)
+    depends_on_files = to_list(depends_on_files)
     # here depends_on_components [''] means that the user use --depends-on-components
     # the ones with `requires_components` are already been filtered out
     # if we skip all build, that would be too aggressive
@@ -348,6 +350,7 @@ def build_apps(
             is_built = app.build(
                 depends_on_components=depends_on_components,
                 check_component_dependencies=check_component_dependencies,
+                is_modified=app.is_modified(depends_on_files),
             )
         except BuildError as e:
             LOGGER.error(str(e))
@@ -593,9 +596,10 @@ def get_parser():  # type: () -> argparse.ArgumentParser
         '--depends-on-files',
         nargs='*',
         default=None,
-        help='space-separated file pattern list, the `requires_components` set in the manifest files will be '
-        'ignored when specified files match any of the specified file patterns defined with '
-        '--ignore-component-dependencies-file-patterns. Must used with --ignore-component-dependencies-file-patterns',
+        help='space-separated file pattern list, usually specifies with the modified files. '
+        'The `requires_components` set in the manifest files will be ignored when the files defined here '
+        'match any of the specified file patterns defined with --ignore-component-dependencies-file-patterns. '
+        'Must be used together with --ignore-component-dependencies-file-patterns',
     )
     common_args.add_argument(
         '--no-color',

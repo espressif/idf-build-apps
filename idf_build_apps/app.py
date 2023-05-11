@@ -40,6 +40,7 @@ from .utils import (
     find_first_match,
     rmdir,
     subprocess_run,
+    to_absolute_path,
     to_list,
 )
 
@@ -378,6 +379,7 @@ class App(object):
         self,
         depends_on_components=None,  # type: list[str] | str | None
         check_component_dependencies=False,  # type: bool
+        is_modified=False,  # type: bool
     ):  # type: (...) -> bool
         pass
 
@@ -440,6 +442,19 @@ class App(object):
     def is_app(cls, path):  # type: (str) -> bool
         raise NotImplementedError('Please implement this function in sub classes')
 
+    def is_modified(self, depends_on_files):  # type: (list[str] | None) -> bool
+        _app_dir_fullpath = to_absolute_path(self.app_dir)
+        if depends_on_files:
+            for f in depends_on_files:
+                _f_fullpath = to_absolute_path(f)
+                if _f_fullpath.parts[-1].endswith('.md'):
+                    continue
+
+                if _app_dir_fullpath in _f_fullpath.parents:
+                    return True
+
+        return False
+
 
 class CMakeApp(App):
     BUILD_SYSTEM = 'cmake'
@@ -466,6 +481,7 @@ class CMakeApp(App):
         self,
         depends_on_components=None,  # type: list[str] | str | None
         check_component_dependencies=False,  # type: bool
+        is_modified=False,  # type: bool
     ):  # type: (...) -> bool
         LOGGER.debug('=> Preparing...')
         if self.work_dir != self.app_dir:
@@ -525,7 +541,7 @@ class CMakeApp(App):
         ]
 
         depends_on_components = to_list(depends_on_components)
-        if depends_on_components is not None and check_component_dependencies:
+        if depends_on_components is not None and check_component_dependencies and not is_modified:
             subprocess_run(
                 common_args + ['reconfigure'],
                 log_terminal=False if self.build_log_path else True,
