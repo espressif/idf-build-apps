@@ -334,6 +334,8 @@ def build_apps(
         Path(f).touch()
 
     actual_built_apps = []
+    built_apps = []  # type: list[App]
+    skipped_apps = []  # type: list[App]
     for i, app in enumerate(apps):
         index = i + 1  # we use 1-based
         if index < start or index > stop:
@@ -363,6 +365,11 @@ def build_apps(
                 else:
                     return 1
         finally:
+            if is_built:
+                built_apps.append(app)
+            else:
+                skipped_apps.append(app)
+
             if is_built:
                 actual_built_apps.append(app)
 
@@ -407,6 +414,16 @@ def build_apps(
                         LOGGER.info('=> Copied sdkconfig file from %s to %s', app.work_dir, app.build_path)
 
             LOGGER.info('')  # add one empty line for separating different builds
+
+    if built_apps:
+        LOGGER.info('Built the following apps:')
+        for app in built_apps:
+            LOGGER.info('  %s', app)
+
+    if skipped_apps:
+        LOGGER.info('Skipped the following apps:')
+        for app in skipped_apps:
+            LOGGER.info('  %s', app)
 
     if failed_apps:
         LOGGER.error('Build failed for the following apps:')
