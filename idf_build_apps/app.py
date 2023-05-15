@@ -127,6 +127,13 @@ class App(object):
             self.build_path,
         )
 
+    def __str__(self):
+        return 'App {}, target {}, sdkconfig {}'.format(
+            self.app_dir,
+            self.target,
+            self.sdkconfig_path or '(default)',
+        )
+
     def __lt__(self, other):
         if self.app_dir != other.app_dir:
             return self.app_dir < other.app_dir
