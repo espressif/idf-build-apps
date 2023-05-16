@@ -354,9 +354,9 @@ class App(object):
         return [os.path.realpath(file) for file in self._sdkconfig_files]
 
     @property
-    def requires_components(self):  # type: () -> list[str]
+    def depends_components(self):  # type: () -> list[str]
         if self.MANIFEST:
-            return self.MANIFEST.requires_components(self.app_dir)
+            return self.MANIFEST.depends_components(self.app_dir)
 
         return []
 

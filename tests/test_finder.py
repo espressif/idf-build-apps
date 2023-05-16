@@ -120,7 +120,7 @@ get-started:
         yaml_file.write_text(
             f'''
 {test_dir}:
-    requires_components:
+    depends_components:
         - freertos
         - soc
 ''',
@@ -154,7 +154,7 @@ get-started:
             ),
         ],
     )
-    def test_with_requires_components_but_modified(self, tmp_path, modified_files, could_find_apps):
+    def test_with_depends_components_but_modified(self, tmp_path, modified_files, could_find_apps):
         test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
@@ -163,7 +163,7 @@ get-started:
         yaml_file.write_text(
             f'''
 {test_dir}:
-    requires_components:
+    depends_components:
         - soc
 ''',
             encoding='utf8',

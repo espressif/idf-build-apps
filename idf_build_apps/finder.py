@@ -47,12 +47,12 @@ def _get_apps_from_path(
         if _app.is_modified(modified_files):
             return True
 
-        if _app.requires_components and check_component_dependencies:
-            if not set(_app.requires_components).intersection(set(modified_components)):
+        if _app.depends_components and check_component_dependencies:
+            if not set(_app.depends_components).intersection(set(modified_components)):
                 LOGGER.debug(
                     '=> Skipping. %s requires components: %s, but you passed "--modified-components %s"',
                     _app,
-                    ', '.join(_app.requires_components),
+                    ', '.join(_app.depends_components),
                     ', '.join(modified_components),
                 )
                 return False

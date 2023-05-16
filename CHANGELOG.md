@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file.
 ## BREAKING CHANGES
 
 - Renames
+  - Members
+    - `App.requires_components` renamed to `App.depends_components`
+    - `FolderRule.requires_components` renamed to `FolderRule.depends_components`
+    - `Manifest.requires_components()` renamed to `Manifest.depends_components()`
   - Parameters
     - `App.build()` parameter `depends_on_components` renamed to `modified_components`
     - `App.is_modified()` parameter `depends_on_components` renamed to `modified_components`
