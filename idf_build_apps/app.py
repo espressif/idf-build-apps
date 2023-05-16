@@ -384,7 +384,7 @@ class App(object):
     @abstractmethod
     def build(
         self,
-        depends_on_components=None,  # type: list[str] | str | None
+        modified_components=None,  # type: list[str] | str | None
         check_component_dependencies=False,  # type: bool
         is_modified=False,  # type: bool
     ):  # type: (...) -> bool
@@ -449,10 +449,10 @@ class App(object):
     def is_app(cls, path):  # type: (str) -> bool
         raise NotImplementedError('Please implement this function in sub classes')
 
-    def is_modified(self, depends_on_files):  # type: (list[str] | None) -> bool
+    def is_modified(self, modified_files):  # type: (list[str] | None) -> bool
         _app_dir_fullpath = to_absolute_path(self.app_dir)
-        if depends_on_files:
-            for f in depends_on_files:
+        if modified_files:
+            for f in modified_files:
                 _f_fullpath = to_absolute_path(f)
                 if _f_fullpath.parts[-1].endswith('.md'):
                     continue
@@ -486,7 +486,7 @@ class CMakeApp(App):
 
     def build(
         self,
-        depends_on_components=None,  # type: list[str] | str | None
+        modified_components=None,  # type: list[str] | str | None
         check_component_dependencies=False,  # type: bool
         is_modified=False,  # type: bool
     ):  # type: (...) -> bool
@@ -547,8 +547,8 @@ class CMakeApp(App):
             '-DSDKCONFIG_DEFAULTS={}'.format(';'.join(self.sdkconfig_files) if self.sdkconfig_files else ';'),
         ]
 
-        depends_on_components = to_list(depends_on_components)
-        if depends_on_components is not None and check_component_dependencies and not is_modified:
+        modified_components = to_list(modified_components)
+        if modified_components is not None and check_component_dependencies and not is_modified:
             subprocess_run(
                 common_args + ['reconfigure'],
                 log_terminal=False if self.build_log_path else True,
@@ -560,12 +560,12 @@ class CMakeApp(App):
             with open(os.path.join(self.build_path, PROJECT_DESCRIPTION_JSON)) as fr:
                 build_components = set(item for item in json.load(fr)['build_components'] if item)
 
-            if not set(depends_on_components).intersection(set(build_components)):
+            if not set(modified_components).intersection(set(build_components)):
                 LOGGER.info(
-                    '=> Skip building... app %s depends on components: %s, while current build based on component dependencies: %s',
+                    '=> Skip building... app %s depends components: %s, while current build modified components: %s',
                     self.app_dir,
                     build_components,
-                    depends_on_components,
+                    modified_components,
                 )
                 return False
 

@@ -102,7 +102,7 @@ get-started:
         assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file)) == apps
 
     @pytest.mark.parametrize(
-        'depends_on_components, could_find_apps',
+        'modified_components, could_find_apps',
         [
             (None, True),
             ([], False),
@@ -111,7 +111,7 @@ get-started:
             (['soc', 'fake'], True),
         ],
     )
-    def test_with_requires_and_depends_on_components(self, tmpdir, depends_on_components, could_find_apps):
+    def test_with_requires_and_modified_components(self, tmpdir, modified_components, could_find_apps):
         test_dir = str(IDF_PATH / 'examples')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
@@ -132,7 +132,7 @@ get-started:
             'esp32',
             recursive=True,
             manifest_files=yaml_file,
-            depends_on_components=depends_on_components,
+            modified_components=modified_components,
         )
         if could_find_apps:
             assert filtered_apps == apps
@@ -140,7 +140,7 @@ get-started:
             assert not filtered_apps
 
     @pytest.mark.parametrize(
-        'depends_on_files, could_find_apps',
+        'modified_files, could_find_apps',
         [
             ('/foo', False),
             (str(IDF_PATH / 'examples' / 'README.md'), False),
@@ -154,7 +154,7 @@ get-started:
             ),
         ],
     )
-    def test_with_requires_components_but_modified(self, tmp_path, depends_on_files, could_find_apps):
+    def test_with_requires_components_but_modified(self, tmp_path, modified_files, could_find_apps):
         test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
@@ -174,8 +174,8 @@ get-started:
             'esp32',
             recursive=True,
             manifest_files=yaml_file,
-            depends_on_components=[],
-            depends_on_files=depends_on_files,
+            modified_components=[],
+            modified_files=modified_files,
         )
         if could_find_apps:
             assert filtered_apps == apps
