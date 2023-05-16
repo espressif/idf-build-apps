@@ -17,7 +17,7 @@ def clean_cls_attr():
 
 @pytest.fixture(autouse=True)
 def setup_logging_debug():
-    setup_logging(2)
+    setup_logging(1)
 
 
 def create_project(name, folder):
