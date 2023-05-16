@@ -361,6 +361,13 @@ class App(object):
         return []
 
     @property
+    def depends_filepatterns(self):  # type: () -> list[str]
+        if self.MANIFEST:
+            return self.MANIFEST.depends_filepatterns(self.app_dir)
+
+        return []
+
+    @property
     def supported_targets(self):
         if self.MANIFEST:
             return self.MANIFEST.enable_build_targets(

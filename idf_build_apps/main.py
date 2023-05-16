@@ -41,6 +41,7 @@ from .utils import (
     InvalidCommand,
     files_matches_patterns,
     get_parallel_start_stop,
+    to_absolute_path,
     to_list,
 )
 
@@ -51,19 +52,20 @@ except ImportError:
 
 
 def _check_components_dependency(
+    manifest_rootpath,  # type: str
     modified_components,  # type: list[str] | None
     modified_files,  # type: list[str] | None
     ignore_component_dependencies_file_patterns,  # type: list[str] | None
 ):  # type: (...) -> bool
     # not check since `--modified-components` is not passed
-    if modified_components is None:
+    if modified_components is None and modified_files is None:
         return False
 
     # not check since `--ignore-component-dependency-file-pattern` is passed and matched
     if (
         ignore_component_dependencies_file_patterns
         and modified_files
-        and files_matches_patterns(modified_files, ignore_component_dependencies_file_patterns)
+        and files_matches_patterns(modified_files, ignore_component_dependencies_file_patterns, manifest_rootpath)
     ):
         LOGGER.debug(
             'Skipping check component dependencies for apps since files %s matches patterns: %s',
@@ -152,7 +154,7 @@ def find_apps(
         FolderRule.DEFAULT_BUILD_TARGETS = default_build_targets
 
     # always set the manifest rootpath at the very beginning of find_apps in case ESP-IDF switches the branch.
-    Manifest.ROOTPATH = Path(manifest_rootpath or os.curdir).resolve()
+    Manifest.ROOTPATH = to_absolute_path(manifest_rootpath or os.curdir)
 
     if manifest_files:
         rules = set()
@@ -188,10 +190,14 @@ def find_apps(
                     size_json_path=size_json_path,
                     check_warnings=check_warnings,
                     preserve=preserve,
+                    manifest_rootpath=manifest_rootpath,
                     modified_components=modified_components,
                     modified_files=modified_files,
                     check_component_dependencies=_check_components_dependency(
-                        modified_components, modified_files, ignore_component_dependencies_file_patterns
+                        manifest_rootpath,
+                        modified_components,
+                        modified_files,
+                        ignore_component_dependencies_file_patterns,
                     ),
                     sdkconfig_defaults_str=sdkconfig_defaults,
                 )
@@ -344,7 +350,7 @@ def build_apps(
             is_built = app.build(
                 modified_components=modified_components,
                 check_component_dependencies=_check_components_dependency(
-                    modified_components, modified_files, ignore_component_dependencies_file_patterns
+                    manifest_rootpath, modified_components, modified_files, ignore_component_dependencies_file_patterns
                 ),
                 is_modified=app.is_modified(modified_files),
             )

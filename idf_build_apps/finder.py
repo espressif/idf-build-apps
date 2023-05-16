@@ -16,6 +16,7 @@ from .app import (
 )
 from .utils import (
     config_rules_from_str,
+    files_matches_patterns,
     to_list,
 )
 
@@ -31,6 +32,7 @@ def _get_apps_from_path(
     size_json_path=None,  # type: str | None
     check_warnings=False,  # type: bool
     preserve=True,  # type: bool
+    manifest_rootpath=None,  # type: str | None
     modified_components=None,  # type: list[str] | str | None
     modified_files=None,  # type: list[str] | str | None,
     check_component_dependencies=False,  # type: bool
@@ -54,6 +56,16 @@ def _get_apps_from_path(
                     _app,
                     ', '.join(_app.depends_components),
                     ', '.join(modified_components),
+                )
+                return False
+
+        if _app.depends_filepatterns and check_component_dependencies:
+            if not files_matches_patterns(modified_files, _app.depends_filepatterns, manifest_rootpath):
+                LOGGER.debug(
+                    '=> Skipping. %s depends on file patterns: %s, but you passed "--modified-files %s"',
+                    _app,
+                    ', '.join(_app.depends_filepatterns),
+                    ', '.join(modified_files),
                 )
                 return False
 

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased - 1.0.0]
 
+## Added
+
+- Support keyword `depends_filepatterns` in the manfiest file
+
 ## BREAKING CHANGES
 
 - Renames
