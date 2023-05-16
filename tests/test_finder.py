@@ -102,7 +102,7 @@ get-started:
         assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file)) == apps
 
     @pytest.mark.parametrize(
-        'depends_on_components, could_find_apps',
+        'modified_components, could_find_apps',
         [
             (None, True),
             ([], False),
@@ -111,7 +111,7 @@ get-started:
             (['soc', 'fake'], True),
         ],
     )
-    def test_with_requires_and_depends_on_components(self, tmpdir, depends_on_components, could_find_apps):
+    def test_with_requires_and_modified_components(self, tmpdir, modified_components, could_find_apps):
         test_dir = str(IDF_PATH / 'examples')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
@@ -120,7 +120,7 @@ get-started:
         yaml_file.write_text(
             f'''
 {test_dir}:
-    requires_components:
+    depends_components:
         - freertos
         - soc
 ''',
@@ -132,7 +132,7 @@ get-started:
             'esp32',
             recursive=True,
             manifest_files=yaml_file,
-            depends_on_components=depends_on_components,
+            modified_components=modified_components,
         )
         if could_find_apps:
             assert filtered_apps == apps
@@ -140,7 +140,7 @@ get-started:
             assert not filtered_apps
 
     @pytest.mark.parametrize(
-        'depends_on_files, could_find_apps',
+        'modified_files, could_find_apps',
         [
             ('/foo', False),
             (str(IDF_PATH / 'examples' / 'README.md'), False),
@@ -154,7 +154,7 @@ get-started:
             ),
         ],
     )
-    def test_with_requires_components_but_modified(self, tmp_path, depends_on_files, could_find_apps):
+    def test_with_depends_components_but_modified(self, tmp_path, modified_files, could_find_apps):
         test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
@@ -163,7 +163,7 @@ get-started:
         yaml_file.write_text(
             f'''
 {test_dir}:
-    requires_components:
+    depends_components:
         - soc
 ''',
             encoding='utf8',
@@ -174,8 +174,53 @@ get-started:
             'esp32',
             recursive=True,
             manifest_files=yaml_file,
-            depends_on_components=[],
-            depends_on_files=depends_on_files,
+            modified_components=[],
+            modified_files=modified_files,
+        )
+        if could_find_apps:
+            assert filtered_apps == apps
+        else:
+            assert not filtered_apps
+
+    @pytest.mark.parametrize(
+        'modified_files, could_find_apps',
+        [
+            ('/foo', True),
+            (str(IDF_PATH / 'examples' / 'README.md'), False),
+            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], True),
+            (
+                [
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.c'),
+                ],
+                True,
+            ),
+        ],
+    )
+    def test_with_depends_filepatterns(self, tmp_path, modified_files, could_find_apps):
+        test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
+        apps = find_apps(test_dir, 'esp32', recursive=True)
+        assert apps
+
+        yaml_file = tmp_path / 'test.yml'
+        yaml_file.write_text(
+            f'''
+{test_dir}:
+    depends_filepatterns:
+        - /foo
+        - examples/get-started/hello_world/**
+        - examples/foo/**
+''',
+            encoding='utf8',
+        )
+
+        filtered_apps = find_apps(
+            test_dir,
+            'esp32',
+            recursive=True,
+            manifest_rootpath=str(IDF_PATH),
+            manifest_files=yaml_file,
+            modified_files=modified_files,
         )
         if could_find_apps:
             assert filtered_apps == apps

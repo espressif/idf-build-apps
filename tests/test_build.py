@@ -24,7 +24,7 @@ class TestBuild:
         assert 'Project build complete.' in captured.out
 
     @pytest.mark.parametrize(
-        'depends_on_components, check_component_dependencies, assert_build_done',
+        'modified_components, check_component_dependencies, assert_build_done',
         [
             (None, True, True),
             ([], True, False),
@@ -36,13 +36,13 @@ class TestBuild:
             (['soc', 'fake'], True, True),
         ],
     )
-    def test_build_with_depends_on_components(
-        self, tmpdir, capsys, depends_on_components, check_component_dependencies, assert_build_done
+    def test_build_with_modified_components(
+        self, tmpdir, capsys, modified_components, check_component_dependencies, assert_build_done
     ):
         path = IDF_PATH / 'examples' / 'get-started' / 'hello_world'
 
         CMakeApp(str(path), 'esp32', work_dir=str(tmpdir / 'test')).build(
-            depends_on_components=depends_on_components,
+            modified_components=modified_components,
             check_component_dependencies=check_component_dependencies,
         )
 
@@ -54,7 +54,7 @@ class TestBuild:
             assert 'Project build complete.' not in captured.out
 
     @pytest.mark.parametrize(
-        'depends_on_files, is_built',
+        'modified_files, is_built',
         [
             ('/foo', False),
             (str(IDF_PATH / 'examples' / 'README.md'), False),
@@ -68,14 +68,14 @@ class TestBuild:
             ),
         ],
     )
-    def test_build_with_depends_on_files(self, depends_on_files, is_built):
+    def test_build_with_modified_files(self, modified_files, is_built):
         test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
 
         app = CMakeApp(test_dir, 'esp32')
         built = app.build(
-            depends_on_components=[],
+            modified_components=[],
             check_component_dependencies=True,
-            is_modified=app.is_modified(depends_on_files),
+            is_modified=app.is_modified(modified_files),
         )
 
         assert built == is_built

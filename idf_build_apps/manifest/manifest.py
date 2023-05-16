@@ -43,7 +43,8 @@ class FolderRule:
         enable=None,  # type: list[dict[str, str]] | None
         disable=None,  # type: list[dict[str, str]] | None
         disable_test=None,  # type: list[dict[str, str]] | None
-        requires_components=None,  # type: list[str] | None
+        depends_components=None,  # type: list[str] | None
+        depends_filepatterns=None,  # type: list[str] | None
     ):  # type: (...) -> None
         self.folder = folder.resolve()
 
@@ -56,7 +57,8 @@ class FolderRule:
         self.enable = [IfClause(**clause) for clause in enable] if enable else []
         self.disable = [IfClause(**clause) for clause in disable] if disable else []
         self.disable_test = [IfClause(**clause) for clause in disable_test] if disable_test else []
-        self.requires_components = requires_components or []
+        self.depends_components = depends_components or []
+        self.depends_filepatterns = depends_filepatterns or []
 
     def __hash__(self):
         return hash(self.folder)
@@ -168,5 +170,8 @@ class Manifest:
     ):  # type: (str, str | None, str | None) -> list[str]
         return self._most_suitable_rule(folder).enable_test_targets(default_sdkconfig_target, config_name)
 
-    def requires_components(self, folder):  # type: (str) -> list[str]
-        return self._most_suitable_rule(folder).requires_components
+    def depends_components(self, folder):  # type: (str) -> list[str]
+        return self._most_suitable_rule(folder).depends_components
+
+    def depends_filepatterns(self, folder):  # type: (str) -> list[str]
+        return self._most_suitable_rule(folder).depends_filepatterns

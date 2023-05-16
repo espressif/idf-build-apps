@@ -16,6 +16,7 @@ from .app import (
 )
 from .utils import (
     config_rules_from_str,
+    files_matches_patterns,
     to_list,
 )
 
@@ -31,29 +32,40 @@ def _get_apps_from_path(
     size_json_path=None,  # type: str | None
     check_warnings=False,  # type: bool
     preserve=True,  # type: bool
-    depends_on_components=None,  # type: list[str] | str | None
-    depends_on_files=None,  # type: list[str] | str | None,
+    manifest_rootpath=None,  # type: str | None
+    modified_components=None,  # type: list[str] | str | None
+    modified_files=None,  # type: list[str] | str | None,
     check_component_dependencies=False,  # type: bool
     sdkconfig_defaults_str=None,  # type: str | None
 ):  # type: (...) -> list[App]
-    depends_on_components = to_list(depends_on_components)
-    depends_on_files = to_list(depends_on_files)
+    modified_components = to_list(modified_components)
+    modified_files = to_list(modified_files)
 
     def _validate_app(_app):  # type: (App) -> bool
         if target not in _app.supported_targets:
             LOGGER.debug('=> Skipping. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
             return False
 
-        if _app.is_modified(depends_on_files):
+        if _app.is_modified(modified_files):
             return True
 
-        if _app.requires_components and check_component_dependencies:
-            if not set(_app.requires_components).intersection(set(depends_on_components)):
+        if _app.depends_components and check_component_dependencies:
+            if not set(_app.depends_components).intersection(set(modified_components)):
                 LOGGER.debug(
-                    '=> Skipping. %s requires components: %s, but you passed "--depends-on-components %s"',
+                    '=> Skipping. %s requires components: %s, but you passed "--modified-components %s"',
                     _app,
-                    ', '.join(_app.requires_components),
-                    ', '.join(depends_on_components),
+                    ', '.join(_app.depends_components),
+                    ', '.join(modified_components),
+                )
+                return False
+
+        if _app.depends_filepatterns and check_component_dependencies:
+            if not files_matches_patterns(modified_files, _app.depends_filepatterns, manifest_rootpath):
+                LOGGER.debug(
+                    '=> Skipping. %s depends on file patterns: %s, but you passed "--modified-files %s"',
+                    _app,
+                    ', '.join(_app.depends_filepatterns),
+                    ', '.join(modified_files),
                 )
                 return False
 
