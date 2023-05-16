@@ -718,11 +718,11 @@ def validate_args(parser, args):  # type: (argparse.ArgumentParser, argparse.Nam
 
     args.default_build_targets = default_build_targets
 
-    if (args.ignore_component_dependencies_file_patterns is None) != (args.depends_on_files is None):
-        raise InvalidCommand(
-            'Must specify both "--ignore-component-dependencies-file-patterns" and "--depends-on-files" '
-            'or neither of them'
-        )
+    if args.ignore_component_dependencies_file_patterns:
+        if args.modified_files is None:
+            raise InvalidCommand(
+                'Must specify "--ignore-component-dependencies-file-patterns" with "--modified-files", '
+            )
 
 
 def apply_config_args(args):  # type: (argparse.Namespace) -> None
