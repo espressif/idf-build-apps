@@ -24,7 +24,7 @@ class TestBuild:
         assert 'Project build complete.' in captured.out
 
     @pytest.mark.parametrize(
-        'modified_components, check_component_dependencies, assert_build_done',
+        'modified_components, check_app_dependencies, should_be_built',
         [
             (None, True, True),
             ([], True, False),
@@ -37,21 +37,15 @@ class TestBuild:
         ],
     )
     def test_build_with_modified_components(
-        self, tmpdir, capsys, modified_components, check_component_dependencies, assert_build_done
+        self, tmpdir, capsys, modified_components, check_app_dependencies, should_be_built
     ):
         path = IDF_PATH / 'examples' / 'get-started' / 'hello_world'
 
-        CMakeApp(str(path), 'esp32', work_dir=str(tmpdir / 'test')).build(
+        is_built = CMakeApp(str(path), 'esp32', work_dir=str(tmpdir / 'test')).build(
             modified_components=modified_components,
-            check_component_dependencies=check_component_dependencies,
+            check_app_dependencies=check_app_dependencies,
         )
-
-        captured = capsys.readouterr()
-        assert 'Configuring done' in captured.out
-        if assert_build_done:
-            assert 'Project build complete.' in captured.out
-        else:
-            assert 'Project build complete.' not in captured.out
+        assert is_built == should_be_built
 
     @pytest.mark.parametrize(
         'modified_files, is_built',
@@ -74,8 +68,8 @@ class TestBuild:
         app = CMakeApp(test_dir, 'esp32')
         built = app.build(
             modified_components=[],
-            check_component_dependencies=True,
-            is_modified=app.is_modified(modified_files),
+            modified_files=modified_files,
+            check_app_dependencies=True,
         )
 
         assert built == is_built
