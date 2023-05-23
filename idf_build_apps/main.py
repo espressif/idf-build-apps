@@ -51,20 +51,20 @@ except ImportError:
     pass
 
 
-def _check_components_dependency(
+def _check_app_dependency(
     manifest_rootpath,  # type: str
     modified_components,  # type: list[str] | None
     modified_files,  # type: list[str] | None
     ignore_component_dependencies_file_patterns,  # type: list[str] | None
 ):  # type: (...) -> bool
-    # not check since `--modified-components` is not passed
+    # not check since modified_components and modified_files are not passed
     if modified_components is None and modified_files is None:
         return False
 
-    # not check since `--ignore-component-dependency-file-pattern` is passed and matched
+    # not check since ignore_component_dependencies_file_patterns is passed and matched
     if (
         ignore_component_dependencies_file_patterns
-        and modified_files
+        and modified_files is not None
         and files_matches_patterns(modified_files, ignore_component_dependencies_file_patterns, manifest_rootpath)
     ):
         LOGGER.debug(
@@ -191,14 +191,14 @@ def find_apps(
                     check_warnings=check_warnings,
                     preserve=preserve,
                     manifest_rootpath=manifest_rootpath,
+                    check_app_dependencies=_check_app_dependency(
+                        manifest_rootpath=manifest_rootpath,
+                        modified_components=modified_components,
+                        modified_files=modified_files,
+                        ignore_component_dependencies_file_patterns=ignore_component_dependencies_file_patterns,
+                    ),
                     modified_components=modified_components,
                     modified_files=modified_files,
-                    check_component_dependencies=_check_components_dependency(
-                        manifest_rootpath,
-                        modified_components,
-                        modified_files,
-                        ignore_component_dependencies_file_patterns,
-                    ),
                     sdkconfig_defaults_str=sdkconfig_defaults,
                 )
             )
@@ -348,11 +348,12 @@ def build_apps(
         is_built = False
         try:
             is_built = app.build(
+                manifest_rootpath=manifest_rootpath,
                 modified_components=modified_components,
-                check_component_dependencies=_check_components_dependency(
+                modified_files=modified_files,
+                check_app_dependencies=_check_app_dependency(
                     manifest_rootpath, modified_components, modified_files, ignore_component_dependencies_file_patterns
                 ),
-                is_modified=app.is_modified(modified_files),
             )
         except BuildError as e:
             LOGGER.error(str(e))

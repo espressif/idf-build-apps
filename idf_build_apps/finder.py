@@ -12,11 +12,11 @@ from . import (
 )
 from .app import (
     App,
+    BuildOrNot,
     CMakeApp,
 )
 from .utils import (
     config_rules_from_str,
-    files_matches_patterns,
     to_list,
 )
 
@@ -35,7 +35,7 @@ def _get_apps_from_path(
     manifest_rootpath=None,  # type: str | None
     modified_components=None,  # type: list[str] | str | None
     modified_files=None,  # type: list[str] | str | None,
-    check_component_dependencies=False,  # type: bool
+    check_app_dependencies=False,  # type: bool
     sdkconfig_defaults_str=None,  # type: str | None
 ):  # type: (...) -> list[App]
     modified_components = to_list(modified_components)
@@ -46,28 +46,16 @@ def _get_apps_from_path(
             LOGGER.debug('=> Skipping. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
             return False
 
-        if _app.is_modified(modified_files):
-            return True
+        _app.check_should_build(
+            manifest_rootpath=manifest_rootpath,
+            modified_components=modified_components,
+            modified_files=modified_files,
+            check_app_dependencies=check_app_dependencies,
+        )
 
-        if _app.depends_components and check_component_dependencies:
-            if not set(_app.depends_components).intersection(set(modified_components)):
-                LOGGER.debug(
-                    '=> Skipping. %s requires components: %s, but you passed "--modified-components %s"',
-                    _app,
-                    ', '.join(_app.depends_components),
-                    ', '.join(modified_components),
-                )
-                return False
-
-        if _app.depends_filepatterns and check_component_dependencies:
-            if not files_matches_patterns(modified_files, _app.depends_filepatterns, manifest_rootpath):
-                LOGGER.debug(
-                    '=> Skipping. %s depends on file patterns: %s, but you passed "--modified-files %s"',
-                    _app,
-                    ', '.join(_app.depends_filepatterns),
-                    ', '.join(modified_files),
-                )
-                return False
+        # for unknown ones, we keep them to the build stage to judge
+        if _app.should_build == BuildOrNot.NO:
+            return False
 
         return True
 

@@ -111,7 +111,7 @@ get-started:
             (['soc', 'fake'], True),
         ],
     )
-    def test_with_requires_and_modified_components(self, tmpdir, modified_components, could_find_apps):
+    def test_with_depends_and_modified_components(self, tmpdir, modified_components, could_find_apps):
         test_dir = str(IDF_PATH / 'examples')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
@@ -183,12 +183,13 @@ get-started:
             assert not filtered_apps
 
     @pytest.mark.parametrize(
-        'modified_files, could_find_apps',
+        'modified_components, modified_files, could_find_apps',
         [
-            ('/foo', True),
-            (str(IDF_PATH / 'examples' / 'README.md'), False),
-            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], True),
+            ([], '/foo', True),
+            ([], str(IDF_PATH / 'examples' / 'README.md'), False),
+            (None, [str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], True),
             (
+                [],
                 [
                     str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md'),
                     str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.c'),
@@ -197,7 +198,7 @@ get-started:
             ),
         ],
     )
-    def test_with_depends_filepatterns(self, tmp_path, modified_files, could_find_apps):
+    def test_with_depends_filepatterns(self, tmp_path, modified_components, modified_files, could_find_apps):
         test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
@@ -220,6 +221,39 @@ get-started:
             recursive=True,
             manifest_rootpath=str(IDF_PATH),
             manifest_files=yaml_file,
+            modified_components=modified_components,
+            modified_files=modified_files,
+        )
+        if could_find_apps:
+            assert filtered_apps == apps
+        else:
+            assert not filtered_apps
+
+    @pytest.mark.parametrize(
+        'modified_files, could_find_apps',
+        [
+            (None, True),
+            (str(IDF_PATH / 'examples' / 'README.md'), True),
+            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], True),
+            (
+                [
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.c'),
+                ],
+                True,
+            ),
+            ([str(IDF_PATH / 'examples' / 'a.c')], True),
+        ],
+    )
+    def test_with_filepattern_but_calculate_component_later(self, modified_files, could_find_apps):
+        test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
+        apps = find_apps(test_dir, 'esp32', recursive=True)
+        assert apps
+
+        filtered_apps = find_apps(
+            test_dir,
+            'esp32',
+            recursive=True,
             modified_files=modified_files,
         )
         if could_find_apps:

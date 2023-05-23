@@ -37,6 +37,7 @@ from .manifest.manifest import (
 )
 from .utils import (
     BuildError,
+    files_matches_patterns,
     find_first_match,
     rmdir,
     subprocess_run,
@@ -48,6 +49,12 @@ try:
     import typing as t
 except ImportError:
     pass
+
+
+class BuildOrNot:
+    YES = 'yes'
+    NO = 'no'
+    UNKNOWN = 'unknown'
 
 
 class App(object):
@@ -100,6 +107,10 @@ class App(object):
         self.target = target
         self.check_warnings = check_warnings
         self.preserve = preserve
+
+        # should be built or not
+        self.should_build = BuildOrNot.UNKNOWN
+        self._checked_should_build = False
 
         # Some miscellaneous build properties which are set later, at the build stage
         self.dry_run = False
@@ -391,9 +402,10 @@ class App(object):
     @abstractmethod
     def build(
         self,
+        manifest_rootpath=None,  # type: str | None
         modified_components=None,  # type: list[str] | str | None
-        check_component_dependencies=False,  # type: bool
-        is_modified=False,  # type: bool
+        modified_files=None,  # type: list[str] | str | None
+        check_app_dependencies=False,  # type: bool
     ):  # type: (...) -> bool
         pass
 
@@ -469,6 +481,68 @@ class App(object):
 
         return False
 
+    def check_should_build(
+        self,
+        manifest_rootpath,  # type: str
+        check_app_dependencies,  # type: bool
+        modified_components,  # type: list[str] | None
+        modified_files,  # type: list[str] | None
+    ):  # type: (...) -> None
+        if self.should_build != BuildOrNot.UNKNOWN:
+            return
+
+        if not check_app_dependencies:
+            self.should_build = BuildOrNot.YES
+            self._checked_should_build = True
+            return
+
+        if self.is_modified(modified_files):
+            self.should_build = BuildOrNot.YES
+            self._checked_should_build = True
+            return
+
+        # check app dependencies
+        modified_components = to_list(modified_components)
+        modified_files = to_list(modified_files)
+
+        _modified_components = BuildOrNot.UNKNOWN
+        _modified_files = BuildOrNot.UNKNOWN
+
+        # depends components?
+        if check_app_dependencies and modified_components is not None:
+            if set(self.depends_components).intersection(set(modified_components)):
+                LOGGER.debug(
+                    '=> Should be built. %s requires components: %s, modified components %s',
+                    self,
+                    ', '.join(self.depends_components),
+                    ', '.join(modified_components),
+                )
+                _modified_components = BuildOrNot.YES
+            # if not defined dependency, we left it unknown and decide with idf.py reconfigure
+            elif self.depends_components:
+                _modified_components = BuildOrNot.NO
+
+        # or depends file patterns?
+        if check_app_dependencies and modified_files is not None:
+            if files_matches_patterns(modified_files, self.depends_filepatterns, manifest_rootpath):
+                LOGGER.debug(
+                    '=> Should be built. %s depends on file patterns: %s, modified files %s',
+                    self,
+                    ', '.join(self.depends_filepatterns),
+                    ', '.join(modified_files),
+                )
+                _modified_files = BuildOrNot.YES
+            # if not defined dependency, we left it unknown and decide with idf.py reconfigure
+            elif self.depends_filepatterns:
+                _modified_files = BuildOrNot.NO
+
+        if _modified_components == BuildOrNot.YES or _modified_files == BuildOrNot.YES:
+            self.should_build = BuildOrNot.YES
+        elif _modified_components == BuildOrNot.NO or _modified_files == BuildOrNot.NO:
+            self.should_build = BuildOrNot.NO
+
+        self._checked_should_build = True
+
 
 class CMakeApp(App):
     BUILD_SYSTEM = 'cmake'
@@ -493,10 +567,14 @@ class CMakeApp(App):
 
     def build(
         self,
+        manifest_rootpath=None,  # type: str | None
         modified_components=None,  # type: list[str] | str | None
-        check_component_dependencies=False,  # type: bool
-        is_modified=False,  # type: bool
+        modified_files=None,  # type: list[str] | str | None
+        check_app_dependencies=False,  # type: bool
     ):  # type: (...) -> bool
+        modified_components = to_list(modified_components)
+        modified_files = to_list(modified_files)
+
         LOGGER.debug('=> Preparing...')
         if self.work_dir != self.app_dir:
             if os.path.exists(self.work_dir):
@@ -554,8 +632,15 @@ class CMakeApp(App):
             '-DSDKCONFIG_DEFAULTS={}'.format(';'.join(self.sdkconfig_files) if self.sdkconfig_files else ';'),
         ]
 
-        modified_components = to_list(modified_components)
-        if modified_components is not None and check_component_dependencies and not is_modified:
+        if not self._checked_should_build:
+            self.check_should_build(
+                manifest_rootpath=manifest_rootpath,
+                modified_components=modified_components,
+                modified_files=modified_files,
+                check_app_dependencies=check_app_dependencies,
+            )
+
+        if modified_components is not None and check_app_dependencies and self.should_build == BuildOrNot.UNKNOWN:
             subprocess_run(
                 common_args + ['reconfigure'],
                 log_terminal=False if self.build_log_path else True,
@@ -575,6 +660,12 @@ class CMakeApp(App):
                     modified_components,
                 )
                 return False
+            else:
+                self.should_build = BuildOrNot.YES
+
+        if self.should_build == BuildOrNot.NO:
+            LOGGER.info('=> Skip building...')
+            return False
 
         # idf.py build
         build_args = deepcopy(common_args)

@@ -6,28 +6,23 @@ All notable changes to this project will be documented in this file.
 
 ## Added
 
-- Support keyword `depends_filepatterns` in the manfiest file
+- Support keyword `depends_filepatterns` in the manifest file
 
 ## BREAKING CHANGES
 
-- Renames
-  - Members
-    - `App.requires_components` renamed to `App.depends_components`
-    - `FolderRule.requires_components` renamed to `FolderRule.depends_components`
-    - `Manifest.requires_components()` renamed to `Manifest.depends_components()`
-  - Parameters
-    - `App.build()` parameter `depends_on_components` renamed to `modified_components`
-    - `App.is_modified()` parameter `depends_on_components` renamed to `modified_components`
-    - `find_apps()`  parameter `depends_on_components` renamed to `modified_components`
-    - `find_apps()`  parameter `depends_on_files` renamed to `modified_files`
-    - `build_apps()`  parameter `depends_on_components` renamed to `modified_components`
-    - `build_apps()`  parameter `depends_on_files` renamed to `modified_files`
-  - CLI Options
-    - `--depends-on-components` renamed to `--modified-components`
-    - `--depends-on-files` renamed to `--modified-files`
-- Reorder Parameters
+- Attributes Renamed
+  - `App.requires_components` renamed to `App.depends_components`
+  - `FolderRule.requires_components` renamed to `FolderRule.depends_components`
+- Functions Renamed
+  - `Manifest.requires_components()` renamed to `Manifest.depends_components()`
+- Signatures Changed
+  - `App.build()`
+  - `App.is_modified()`
   - `find_apps()`
   - `build_apps()`
+- CLI Options Renamed
+  - `--depends-on-components` renamed to `--modified-components`
+  - `--depends-on-files` renamed to `--modified-files`
 
 ## [0.6.1] (2023-05-10)
 
