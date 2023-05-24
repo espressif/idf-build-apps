@@ -2,14 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import io
 import json
 import os
 import re
 import shutil
 import sys
 import textwrap
-import warnings
 from pathlib import (
     Path,
 )
@@ -300,27 +298,13 @@ def build_apps(
         app.parallel_count = parallel_count
 
         if collect_app_info:
-            if isinstance(collect_app_info, io.TextIOWrapper):
-                warnings.warn(
-                    '"collect_app_info" does not support file stream in idf-build-apps 1.0.0, Please use str instead',
-                    DeprecationWarning,
-                )
-                app._collect_app_info = collect_app_info.name
-            else:
-                app._collect_app_info = collect_app_info
+            app._collect_app_info = collect_app_info
 
             if app.collect_app_info not in collect_files:
                 collect_files.append(app.collect_app_info)
 
         if collect_size_info:
-            if isinstance(collect_size_info, io.TextIOWrapper):
-                warnings.warn(
-                    '"collect_size_info" does not support file stream in idf-build-apps 1.0.0, Please use str instead',
-                    DeprecationWarning,
-                )
-                app._collect_size_info = collect_size_info.name
-            else:
-                app._collect_size_info = collect_size_info
+            app._collect_size_info = collect_size_info
 
             if app.collect_size_info not in collect_files:
                 collect_files.append(app.collect_size_info)
@@ -468,15 +452,7 @@ class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
             else:
                 default_type = type(action.default)
 
-            if isinstance(action, argparse._AppendAction):  # noqa
-                _help += (
-                    '. Could be specified for multiple times'
-                    '{} ! DeprecationWarning: will change to space-separated list in idf-build-apps 1.0.0 version'.format(
-                        self.LINE_SEP
-                    )
-                )
-                _type = 'list[{}]'.format(default_type.__name__)
-            elif action.nargs in [argparse.ZERO_OR_MORE, argparse.ONE_OR_MORE]:
+            if action.nargs in [argparse.ZERO_OR_MORE, argparse.ONE_OR_MORE]:
                 _type = 'list[{}]'.format(default_type.__name__)
             else:
                 _type = default_type.__name__
@@ -524,7 +500,7 @@ def get_parser():  # type: () -> argparse.ArgumentParser
     )
     common_args.add_argument(
         '--exclude',
-        action='append',
+        nargs='+',
         help='Ignore specified directory (if --recursive is given)',
     )
     common_args.add_argument(
@@ -548,7 +524,7 @@ def get_parser():  # type: () -> argparse.ArgumentParser
     )
     common_args.add_argument(
         '--config',
-        action='append',
+        nargs='+',
         help='Adds configurations (sdkconfig file names) to build. '
         'This can either be FILENAME[=NAME] or FILEPATTERN. FILENAME is the name of the sdkconfig file, '
         'relative to the project directory, to be used. Optional NAME can be specified, '
@@ -578,7 +554,7 @@ def get_parser():  # type: () -> argparse.ArgumentParser
     )
     common_args.add_argument(
         '--manifest-file',
-        action='append',
+        nargs='+',
         help='Manifest files which specify the build test rules of the apps',
     )
     common_args.add_argument(
@@ -590,10 +566,7 @@ def get_parser():  # type: () -> argparse.ArgumentParser
         '--default-build-targets',
         nargs='+',
         help='space-separated list of supported targets. Targets supported in current ESP-IDF branch '
-        '(except preview ones) would be used if this option is not set.'
-        '{} ! DeprecationWarning: comma-separated list support will be removed in idf-build-apps 1.0.0 version'.format(
-            IdfBuildAppsCliFormatter.LINE_SEP
-        ),
+        '(except preview ones) would be used if this option is not set.',
     )
     common_args.add_argument(
         '--modified-components',
@@ -675,7 +648,7 @@ def get_parser():  # type: () -> argparse.ArgumentParser
     )
     build_parser.add_argument(
         '--ignore-warning-str',
-        action='append',
+        nargs='+',
         help='Ignore the warning string that match the specified regex in the build output',
     )
     build_parser.add_argument(
@@ -712,17 +685,14 @@ def validate_args(parser, args):  # type: (argparse.ArgumentParser, argparse.Nam
     default_build_targets = []
     if args.default_build_targets:
         for target in args.default_build_targets:
-            t_list = [_t.strip() for _t in target.split(',')] if ',' in target else [target.strip()]
-            for _t in t_list:
-                if _t not in ALL_TARGETS:
-                    raise InvalidCommand(
-                        'Unrecognizable target {} specified with "--default-build-targets". '
-                        'Current ESP-IDF available targets: {}'.format(_t, ALL_TARGETS)
-                    )
+            if target not in ALL_TARGETS:
+                raise InvalidCommand(
+                    'Unrecognizable target {} specified with "--default-build-targets". '
+                    'Current ESP-IDF available targets: {}'.format(target, ALL_TARGETS)
+                )
 
-                if _t not in default_build_targets:
-                    default_build_targets.append(_t)
-
+            if target not in default_build_targets:
+                default_build_targets.append(target)
     args.default_build_targets = default_build_targets
 
     if args.ignore_component_dependencies_file_patterns:

@@ -23,6 +23,12 @@ All notable changes to this project will be documented in this file.
 - CLI Options Renamed
   - `--depends-on-components` renamed to `--modified-components`
   - `--depends-on-files` renamed to `--modified-files`
+- Removed the deprecated CLI call methods, now these options only support space-separated list
+  - `--exclude`
+  - `--config`
+  - `--manifest-file`
+  - `--ignore-warning-str`
+  - `--default-build-targets`
 
 ## [0.6.1] (2023-05-10)
 
