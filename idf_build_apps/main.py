@@ -53,22 +53,22 @@ def _check_app_dependency(
     manifest_rootpath,  # type: str
     modified_components,  # type: list[str] | None
     modified_files,  # type: list[str] | None
-    ignore_component_dependencies_file_patterns,  # type: list[str] | None
+    ignore_app_dependencies_filepatterns,  # type: list[str] | None
 ):  # type: (...) -> bool
     # not check since modified_components and modified_files are not passed
     if modified_components is None and modified_files is None:
         return False
 
-    # not check since ignore_component_dependencies_file_patterns is passed and matched
+    # not check since ignore_app_dependencies_filepatterns is passed and matched
     if (
-        ignore_component_dependencies_file_patterns
+        ignore_app_dependencies_filepatterns
         and modified_files is not None
-        and files_matches_patterns(modified_files, ignore_component_dependencies_file_patterns, manifest_rootpath)
+        and files_matches_patterns(modified_files, ignore_app_dependencies_filepatterns, manifest_rootpath)
     ):
         LOGGER.debug(
             'Skipping check component dependencies for apps since files %s matches patterns: %s',
             ', '.join(modified_files),
-            ', '.join(ignore_component_dependencies_file_patterns),
+            ', '.join(ignore_app_dependencies_filepatterns),
         )
         return False
 
@@ -93,7 +93,7 @@ def find_apps(
     default_build_targets=None,  # type: list[str] | str | None
     modified_components=None,  # type: list[str] | str | None
     modified_files=None,  # type: list[str] | str | None
-    ignore_component_dependencies_file_patterns=None,  # type: list[str] | str | None
+    ignore_app_dependencies_filepatterns=None,  # type: list[str] | str | None
     sdkconfig_defaults=None,  # type: str | None
 ):  # type: (...) -> list[App]
     """
@@ -137,9 +137,9 @@ def find_apps(
     :type modified_components: list[str] | str | None
     :param modified_files: modified files
     :type modified_files: list[str] | str | None
-    :param ignore_component_dependencies_file_patterns: file patterns that used for ignoring checking the component
+    :param ignore_app_dependencies_filepatterns: file patterns that used for ignoring checking the component
         dependencies
-    :type ignore_component_dependencies_file_patterns: list[str] | str | None
+    :type ignore_app_dependencies_filepatterns: list[str] | str | None
     :param sdkconfig_defaults: semicolon-separated string, pass to idf.py -DSDKCONFIG_DEFAULTS if specified,
         also could be set via environment variables "SDKCONFIG_DEFAULTS"
     :type sdkconfig_defaults: str | None
@@ -164,7 +164,7 @@ def find_apps(
 
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
-    ignore_component_dependencies_file_patterns = to_list(ignore_component_dependencies_file_patterns)
+    ignore_app_dependencies_filepatterns = to_list(ignore_app_dependencies_filepatterns)
 
     apps = []
     if target == 'all':
@@ -193,7 +193,7 @@ def find_apps(
                         manifest_rootpath=manifest_rootpath,
                         modified_components=modified_components,
                         modified_files=modified_files,
-                        ignore_component_dependencies_file_patterns=ignore_component_dependencies_file_patterns,
+                        ignore_app_dependencies_filepatterns=ignore_app_dependencies_filepatterns,
                     ),
                     modified_components=modified_components,
                     modified_files=modified_files,
@@ -221,7 +221,7 @@ def build_apps(
     manifest_rootpath=None,  # type: str | None
     modified_components=None,  # type: list[str] | str | None
     modified_files=None,  # type: list[str] | str | None
-    ignore_component_dependencies_file_patterns=None,  # type: list[str] | str | None
+    ignore_app_dependencies_filepatterns=None,  # type: list[str] | str | None
 ):  # type: (...) -> (int, list[App]) | int
     """
     Build all the specified apps
@@ -256,9 +256,9 @@ def build_apps(
     :type modified_components: list[str] | str | None
     :param modified_files: modified files
     :type modified_files: list[str] | str | None
-    :param ignore_component_dependencies_file_patterns: file patterns that used for ignoring checking the component
+    :param ignore_app_dependencies_filepatterns: file patterns that used for ignoring checking the component
         dependencies
-    :type ignore_component_dependencies_file_patterns: list[str] | str | None
+    :type ignore_app_dependencies_filepatterns: list[str] | str | None
     :return: (exit_code, built_apps) if specified ``modified_components``
     :rtype: int, list[App]
     :return: exit_code if not specified ``modified_components``
@@ -267,7 +267,7 @@ def build_apps(
     apps = to_list(apps)  # type: list[App]
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
-    ignore_component_dependencies_file_patterns = to_list(ignore_component_dependencies_file_patterns)
+    ignore_app_dependencies_filepatterns = to_list(ignore_app_dependencies_filepatterns)
 
     ignore_warnings_regexes = []
     if ignore_warning_strs:
@@ -336,7 +336,7 @@ def build_apps(
                 modified_components=modified_components,
                 modified_files=modified_files,
                 check_app_dependencies=_check_app_dependency(
-                    manifest_rootpath, modified_components, modified_files, ignore_component_dependencies_file_patterns
+                    manifest_rootpath, modified_components, modified_files, ignore_app_dependencies_filepatterns
                 ),
             )
         except BuildError as e:
@@ -585,7 +585,7 @@ def get_parser():  # type: () -> argparse.ArgumentParser
     )
     common_args.add_argument(
         '-if',
-        '--ignore-component-dependencies-file-patterns',
+        '--ignore-app-dependencies-filepatterns',
         nargs='*',
         default=None,
         help='space-separated list which specifies the file patterns used for ignoring the component dependencies. '
@@ -695,7 +695,7 @@ def validate_args(parser, args):  # type: (argparse.ArgumentParser, argparse.Nam
                 default_build_targets.append(target)
     args.default_build_targets = default_build_targets
 
-    if args.ignore_component_dependencies_file_patterns:
+    if args.ignore_app_dependencies_filepatterns:
         if args.modified_files is None:
             raise InvalidCommand(
                 'Must specify "--ignore-component-dependencies-file-patterns" with "--modified-files", '
@@ -737,7 +737,7 @@ def main():
         default_build_targets=args.default_build_targets,
         modified_components=args.modified_components,
         modified_files=args.modified_files,
-        ignore_component_dependencies_file_patterns=args.ignore_component_dependencies_file_patterns,
+        ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
         sdkconfig_defaults=args.sdkconfig_defaults,
     )
 
@@ -771,7 +771,7 @@ def main():
         manifest_rootpath=args.manifest_rootpath,
         modified_components=args.modified_components,
         modified_files=args.modified_files,
-        ignore_component_dependencies_file_patterns=args.ignore_component_dependencies_file_patterns,
+        ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
     )
 
     if args.modified_components is not None:
