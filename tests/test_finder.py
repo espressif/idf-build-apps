@@ -417,3 +417,55 @@ class TestFindWithSdkconfigFiles:
         assert apps[0].sdkconfig_files == [
             str(tmp_path / 'test1' / 'sdkconfig.defaults'),
         ]
+
+    def test_env_var(self, tmp_path, monkeypatch):
+        create_project('test1', tmp_path)
+
+        (tmp_path / 'test1' / 'sdkconfig.ci.foo').touch()
+        (tmp_path / 'test1' / 'sdkconfig.ci.bar').touch()
+        (tmp_path / 'test1' / 'sdkconfig.ci.baz').touch()
+
+        yaml_file = tmp_path / 'test.yml'
+        yaml_file.write_text(
+            f'''
+{tmp_path}:
+  enable:
+    - if: CONFIG_NAME == "foo" and IDF_TARGET == "esp32"
+    - if: CONFIG_NAME == "bar" and IDF_TARGET == "esp32s2"
+    - if: TEST_ENV_VAR == "1"
+    - if: CONFIG_NAME == "baz" and TEST_ENV_VAR == 0
+''',
+            encoding='utf8',
+        )
+
+        # in case you set it...
+        monkeypatch.delenv('CONFIG_NAME', raising=False)
+        monkeypatch.delenv('TEST_ENV_VAR', raising=False)
+
+        # CONFIG_NAME should NOT be overridden by env var
+        monkeypatch.setenv('CONFIG_NAME', 'bar')
+        apps = find_apps(
+            str(tmp_path / 'test1'),
+            'esp32',
+            config_rules_str=['sdkconfig.ci=default', 'sdkconfig.ci.*='],
+            manifest_files=yaml_file,
+        )
+        assert len(apps) == 2
+        assert apps[0].sdkconfig_files == [
+            str(tmp_path / 'test1' / 'sdkconfig.ci.baz'),
+        ]
+        assert apps[1].sdkconfig_files == [
+            str(tmp_path / 'test1' / 'sdkconfig.ci.foo'),
+        ]
+        monkeypatch.delenv('CONFIG_NAME')
+
+        # env var should be expanded
+        monkeypatch.setenv('TEST_ENV_VAR', '1')
+        apps = find_apps(
+            str(tmp_path / 'test1'),
+            'esp32',
+            config_rules_str=['sdkconfig.ci=default', 'sdkconfig.ci.*='],
+            manifest_files=yaml_file,
+        )
+        assert len(apps) == 3
+        monkeypatch.delenv('TEST_ENV_VAR')

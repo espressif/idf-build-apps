@@ -4,6 +4,9 @@ import shutil
 
 import pytest
 
+from idf_build_apps import (
+    find_apps,
+)
 from idf_build_apps.app import (
     CMakeApp,
 )
@@ -73,6 +76,20 @@ class TestBuild:
         )
 
         assert built == is_built
+
+    def test_build_without_modified_components_but_ignored_app_dependency_check(self):
+        test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
+
+        apps = find_apps(
+            test_dir,
+            'esp32',
+            modified_components=[],
+            modified_files=['foo.c'],
+            ignore_app_dependencies_filepatterns=['foo.c'],
+        )
+
+        for app in apps:
+            assert app.build()
 
 
 @pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')

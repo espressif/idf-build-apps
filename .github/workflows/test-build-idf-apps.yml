@@ -66,9 +66,10 @@ jobs:
           python -m idf_build_apps build -vv -t esp32 \
             -p $IDF_PATH/examples/get-started/hello_world \
             --size-file size_info.json \
-            --ignore-warning-str "Python 3 versions older than 3.6 are not supported" \
-            --ignore-warning-str "Python 2 is no longer supported" \
-            --ignore-warning-str "Support for Python 2 is deprecated"
+            --ignore-warning-str \
+              "Python 3 versions older than 3.6 are not supported" \
+              "Python 2 is no longer supported" \
+              "Support for Python 2 is deprecated"
 
   build-apps-on-idf-env:
     if: ${{ github.ref == 'refs/heads/main' }}

@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 from ast import (
     literal_eval,
 )
@@ -85,6 +86,10 @@ class ChipAttr(Stmt):
 
         if self.attr in SOC_HEADERS[target]:
             return SOC_HEADERS[target][self.attr]
+
+        # for non-keyword cap words, check if it is defined in the environment variables
+        if self.attr in os.environ:
+            return os.environ[self.attr]
 
         return 0  # default return 0 as false
 
