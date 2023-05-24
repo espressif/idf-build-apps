@@ -588,10 +588,9 @@ def get_parser():  # type: () -> argparse.ArgumentParser
         '--ignore-app-dependencies-filepatterns',
         nargs='*',
         default=None,
-        help='space-separated list which specifies the file patterns used for ignoring the component dependencies. '
-        'The `depends_components` and `depends_filepatterns` set in the manifest files will be ignored when any of '
-        'the specified file patterns matches any of the modified files. Must be used together with '
-        '--modified-files',
+        help='space-separated list which specifies the file patterns used for ignoring checking the app dependencies. '
+        'The `depends_components` and `depends_filepatterns` set in the manifest files will be ignored when any of the '
+        'specified file patterns matches any of the modified files. Must be used together with --modified-files',
     )
 
     common_args.add_argument(
