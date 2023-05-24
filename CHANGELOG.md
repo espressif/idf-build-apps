@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ## Added
 
 - Support keyword `depends_filepatterns` in the manifest file
+- Support expanding environment variables in the manifest files
 
 ## BREAKING CHANGES
 

@@ -23,12 +23,14 @@ One typical manifest file look like this:
 
 ### Operands
 
-- Variables start with `SOC_`. The value would be parsed from `IDF_PATH/components/soc/[TARGET]/include/soc/*_caps.h`
-- `IDF_TARGET`
-- `IDF_VERSION_MAJOR`
-- `IDF_VERSION_MINOR`
-- `IDF_VERSION_PATCH`
-- `INCLUDE_DEFAULT` (The default value of officially supported targets is 1, otherwise is 0)
+- Capitalized Words
+  - Variables start with `SOC_`. The value would be parsed from `IDF_PATH/components/soc/[TARGET]/include/soc/*_caps.h`
+  - `IDF_TARGET`
+  - `IDF_VERSION_MAJOR`
+  - `IDF_VERSION_MINOR`
+  - `IDF_VERSION_PATCH`
+  - `INCLUDE_DEFAULT` (The default value of officially supported targets is 1, otherwise is 0)
+  - environment variables, default to `0` if not set
 - String, must be double-quoted. e.g., `"esp32"`, `"12345"`
 - Integer, support decimal and hex. e.g., `1`, `0xAB`
 - List of strings or integers, or both types at the same time. e.g., `["esp32", 1]`
