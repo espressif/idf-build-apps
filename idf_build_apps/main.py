@@ -498,11 +498,7 @@ def get_parser():  # type: () -> argparse.ArgumentParser
         action='store_true',
         help='Look for apps in the specified paths recursively',
     )
-    common_args.add_argument(
-        '--exclude',
-        nargs='+',
-        help='Ignore specified directory (if --recursive is given)',
-    )
+    common_args.add_argument('--exclude', nargs='+', help='Ignore specified path (if --recursive is given)')
     common_args.add_argument(
         '--work-dir',
         help='If set, the app is first copied into the specified directory, and then built. '
