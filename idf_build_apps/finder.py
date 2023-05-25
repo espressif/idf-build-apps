@@ -17,6 +17,7 @@ from .app import (
 )
 from .utils import (
     config_rules_from_str,
+    to_absolute_path,
     to_list,
 )
 
@@ -165,15 +166,18 @@ def _find_apps(
 
     # The remaining part is for recursive == True
     apps = []
+    # handle the exclude list, since the config file might use linux style, but run in windows
+    exclude_list = [to_absolute_path(p) for p in exclude_list]
     for root, dirs, _ in os.walk(path):
         LOGGER.debug('Entering %s', root)
-        if root in exclude_list:
+        root_path = to_absolute_path(root)
+        if root_path in exclude_list:
             LOGGER.debug('=> Skipping %s (excluded)', root)
             del dirs[:]
             continue
 
-        if root.endswith('managed_components'):  # idf-component-manager
-            LOGGER.debug('=> Skipping %s (managed components)', root)
+        if root_path.parts[-1] == 'managed_components':  # idf-component-manager
+            LOGGER.debug('=> Skipping %s (managed components)', root_path)
             del dirs[:]
             continue
 

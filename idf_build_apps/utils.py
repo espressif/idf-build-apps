@@ -213,7 +213,7 @@ def files_matches_patterns(
     patterns,  # type: list[str] | str
     rootpath=None,  # type: str
 ):  # type: (...) -> bool
-    # can't match a absolute pattern with a relative path
+    # can't match an absolute pattern with a relative path
     # change all to absolute paths
     files = [to_absolute_path(f, rootpath) for f in to_list(files)]
     patterns = [to_absolute_path(p, rootpath) for p in to_list(patterns)]

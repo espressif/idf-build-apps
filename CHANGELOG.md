@@ -130,7 +130,7 @@ This is the last version to support ESP-IDF v4.1 since it's EOL on Feb. 24th, 20
 
 ### Fixed
 
-- Ralative path defined in the manifest files depend on the current work path
+- Relative path defined in the manifest files depend on the current work path
 
   Added `manifest_rootpath` argument in `find_apps()`. Will use this value instead as the root folder for calculating absolute path
 

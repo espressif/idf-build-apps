@@ -498,11 +498,7 @@ def get_parser():  # type: () -> argparse.ArgumentParser
         action='store_true',
         help='Look for apps in the specified paths recursively',
     )
-    common_args.add_argument(
-        '--exclude',
-        nargs='+',
-        help='Ignore specified directory (if --recursive is given)',
-    )
+    common_args.add_argument('--exclude', nargs='+', help='Ignore specified path (if --recursive is given)')
     common_args.add_argument(
         '--work-dir',
         help='If set, the app is first copied into the specified directory, and then built. '
@@ -588,10 +584,9 @@ def get_parser():  # type: () -> argparse.ArgumentParser
         '--ignore-app-dependencies-filepatterns',
         nargs='*',
         default=None,
-        help='space-separated list which specifies the file patterns used for ignoring the component dependencies. '
-        'The `depends_components` and `depends_filepatterns` set in the manifest files will be ignored when any of '
-        'the specified file patterns matches any of the modified files. Must be used together with '
-        '--modified-files',
+        help='space-separated list which specifies the file patterns used for ignoring checking the app dependencies. '
+        'The `depends_components` and `depends_filepatterns` set in the manifest files will be ignored when any of the '
+        'specified file patterns matches any of the modified files. Must be used together with --modified-files',
     )
 
     common_args.add_argument(

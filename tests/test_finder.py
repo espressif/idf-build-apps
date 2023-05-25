@@ -3,6 +3,7 @@
 
 import logging
 import os
+import tempfile
 from pathlib import (
     Path,
 )
@@ -469,3 +470,32 @@ class TestFindWithSdkconfigFiles:
         )
         assert len(apps) == 3
         monkeypatch.delenv('TEST_ENV_VAR')
+
+
+@pytest.mark.parametrize(
+    'exclude_list, apps_count',
+    [
+        (['test1'], 3),  # not excluded
+        (['folder1/test2'], 2),
+        (['folder1'], 1),
+        (['folder2/test2'], 2),
+    ],
+)
+def test_find_apps_with_exclude(tmp_path, exclude_list, apps_count):
+    (tmp_path / 'folder1').mkdir()
+    (tmp_path / 'folder2').mkdir()
+
+    create_project('test1', tmp_path / 'folder1')
+    create_project('test2', tmp_path / 'folder1')
+    create_project('test2', tmp_path / 'folder2')
+
+    os.chdir(tmp_path)
+    apps = find_apps(str(tmp_path), 'esp32', recursive=True, exclude_list=exclude_list)
+    assert len(apps) == apps_count
+
+    # or with absolute_path
+    exclude_list = [os.path.abspath(x) for x in exclude_list]
+    tmp_path = os.path.abspath(tmp_path)
+    os.chdir(tempfile.tempdir)
+    apps = find_apps(str(tmp_path), 'esp32', recursive=True, exclude_list=exclude_list)
+    assert len(apps) == apps_count
