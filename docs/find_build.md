@@ -114,7 +114,7 @@ By default, `idf-build-apps` would use the project directory as the work directo
 
 #### Build Directory
 
-Build directory is the directory where the binary files output would be generated. If it is set to a relative path, the full path would be calculated based on the work directory. If it is a absolute path, it would override the work directory settings.
+Build directory is the directory where the binary files output would be generated. If it is set to a relative path, the full path would be calculated based on the work directory. If it is an absolute path, it would override the work directory settings.
 
 By default, `idf-build-apps` would follow what ESP-IDF does, use `build` as the build directory.
 
