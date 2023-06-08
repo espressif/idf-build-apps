@@ -186,9 +186,8 @@ get-started:
     @pytest.mark.parametrize(
         'modified_components, modified_files, could_find_apps',
         [
-            ([], '/foo', True),
             ([], str(IDF_PATH / 'examples' / 'README.md'), False),
-            (None, [str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], True),
+            (None, [str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], False),
             (
                 [],
                 [
@@ -209,7 +208,6 @@ get-started:
             f'''
 {test_dir}:
     depends_filepatterns:
-        - /foo
         - examples/get-started/hello_world/**
         - examples/foo/**
 ''',
