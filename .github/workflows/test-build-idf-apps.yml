@@ -60,6 +60,7 @@ jobs:
           export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init --path)"
           pyenv global ${{ matrix.python-version }}
           rm $(which python3)
+          echo "urllib3<1.25,>=1.21.1" >> $IDF_PATH/requirements.txt
           bash $IDF_PATH/install.sh
           . $IDF_PATH/export.sh
           pip install idf_build_apps-*-py2.py3-none-any.whl
