@@ -23,6 +23,12 @@ except ImportError:
     pass
 
 
+if sys.version_info < (3, 5):
+    import glob2 as glob
+else:
+    import glob
+
+
 class ConfigRule:
     def __init__(self, file_name, config_name):  # type: (str, str) -> None
         """
@@ -218,9 +224,12 @@ def files_matches_patterns(
     files = [to_absolute_path(f, rootpath) for f in to_list(files)]
     patterns = [to_absolute_path(p, rootpath) for p in to_list(patterns)]
 
+    matched_paths = set()
+    for pat in patterns:
+        matched_paths.update(glob.glob(str(pat), recursive=True))
+
     for f in files:
-        for p in patterns:
-            if f.match(str(p)):
-                return True
+        if str(f) in matched_paths:
+            return True
 
     return False

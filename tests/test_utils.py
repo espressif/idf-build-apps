@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
+import os
 from pathlib import (
     Path,
 )
@@ -11,6 +11,7 @@ from idf_build_apps.utils import (
     files_matches_patterns,
     get_parallel_start_stop,
     rmdir,
+    to_absolute_path,
 )
 
 
@@ -62,23 +63,74 @@ def test_get_parallel_start_stop(total, parallel_count, parallel_index, start, s
     assert (start, stop) == get_parallel_start_stop(total, parallel_count, parallel_index)
 
 
-@pytest.mark.parametrize(
-    'files, patterns, rootpath, result',
-    [
-        ('c.py', '*.py', None, True),
-        ('c.py', '*.py', '/a', True),
-        ('/a/b/c.py', 'c.py', None, False),
-        ('/a/b/c.py', 'c.py', '/a/b', True),
-        ('/a/b/../b/c.py', '*.py', None, False),
-        ('/a/b/../b/c.py', '*.py', '/a/b', True),
-        ('/a/b/../b/c.py', '**/*.py', None, False),
-        ('/a/b/../b/c.py', '**/*.py', '/a', True),
-        ('c.py', '/a/**/*.py', None, False),
-        ('c.py', '/a/**/*.py', '/a', False),
-        ('c.py', '/a/**/*.py', '/a/b', True),
-        ('/a/b/c.py', '/a/**/*.py', None, True),
-        ('/a/b/c.py', '/a/**/*.py', 'foo', True),
-    ],
-)
-def test_files_matches_patterns(files, patterns, rootpath, result):
-    assert files_matches_patterns(files, patterns, rootpath) == result
+def test_files_matches_patterns(tmpdir):
+    # used for testing absolute paths
+    temp_dir = tmpdir.mkdir('temp')
+    os.chdir(temp_dir)
+
+    # create real files
+    test_dir = tmpdir.mkdir('test')
+    a_dir = test_dir.mkdir('a')
+    b_dir = a_dir.mkdir('b')
+    c_dir = b_dir.mkdir('c')
+    b_py = Path(a_dir / 'b.py')
+    c_py = Path(b_dir / 'c.py')
+    d_py = Path(c_dir / 'd.py')
+    b_py.touch()
+    c_py.touch()
+    d_py.touch()
+
+    # ├── temp
+    # └── test
+    #     └── a
+    #         ├── b
+    #         │   ├── c
+    #         │   │   └── d.py
+    #         │   └── c.py
+    #         ├── .hidden
+    #         └── b.py
+    #
+
+    # in correct relative path
+    for matched_files, pat, rootpath in [
+        ([b_py], '*.py', a_dir),
+        ([b_py, c_py, d_py], '**/*.py', a_dir),
+        ([c_py], '*.py', b_dir),
+        ([c_py, d_py], '**/*.py', b_dir),
+        ([d_py], '*.py', c_dir),
+        ([d_py], '**/*.py', c_dir),
+    ]:
+        for f in matched_files:
+            assert files_matches_patterns(f, pat, rootpath)
+
+    # in None root path with relative pattern
+    for matched_files, pat in [
+        ([b_py], 'a/*.py'),
+        ([b_py, c_py, d_py], 'a/**/*.py'),
+        ([c_py], 'a/b/*.py'),
+        ([c_py, d_py], 'a/b/**/*.py'),
+        ([d_py], 'a/b/c/*.py'),
+        ([d_py], 'a/b/c/**/*.py'),
+    ]:
+        for f in matched_files:
+            # with correct pwd
+            os.chdir(test_dir)
+            assert files_matches_patterns(f, pat)
+
+            # with wrong pwd
+            os.chdir(temp_dir)
+            assert not files_matches_patterns(f, pat)
+
+    # use correct absolute path, in wrong pwd
+    for matched_files, pat in [
+        ([b_py], 'a/*.py'),
+        ([b_py, c_py, d_py], 'a/**/*.py'),
+        ([c_py], 'a/b/*.py'),
+        ([c_py, d_py], 'a/b/**/*.py'),
+        ([d_py], 'a/b/c/*.py'),
+        ([d_py], 'a/b/c/**/*.py'),
+    ]:
+        abs_pat = to_absolute_path(pat, test_dir)
+        os.chdir(temp_dir)
+        for f in matched_files:
+            assert files_matches_patterns(f, abs_pat)

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+## Fixed
+
+- glob patterns are matched recursively
+
 ## [1.0.0] (2023-05-25)
 
 ## Added
