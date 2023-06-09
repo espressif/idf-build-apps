@@ -76,7 +76,7 @@ jobs:
     needs: build-python-packages
     strategy:
       matrix:
-        idf-branch: [ release-v4.3, release-v4.4, release-v5.0]
+        idf-branch: [release-v4.3, release-v4.4, release-v5.0, release-v5.1]
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:${{ matrix.idf-branch }}
