@@ -127,6 +127,7 @@ Placeholders are a set of symbols, which could be used when setting work directo
 - `@n`: Would be replaced by the project name.
 - `@f`: Would be replaced by the escaped project path (replaced "/" to "_").
 - `@i`: Would be replaced by the build index. (only available in `build` command)
+- `@p`: Would be replaced by the parallel build index. (default to `1`, only available in `build` command)
 
 For example,
 
