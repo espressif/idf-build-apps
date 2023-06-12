@@ -30,6 +30,7 @@ One typical manifest file look like this:
   - `IDF_VERSION_MINOR`
   - `IDF_VERSION_PATCH`
   - `INCLUDE_DEFAULT` (The default value of officially supported targets is 1, otherwise is 0)
+  - `CONFIG_NAME` (config name defined in [](project:#config-rules))
   - environment variables, default to `0` if not set
 - String, must be double-quoted. e.g., `"esp32"`, `"12345"`
 - Integer, support decimal and hex. e.g., `1`, `0xAB`
