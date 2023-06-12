@@ -59,6 +59,7 @@ flowchart TB
     end
 ```
 
+(config-rules)=
 ### Config Rules
 
 Config rule represents the sdkconfig file pattern and the config name. The syntax is simple: `[FILE_PATTERN]=[CONFIG_NAME]`.
@@ -96,10 +97,10 @@ For example, in project `test-1`:
       - The wildcard matches two files. Build two apps based on each sdkconfig file.
       -  - ``sdkconfig.ci.foo``
          - ``sdkconfig.ci.bar``
+```
 
-.. note::
-
-   For each config rule, only one wildcard is supported.
+```{note}
+For each config rule, only one wildcard is supported.
 ```
 
 ### Placeholders for Work Directory and Build Directory
@@ -161,11 +162,8 @@ The output would be:
 
 Building apps is a process that build all the applications that are collected by the "finding apps" process.
 
-```{eval-rst}
-
-.. note::
-
-   Almost all CLI options that ``find`` supported are also supported in ``build`` command. You may call ``idf-build-apps find -h`` or ``idf-build-apps build -h`` for all possible CLI options.
+```{note}
+Almost all CLI options that ``find`` supported are also supported in ``build`` command. You may call ``idf-build-apps find -h`` or ``idf-build-apps build -h`` for all possible CLI options.
 ```
 
 ### Tips on `build` CLI Options
