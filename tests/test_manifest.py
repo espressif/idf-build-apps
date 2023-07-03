@@ -3,6 +3,14 @@
 
 import os
 
+from packaging.version import (
+    Version,
+)
+
+import idf_build_apps.constants
+from idf_build_apps.manifest.if_parser import (
+    BOOL_STMT,
+)
 from idf_build_apps.manifest.manifest import (
     Manifest,
 )
@@ -34,3 +42,13 @@ test2:
     assert manifest.enable_test_targets('test1') == ['esp32', 'esp32s2']
     assert manifest.enable_build_targets('test2') == ['linux']
     assert manifest.enable_test_targets('test2') == ['linux']
+
+
+class TestIfParser:
+    def test_idf_version(self, monkeypatch):
+        monkeypatch.setattr(idf_build_apps.manifest.if_parser, 'IDF_VERSION', Version('5.9.0'))
+        statement = 'IDF_VERSION > "5.10.0"'
+        assert BOOL_STMT.parseString(statement)[0].get_value('esp32', 'foo') is False
+
+        statement = 'IDF_VERSION in  ["5.9.0"]'
+        assert BOOL_STMT.parseString(statement)[0].get_value('esp32', 'foo') is True

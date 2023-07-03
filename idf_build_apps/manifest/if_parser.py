@@ -6,6 +6,9 @@ from ast import (
     literal_eval,
 )
 
+from packaging.version import (
+    Version,
+)
 from pyparsing import (
     Keyword,
     Literal,
@@ -21,9 +24,14 @@ from pyparsing import (
 )
 
 from ..constants import (
+    IDF_VERSION,
     IDF_VERSION_MAJOR,
     IDF_VERSION_MINOR,
     IDF_VERSION_PATCH,
+)
+from ..utils import (
+    InvalidInput,
+    to_version,
 )
 from .soc_header import (
     SOC_HEADERS,
@@ -72,6 +80,9 @@ class ChipAttr(Stmt):
         if self.attr == 'INCLUDE_DEFAULT':
             return 1 if target in FolderRule.DEFAULT_BUILD_TARGETS else 0
 
+        if self.attr == 'IDF_VERSION':
+            return IDF_VERSION
+
         if self.attr == 'IDF_VERSION_MAJOR':
             return IDF_VERSION_MAJOR
 
@@ -119,37 +130,42 @@ class List_(Stmt):
 
 
 class BoolStmt(Stmt):
+    _OP_DICT = {
+        '==': lambda x, y: x == y,
+        '!=': lambda x, y: x != y,
+        '>': lambda x, y: x > y,
+        '>=': lambda x, y: x >= y,
+        '<': lambda x, y: x < y,
+        '<=': lambda x, y: x <= y,
+        'not in': lambda x, y: x not in y,
+        'in': lambda x, y: x in y,
+    }
+
     def __init__(self, t):
         self.left = t[0]  # type: Stmt
         self.comparison = t[1]  # type: str
         self.right = t[2]  # type: Stmt
 
     def get_value(self, target, config_name):  # type: (str, str) -> any
-        if self.comparison == '==':
-            return self.left.get_value(target, config_name) == self.right.get_value(target, config_name)
+        _l = self.left.get_value(target, config_name)
+        _r = self.right.get_value(target, config_name)
 
-        if self.comparison == '!=':
-            return self.left.get_value(target, config_name) != self.right.get_value(target, config_name)
+        if self.comparison not in ['in', 'not in']:
+            # will use version comparison if any of the operands is a Version
+            if any(isinstance(x, Version) for x in [_l, _r]):
+                _l = to_version(_l)
+                _r = to_version(_r)
+        else:
+            # use str for "in" and "not in" operator
+            if isinstance(_l, Version):
+                _l = str(_l)
+            if isinstance(_r, Version):
+                _r = str(_r)
 
-        if self.comparison == '>':
-            return self.left.get_value(target, config_name) > self.right.get_value(target, config_name)
+        if self.comparison in self._OP_DICT:
+            return self._OP_DICT[self.comparison](_l, _r)
 
-        if self.comparison == '>=':
-            return self.left.get_value(target, config_name) >= self.right.get_value(target, config_name)
-
-        if self.comparison == '<':
-            return self.left.get_value(target, config_name) < self.right.get_value(target, config_name)
-
-        if self.comparison == '<=':
-            return self.left.get_value(target, config_name) <= self.right.get_value(target, config_name)
-
-        if self.comparison == 'not in':
-            return self.left.get_value(target, config_name) not in self.right.get_value(target, config_name)
-
-        if self.comparison == 'in':
-            return self.left.get_value(target, config_name) in self.right.get_value(target, config_name)
-
-        raise ValueError('Unsupported comparison operator: "{}"'.format(self.comparison))
+        raise InvalidInput('Unsupported comparison operator: "{}"'.format(self.comparison))
 
 
 class BoolExpr(Stmt):

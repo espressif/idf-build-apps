@@ -10,8 +10,8 @@ from pathlib import (
     Path,
 )
 
-from packaging.version import (
-    Version,
+from .utils import (
+    to_version,
 )
 
 _BUILDING_DOCS = bool(os.getenv('BUILDING_DOCS'))
@@ -69,4 +69,4 @@ if _BUILDING_DOCS:
 else:
     IDF_VERSION_MAJOR, IDF_VERSION_MINOR, IDF_VERSION_PATCH = _idf_version_from_cmake()
 
-IDF_VERSION = Version('{}.{}.{}'.format(IDF_VERSION_MAJOR, IDF_VERSION_MINOR, IDF_VERSION_PATCH))
+IDF_VERSION = to_version('{}.{}.{}'.format(IDF_VERSION_MAJOR, IDF_VERSION_MINOR, IDF_VERSION_PATCH))

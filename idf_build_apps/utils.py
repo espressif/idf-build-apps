@@ -13,6 +13,10 @@ from pathlib import (
     Path,
 )
 
+from packaging.version import (
+    Version,
+)
+
 from . import (
     LOGGER,
 )
@@ -35,7 +39,7 @@ class ConfigRule:
         ConfigRule represents the sdkconfig file and the config name.
 
         For example:
-            - filename='', config_name='default' — represents the default app configuration, and gives it a name
+            - filename='', config_name='default' - represents the default app configuration, and gives it a name
                 'default'
             - filename='sdkconfig.*', config_name=None - represents the set of configurations, names match the wildcard
                 value
@@ -101,6 +105,10 @@ class BuildError(RuntimeError):
 class InvalidCommand(SystemExit):
     def __init__(self, msg):
         super(InvalidCommand, self).__init__('Invalid Command: ' + msg.strip())
+
+
+class InvalidInput(SystemExit):
+    """Invalid input from user"""
 
 
 def rmdir(path, exclude_file_patterns=None):
@@ -212,6 +220,16 @@ def to_absolute_path(s, rootpath=None):  # type: (str, str | None) -> Path
         return sp.resolve()
     else:
         return (rp / sp).resolve()
+
+
+def to_version(s):  # type: (any) -> Version
+    if isinstance(s, Version):
+        return s
+
+    try:
+        return Version(str(s))
+    except ValueError:
+        raise InvalidInput('Invalid version: {}'.format(s))
 
 
 def files_matches_patterns(
