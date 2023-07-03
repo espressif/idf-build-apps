@@ -39,7 +39,7 @@ class ConfigRule:
         ConfigRule represents the sdkconfig file and the config name.
 
         For example:
-            - filename='', config_name='default' — represents the default app configuration, and gives it a name
+            - filename='', config_name='default' - represents the default app configuration, and gives it a name
                 'default'
             - filename='sdkconfig.*', config_name=None - represents the set of configurations, names match the wildcard
                 value
