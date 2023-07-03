@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Support keyword `IDF_VERSION` in the if statement of the manifest file
+
 ## [1.0.1] (2023-06-12)
 
 ### Fixed
