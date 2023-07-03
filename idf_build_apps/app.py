@@ -732,10 +732,14 @@ class CMakeApp(App):
         if returncode != 0:
             raise BuildError('Build failed with exit code {}'.format(returncode))
 
-        if has_unignored_warning:
+        if self.check_warnings and has_unignored_warning:
             raise BuildError('Build succeeded with warnings')
 
-        LOGGER.info('=> Build succeeded')
+        if has_unignored_warning:
+            LOGGER.info('=> Build succeeded with warnings')
+        else:
+            LOGGER.info('=> Build succeeded')
+
         return True
 
     @classmethod

@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 
 - Support keyword `IDF_VERSION` in the if statement of the manifest file
 
+### Fixed
+
+- Build failed with warnings even without passing `--check-warnings`
+
 ## [1.0.1] (2023-06-12)
 
 ### Fixed
