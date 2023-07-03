@@ -4,18 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.1] (2023-06-12)
 
-## Fixed
+### Fixed
 
 - glob patterns are matched recursively
 
 ## [1.0.0] (2023-05-25)
 
-## Added
+### Added
 
 - Support keyword `depends_filepatterns` in the manifest file
 - Support expanding environment variables in the manifest files
 
-## BREAKING CHANGES
+### BREAKING CHANGES
 
 - Attributes Renamed
   - `App.requires_components` renamed to `App.depends_components`
