@@ -29,6 +29,9 @@ from .constants import (
     IDF_PY,
     IDF_SIZE_PY,
     IDF_VERSION,
+    IDF_VERSION_MAJOR,
+    IDF_VERSION_MINOR,
+    IDF_VERSION_PATCH,
     PROJECT_DESCRIPTION_JSON,
 )
 from .manifest.manifest import (
@@ -64,6 +67,7 @@ class App(object):
     FULL_NAME_PLACEHOLDER = '@f'  # replace it with escaped self.app_dir
     INDEX_PLACEHOLDER = '@i'  # replace it with the build index
     PARALLEL_INDEX_PLACEHOLDER = '@p'  # replace it with the parallel index
+    IDF_VERSION_PLACEHOLDER = '@v'  # replace it with the IDF version
 
     BUILD_SYSTEM = 'unknown'
 
@@ -208,6 +212,9 @@ class App(object):
         if self.index is not None:
             path = path.replace(self.INDEX_PLACEHOLDER, str(self.index))
         path = path.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
+        path = path.replace(
+            self.IDF_VERSION_PLACEHOLDER, '{}_{}_{}'.format(IDF_VERSION_MAJOR, IDF_VERSION_MINOR, IDF_VERSION_PATCH)
+        )
         path = path.replace(self.TARGET_PLACEHOLDER, self.target)
         path = path.replace(self.NAME_PLACEHOLDER, self.name)
         if self.FULL_NAME_PLACEHOLDER in path:  # to avoid recursion to the call to app_dir in the next line:

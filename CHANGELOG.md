@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Support keyword `IDF_VERSION` in the if statement of the manifest file
+- Support placeholder `@v` for ESP-IDF version. For example, '5_2_0'
 
 ### Fixed
 
