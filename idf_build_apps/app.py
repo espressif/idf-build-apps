@@ -36,7 +36,6 @@ from .constants import (
 )
 from .manifest.manifest import (
     FolderRule,
-    Manifest,
 )
 from .utils import (
     BuildError,
@@ -48,11 +47,6 @@ from .utils import (
     to_list,
 )
 
-try:
-    import typing as t
-except ImportError:
-    pass
-
 
 class BuildOrNot:
     YES = 'yes'
@@ -60,7 +54,7 @@ class BuildOrNot:
     UNKNOWN = 'unknown'
 
 
-class App(object):
+class App:
     TARGET_PLACEHOLDER = '@t'  # replace it with self.target
     WILDCARD_PLACEHOLDER = '@w'  # replace it with the wildcard, usually the sdkconfig
     NAME_PLACEHOLDER = '@n'  # replace it with self.name
@@ -213,7 +207,7 @@ class App(object):
             path = path.replace(self.INDEX_PLACEHOLDER, str(self.index))
         path = path.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
         path = path.replace(
-            self.IDF_VERSION_PLACEHOLDER, '{}_{}_{}'.format(IDF_VERSION_MAJOR, IDF_VERSION_MINOR, IDF_VERSION_PATCH)
+            self.IDF_VERSION_PLACEHOLDER, f'{IDF_VERSION_MAJOR}_{IDF_VERSION_MINOR}_{IDF_VERSION_PATCH}'
         )
         path = path.replace(self.TARGET_PLACEHOLDER, self.target)
         path = path.replace(self.NAME_PLACEHOLDER, self.name)
@@ -342,9 +336,7 @@ class App(object):
                         LOGGER.debug('=> Expand sdkconfig file %s to %s', f, expanded_fp)
                         res.append(expanded_fp)
                         # copy the related target-specific sdkconfig files
-                        for target_specific_file in Path(f).parent.glob(
-                            os.path.basename(f) + '.{}'.format(self.target)
-                        ):
+                        for target_specific_file in Path(f).parent.glob(os.path.basename(f) + f'.{self.target}'):
                             LOGGER.debug(
                                 '=> Copy target-specific sdkconfig file %s to %s', target_specific_file, expanded_dir
                             )
@@ -570,7 +562,7 @@ class CMakeApp(App):
 
     def __init__(self, *args, **kwargs):
         self.cmake_vars = {}
-        super(CMakeApp, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def build(
         self,
@@ -634,7 +626,7 @@ class CMakeApp(App):
             self.build_path,
             '-C',
             self.work_dir,
-            '-DIDF_TARGET={}'.format(self.target),
+            f'-DIDF_TARGET={self.target}',
             # set to ";" to disable `default` when no such variable
             '-DSDKCONFIG_DEFAULTS={}'.format(';'.join(self.sdkconfig_files) if self.sdkconfig_files else ';'),
         ]
@@ -657,7 +649,7 @@ class CMakeApp(App):
             )
 
             with open(os.path.join(self.build_path, PROJECT_DESCRIPTION_JSON)) as fr:
-                build_components = set(item for item in json.load(fr)['build_components'] if item)
+                build_components = {item for item in json.load(fr)['build_components'] if item}
 
             if not set(modified_components).intersection(set(build_components)):
                 LOGGER.info(
@@ -678,7 +670,7 @@ class CMakeApp(App):
         build_args = deepcopy(common_args)
         if self.cmake_vars:
             for key, val in self.cmake_vars.items():
-                build_args.append('-D{}={}'.format(key, val))
+                build_args.append(f'-D{key}={val}')
             if 'TEST_EXCLUDE_COMPONENTS' in self.cmake_vars and 'TEST_COMPONENTS' not in self.cmake_vars:
                 build_args.append('-DTESTS_ALL=1')
             if 'CONFIG_APP_BUILD_BOOTLOADER' in self.cmake_vars:
@@ -737,7 +729,7 @@ class CMakeApp(App):
             )
 
         if returncode != 0:
-            raise BuildError('Build failed with exit code {}'.format(returncode))
+            raise BuildError(f'Build failed with exit code {returncode}')
 
         if self.check_warnings and has_unignored_warning:
             raise BuildError('Build succeeded with warnings')

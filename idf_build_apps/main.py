@@ -43,11 +43,6 @@ from .utils import (
     to_list,
 )
 
-try:
-    import typing as t
-except ImportError:
-    pass
-
 
 def _check_app_dependency(
     manifest_rootpath,  # type: str
@@ -453,16 +448,16 @@ class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
                 default_type = type(action.default)
 
             if action.nargs in [argparse.ZERO_OR_MORE, argparse.ONE_OR_MORE]:
-                _type = 'list[{}]'.format(default_type.__name__)
+                _type = f'list[{default_type.__name__}]'
             else:
                 _type = default_type.__name__
 
             defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
             if action.option_strings or action.nargs in defaulting_nargs:
-                _help += '{} - default: %(default)s'.format(self.LINE_SEP)
+                _help += f'{self.LINE_SEP} - default: %(default)s'
 
-            _help += '{} - config name: {}'.format(self.LINE_SEP, action.dest)
-            _help += '{} - config type: {}'.format(self.LINE_SEP, _type)
+            _help += f'{self.LINE_SEP} - config name: {action.dest}'
+            _help += f'{self.LINE_SEP} - config type: {_type}'
 
         return _help
 
@@ -512,7 +507,8 @@ def get_parser():  # type: () -> argparse.ArgumentParser
     )
     common_args.add_argument(
         '--build-log',
-        help='Relative to build dir. The build log will be written to this file instead of sys.stdout if specified. Can expand placeholders',
+        help='Relative to build dir. The build log will be written to this file instead of sys.stdout if specified. '
+        'Can expand placeholders',
     )
     common_args.add_argument(
         '--size-file',
@@ -539,7 +535,9 @@ def get_parser():  # type: () -> argparse.ArgumentParser
         default=0,
         action='count',
         help='Increase the logging level of the whole process. Can be specified multiple times. '
-        'By default set to WARNING level. Specify once to set to INFO level. Specify twice or more to set to DEBUG level',
+        'By default set to WARNING level. '
+        'Specify once to set to INFO level. '
+        'Specify twice or more to set to DEBUG level',
     )
     common_args.add_argument(
         '--log-file',
@@ -635,11 +633,13 @@ def get_parser():  # type: () -> argparse.ArgumentParser
     )
     build_parser.add_argument(
         '--collect-size-info',
-        help='write size info json file while building into the specified file. each line is a json object. Can expand placeholders',
+        help='write size info json file while building into the specified file. each line is a json object. '
+        'Can expand placeholders',
     )
     build_parser.add_argument(
         '--collect-app-info',
-        help='write app info json file while building into the specified file. each line is a json object. Can expand placeholders',
+        help='write app info json file while building into the specified file. each line is a json object. '
+        'Can expand placeholders',
     )
     build_parser.add_argument(
         '--ignore-warning-str',

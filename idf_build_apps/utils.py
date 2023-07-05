@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import fnmatch
+import glob
 import os
 import shutil
 import subprocess
@@ -20,17 +21,6 @@ from packaging.version import (
 from . import (
     LOGGER,
 )
-
-try:
-    import typing as t
-except ImportError:
-    pass
-
-
-if sys.version_info < (3, 5):
-    import glob2 as glob
-else:
-    import glob
 
 
 class ConfigRule:
@@ -104,7 +94,7 @@ class BuildError(RuntimeError):
 
 class InvalidCommand(SystemExit):
     def __init__(self, msg):
-        super(InvalidCommand, self).__init__('Invalid Command: ' + msg.strip())
+        super().__init__('Invalid Command: ' + msg.strip())
 
 
 class InvalidInput(SystemExit):
@@ -184,7 +174,7 @@ def subprocess_run(
 
     returncode = p.wait()
     if check and returncode != 0:
-        raise BuildError('Command {} returned non-zero exit status {}'.format(cmd, returncode))
+        raise BuildError(f'Command {cmd} returned non-zero exit status {returncode}')
 
     return returncode
 
@@ -229,7 +219,7 @@ def to_version(s):  # type: (any) -> Version
     try:
         return Version(str(s))
     except ValueError:
-        raise InvalidInput('Invalid version: {}'.format(s))
+        raise InvalidInput(f'Invalid version: {s}')
 
 
 def files_matches_patterns(

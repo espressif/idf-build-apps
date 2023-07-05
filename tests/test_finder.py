@@ -280,7 +280,7 @@ class TestFindWithSdkconfigFiles:
                 _default_sdkconfig_path = default_sdkconfig_path
                 break
         else:
-            raise ValueError('no app without {}'.format(DEFAULT_SDKCONFIG))
+            raise ValueError(f'no app without {DEFAULT_SDKCONFIG}')
 
         try:
             filtered_apps = find_apps(test_dir, 'esp32', recursive=True)
