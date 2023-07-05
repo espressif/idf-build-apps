@@ -58,6 +58,14 @@ changelog = "https://github.com/espressif/idf-build-apps/blob/master/CHANGELOG.m
 [project.scripts]
 idf-build-apps = "idf_build_apps:main.main"
 
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "1.0.2"
+tag_format = "v$version"
+version_files = [
+    "idf_build_apps/__init__.py",
+]
+
 [tool.pytest.ini_options]
 addopts = "-s --log-cli-level DEBUG"
 testpaths = [
