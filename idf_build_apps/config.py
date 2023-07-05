@@ -2,9 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from pathlib import (
-    Path,
-)
 
 from idf_build_apps.utils import (
     to_absolute_path,
@@ -13,7 +10,7 @@ from idf_build_apps.utils import (
 
 class InvalidTomlError(SystemExit):
     def __init__(self, filepath, msg):  # type: (str | Path, str) -> None
-        super().__init__('Failed parsing toml file "{}" with error: {}'.format(filepath, msg))
+        super().__init__(f'Failed parsing toml file "{filepath}" with error: {msg}')
 
 
 PYPROJECT_TOML_FN = 'pyproject.toml'
@@ -72,14 +69,14 @@ def get_valid_config(starts_from=os.getcwd(), custom_path=None):  # type: (str, 
         config, filepath = _get_config_from_file(to_absolute_path(custom_path))
         if config is not None:
             # use print here since the verbose settings may be set in the config file
-            print('Using custom config file: {}'.format(filepath))
+            print(f'Using custom config file: {filepath}')
             return config
 
     while cur_dir != root_dir and config is None:
         config, filepath = _get_config_from_path(cur_dir)
         if config is not None:
             # use print here since the verbose settings may be set in the config file
-            print('Using config file: {}'.format(filepath))
+            print(f'Using config file: {filepath}')
             return config
 
         if (cur_dir / '.git').exists():

@@ -24,7 +24,7 @@ if _BUILDING_DOCS:
 else:
     _idf_env = os.getenv('IDF_PATH', '')
 if not os.path.isdir(_idf_env):
-    raise ValueError('Invalid value for IDF_PATH: {}'.format(_idf_env))
+    raise ValueError(f'Invalid value for IDF_PATH: {_idf_env}')
 
 
 IDF_PATH = Path(_idf_env).resolve()
@@ -47,7 +47,7 @@ ALL_TARGETS = SUPPORTED_TARGETS + PREVIEW_TARGETS
 def _idf_version_from_cmake():  # type: () -> (int, int, int)
     version_path = str(IDF_PATH / 'tools' / 'cmake' / 'version.cmake')
     if not os.path.isfile(version_path):
-        raise ValueError('File {} does not exist'.format(version_path))
+        raise ValueError(f'File {version_path} does not exist')
 
     regex = re.compile(r'^\s*set\s*\(\s*IDF_VERSION_([A-Z]{5})\s+(\d+)')
     ver = {}
@@ -61,7 +61,7 @@ def _idf_version_from_cmake():  # type: () -> (int, int, int)
 
         return int(ver['MAJOR']), int(ver['MINOR']), int(ver['PATCH'])
     except (KeyError, OSError):
-        raise ValueError('Cannot find ESP-IDF version in {}'.format(version_path))
+        raise ValueError(f'Cannot find ESP-IDF version in {version_path}')
 
 
 if _BUILDING_DOCS:
@@ -69,4 +69,4 @@ if _BUILDING_DOCS:
 else:
     IDF_VERSION_MAJOR, IDF_VERSION_MINOR, IDF_VERSION_PATCH = _idf_version_from_cmake()
 
-IDF_VERSION = to_version('{}.{}.{}'.format(IDF_VERSION_MAJOR, IDF_VERSION_MINOR, IDF_VERSION_PATCH))
+IDF_VERSION = to_version(f'{IDF_VERSION_MAJOR}.{IDF_VERSION_MINOR}.{IDF_VERSION_PATCH}')

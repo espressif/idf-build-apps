@@ -16,7 +16,6 @@ from ..constants import (
 )
 from .if_parser import (
     BOOL_EXPR,
-    BoolExpr,
 )
 
 
@@ -67,7 +66,7 @@ class FolderRule:
         return hash(self.folder)
 
     def __repr__(self):
-        return 'FolderRule({})'.format(self.folder)
+        return f'FolderRule({self.folder})'
 
     def _enable_build(self, target, config_name):  # type: (str, str) -> bool
         if self.enable:
@@ -139,7 +138,7 @@ class FolderRule:
 
 class DefaultRule(FolderRule):
     def __init__(self, folder):  # type: (Path) -> None
-        super(DefaultRule, self).__init__(folder)
+        super().__init__(folder)
 
 
 class Manifest:

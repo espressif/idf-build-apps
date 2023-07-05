@@ -11,7 +11,6 @@ from . import (
     LOGGER,
 )
 from .app import (
-    App,
     BuildOrNot,
     CMakeApp,
 )
@@ -88,7 +87,7 @@ def _get_apps_from_path(
             sdkconfig_paths_matched = True  # skip the next block for no wildcard config rules
 
         for sdkconfig_path in sdkconfig_paths:
-            if sdkconfig_path.endswith('.{}'.format(target)):
+            if sdkconfig_path.endswith(f'.{target}'):
                 LOGGER.debug('=> Skipping sdkconfig %s which is target-specific', sdkconfig_path)
                 continue
 
@@ -151,7 +150,7 @@ def _find_apps(
     build_system='cmake',  # type: str
     recursive=False,  # type: bool
     exclude_list=None,  # type: list[str] | None
-    **kwargs
+    **kwargs,
 ):  # type: (...) -> list[App]
     exclude_list = exclude_list or []
     LOGGER.debug(

@@ -2,9 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from pathlib import (
-    Path,
-)
 
 from pyparsing import (
     CaselessLiteral,
@@ -16,7 +13,6 @@ from pyparsing import (
     OneOrMore,
     Optional,
     ParseException,
-    ParseResults,
     QuotedString,
     Word,
     alphas,
@@ -53,7 +49,7 @@ _define_expr = '#define' + Optional(_name)('name') + Optional(_value)
 def get_defines(header_path):  # type: (Path) -> list[str]
     defines = []
     logging.debug('Reading macros from %s...', header_path)
-    with open(str(header_path), 'r') as f:
+    with open(str(header_path)) as f:
         output = f.read()
 
     for line in output.split('\n'):
@@ -79,7 +75,7 @@ class SocHeader(dict):
         else:
             soc_header_dict = {}
 
-        super(SocHeader, self).__init__(**soc_header_dict)
+        super().__init__(**soc_header_dict)
 
     @staticmethod
     def _get_dir_from_candidates(candidates):  # type: (list[Path]) -> Path | None

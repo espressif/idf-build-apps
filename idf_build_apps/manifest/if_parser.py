@@ -118,7 +118,7 @@ class String(Stmt):
         self.expr = t[0]
 
     def get_value(self, target, config_name):  # type: (str, str) -> any
-        return literal_eval('"{}"'.format(self.expr))  # double quotes is swallowed by QuotedString
+        return literal_eval(f'"{self.expr}"')  # double quotes is swallowed by QuotedString
 
 
 class List_(Stmt):
@@ -165,7 +165,7 @@ class BoolStmt(Stmt):
         if self.comparison in self._OP_DICT:
             return self._OP_DICT[self.comparison](_l, _r)
 
-        raise InvalidInput('Unsupported comparison operator: "{}"'.format(self.comparison))
+        raise InvalidInput(f'Unsupported comparison operator: "{self.comparison}"')
 
 
 class BoolExpr(Stmt):
