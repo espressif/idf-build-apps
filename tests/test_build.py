@@ -20,7 +20,7 @@ class TestBuild:
     def test_build_hello_world(self, tmpdir, capsys):
         path = IDF_PATH / 'examples' / 'get-started' / 'hello_world'
 
-        CMakeApp(str(path), 'esp32', work_dir=str(tmpdir / 'test')).build()
+        CMakeApp(app_dir=path, target='esp32', work_dir=tmpdir / 'test').build()
 
         captured = capsys.readouterr()
         assert 'Configuring done' in captured.out
@@ -44,7 +44,7 @@ class TestBuild:
     ):
         path = IDF_PATH / 'examples' / 'get-started' / 'hello_world'
 
-        is_built = CMakeApp(str(path), 'esp32', work_dir=str(tmpdir / 'test')).build(
+        is_built = CMakeApp(app_dir=path, target='esp32', work_dir=tmpdir / 'test').build(
             modified_components=modified_components,
             check_app_dependencies=check_app_dependencies,
         )
@@ -68,7 +68,7 @@ class TestBuild:
     def test_build_with_modified_files(self, modified_files, is_built):
         test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
 
-        app = CMakeApp(test_dir, 'esp32')
+        app = CMakeApp(app_dir=test_dir, target='esp32')
         built = app.build(
             modified_components=[],
             modified_files=modified_files,

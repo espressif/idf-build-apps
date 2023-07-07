@@ -72,13 +72,15 @@ class ChipAttr(Stmt):
         self.attr = t[0]
 
     def get_value(self, target, config_name):  # type: (str, str) -> any
-        from .manifest import FolderRule  # lazy-load
+        from .. import (
+            CONFIG,
+        )
 
         if self.attr == 'IDF_TARGET':
             return target
 
         if self.attr == 'INCLUDE_DEFAULT':
-            return 1 if target in FolderRule.DEFAULT_BUILD_TARGETS else 0
+            return 1 if target in CONFIG.default_build_targets else 0
 
         if self.attr == 'IDF_VERSION':
             return IDF_VERSION

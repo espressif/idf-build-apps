@@ -5,14 +5,14 @@ import os
 import pytest
 
 from idf_build_apps import (
-    App,
+    CONFIG,
     setup_logging,
 )
 
 
 @pytest.fixture(autouse=True)
 def clean_cls_attr():
-    App.MANIFEST = None
+    CONFIG.reset_and_config()
 
 
 @pytest.fixture(autouse=True)

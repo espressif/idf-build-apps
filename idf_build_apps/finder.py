@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
 import os.path
 import re
+import typing as t
 from pathlib import (
     Path,
 )
@@ -11,52 +11,40 @@ from . import (
     LOGGER,
 )
 from .app import (
-    BuildOrNot,
+    App,
+    BuildStatus,
     CMakeApp,
 )
 from .utils import (
     config_rules_from_str,
     to_absolute_path,
-    to_list,
 )
 
 
 def _get_apps_from_path(
-    path,  # type: str
-    target,  # type: str
-    build_system='cmake',  # type: str
-    work_dir=None,  # type: str | None
-    build_dir='build',  # type: str
-    config_rules_str=None,  # type: list[str] | str | None
-    build_log_path=None,  # type: str | None
-    size_json_path=None,  # type: str | None
-    check_warnings=False,  # type: bool
-    preserve=True,  # type: bool
-    manifest_rootpath=None,  # type: str | None
-    modified_components=None,  # type: list[str] | str | None
-    modified_files=None,  # type: list[str] | str | None,
-    check_app_dependencies=False,  # type: bool
-    sdkconfig_defaults_str=None,  # type: str | None
-):  # type: (...) -> list[App]
-    modified_components = to_list(modified_components)
-    modified_files = to_list(modified_files)
-
+    path: str,
+    target: str,
+    *,
+    build_system: str = 'cmake',
+    work_dir: t.Optional[str] = None,
+    build_dir: t.Optional[str] = 'build',
+    config_rules_str: t.Optional[t.List[str]] = None,
+    build_log_path: t.Optional[str] = None,
+    size_json_path: t.Optional[str] = None,
+    check_warnings: bool = False,
+    preserve: bool = True,
+) -> t.List[App]:
     def _validate_app(_app):  # type: (App) -> bool
+        LOGGER.debug('Validating app %s, %s', _app.name, _app.supported_targets)
         if target not in _app.supported_targets:
-            LOGGER.debug('=> Skipping. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
-            return False
+            _app.build_status = BuildStatus.SKIPPED
+            _app.skipped_reason = f'Only supports targets: {", ".join(_app.supported_targets)}'
 
-        _app.check_should_build(
-            manifest_rootpath=manifest_rootpath,
-            modified_components=modified_components,
-            modified_files=modified_files,
-            check_app_dependencies=check_app_dependencies,
-        )
+        if _app.build_status == BuildStatus.SKIPPED:
+            LOGGER.debug('Skipping. %s', _app.skipped_reason)
+            return False
 
         # for unknown ones, we keep them to the build stage to judge
-        if _app.should_build == BuildOrNot.NO:
-            return False
-
         return True
 
     if build_system == 'cmake':
@@ -101,8 +89,8 @@ def _get_apps_from_path(
                 config_name = groups.group(1)
 
             app = app_cls(
-                path,
-                target,
+                app_dir=path,
+                target=target,
                 sdkconfig_path=sdkconfig_path,
                 config_name=config_name,
                 work_dir=work_dir,
@@ -111,7 +99,6 @@ def _get_apps_from_path(
                 size_json_path=size_json_path,
                 check_warnings=check_warnings,
                 preserve=preserve,
-                sdkconfig_defaults_str=sdkconfig_defaults_str,
             )
             if _validate_app(app):
                 LOGGER.debug('Found app: %s', app)
@@ -122,8 +109,8 @@ def _get_apps_from_path(
     # no config rules matched, use default app
     if not sdkconfig_paths_matched:
         app = app_cls(
-            path,
-            target,
+            app_dir=path,
+            target=target,
             sdkconfig_path=None,
             config_name=default_config_name,
             work_dir=work_dir,
@@ -132,9 +119,7 @@ def _get_apps_from_path(
             size_json_path=size_json_path,
             check_warnings=check_warnings,
             preserve=preserve,
-            sdkconfig_defaults_str=sdkconfig_defaults_str,
         )
-
         if _validate_app(app):
             LOGGER.debug('Found app: %s', app)
             apps.append(app)
@@ -145,13 +130,14 @@ def _get_apps_from_path(
 
 
 def _find_apps(
-    path,  # type: str
-    target,  # type: str
-    build_system='cmake',  # type: str
-    recursive=False,  # type: bool
-    exclude_list=None,  # type: list[str] | None
+    path: str,
+    target: str,
+    *,
+    build_system: str = 'cmake',
+    recursive: bool = False,
+    exclude_list: t.Optional[t.List[str]] = None,
     **kwargs,
-):  # type: (...) -> list[App]
+) -> t.List[App]:
     exclude_list = exclude_list or []
     LOGGER.debug(
         'Looking for %s apps in %s%s with target %s', build_system, path, ' recursively' if recursive else '', target
@@ -161,7 +147,7 @@ def _find_apps(
         if exclude_list:
             LOGGER.warning('--exclude option is ignored when used without --recursive')
 
-        return _get_apps_from_path(path, target, build_system, **kwargs)
+        return _get_apps_from_path(path, target, build_system=build_system, **kwargs)
 
     # The remaining part is for recursive == True
     apps = []
@@ -180,7 +166,7 @@ def _find_apps(
             del dirs[:]
             continue
 
-        _found_apps = _get_apps_from_path(root, target, build_system, **kwargs)
+        _found_apps = _get_apps_from_path(root, target, build_system=build_system, **kwargs)
         if _found_apps:  # root has at least one app
             LOGGER.debug('=> Stop iteration sub dirs of %s since it has apps', root)
             del dirs[:]

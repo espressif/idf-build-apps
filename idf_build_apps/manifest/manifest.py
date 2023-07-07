@@ -1,15 +1,18 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import os.path
+import typing as t
 from pathlib import (
     Path,
 )
 
 import yaml
 
+from .. import (
+    LOGGER,
+)
 from ..constants import (
     ALL_TARGETS,
-    SUPPORTED_TARGETS,
 )
 from .if_parser import (
     BOOL_EXPR,
@@ -34,8 +37,6 @@ class IfClause:
 
 
 class FolderRule:
-    DEFAULT_BUILD_TARGETS = SUPPORTED_TARGETS
-
     def __init__(
         self,
         folder,  # type: Path
@@ -66,6 +67,10 @@ class FolderRule:
         return f'FolderRule({self.folder})'
 
     def _enable_build(self, target, config_name):  # type: (str, str) -> bool
+        from .. import (
+            CONFIG,
+        )
+
         if self.enable:
             res = False
             for clause in self.enable:
@@ -73,7 +78,7 @@ class FolderRule:
                     res = True
                     break
         else:
-            res = target in self.DEFAULT_BUILD_TARGETS
+            res = target in CONFIG.default_build_targets
 
         if self.disable:
             for clause in self.disable:
@@ -107,6 +112,8 @@ class FolderRule:
         if default_sdkconfig_target and res != [default_sdkconfig_target]:
             res = [default_sdkconfig_target]
 
+        LOGGER.debug('FUCK: %s', res)
+
         return sorted(res)
 
     def enable_test_targets(
@@ -126,17 +133,18 @@ class DefaultRule(FolderRule):
 
 
 class Manifest:
-    # could be reassigned later
-    ROOTPATH = os.curdir
-
     def __init__(
         self,
-        rules,  # type: list[FolderRule] | set[FolderRule]
-    ):  # type: (...) -> None
+        rules: t.Iterable[FolderRule],
+    ) -> None:
         self.rules = sorted(rules, key=lambda x: x.folder)
 
     @classmethod
     def from_file(cls, path):  # type: (str) -> 'Manifest'
+        from .. import (
+            CONFIG,
+        )
+
         with open(path) as f:
             manifest_dict = yaml.safe_load(f) or {}
 
@@ -145,7 +153,7 @@ class Manifest:
             if os.path.isabs(folder):
                 folder = Path(folder)
             else:
-                folder = Path(cls.ROOTPATH, folder)
+                folder = Path(CONFIG.manifest_rootpath, folder)
 
             rules.append(FolderRule(folder, **folder_rule if folder_rule else {}))
 

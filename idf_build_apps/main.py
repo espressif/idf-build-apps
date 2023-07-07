@@ -4,19 +4,21 @@
 import argparse
 import json
 import os
-import re
 import shutil
 import sys
 import textwrap
+import typing as t
 from pathlib import (
     Path,
 )
 
 from . import (
+    CONFIG,
     LOGGER,
 )
 from .app import (
     App,
+    BuildStatus,
 )
 from .config import (
     get_valid_config,
@@ -30,136 +32,78 @@ from .finder import (
 from .log import (
     setup_logging,
 )
-from .manifest.manifest import (
-    FolderRule,
-    Manifest,
-)
 from .utils import (
     BuildError,
     InvalidCommand,
-    files_matches_patterns,
     get_parallel_start_stop,
-    to_absolute_path,
     to_list,
 )
 
 
-def _check_app_dependency(
-    manifest_rootpath,  # type: str
-    modified_components,  # type: list[str] | None
-    modified_files,  # type: list[str] | None
-    ignore_app_dependencies_filepatterns,  # type: list[str] | None
-):  # type: (...) -> bool
-    # not check since modified_components and modified_files are not passed
-    if modified_components is None and modified_files is None:
-        return False
-
-    # not check since ignore_app_dependencies_filepatterns is passed and matched
-    if (
-        ignore_app_dependencies_filepatterns
-        and modified_files is not None
-        and files_matches_patterns(modified_files, ignore_app_dependencies_filepatterns, manifest_rootpath)
-    ):
-        LOGGER.debug(
-            'Skipping check component dependencies for apps since files %s matches patterns: %s',
-            ', '.join(modified_files),
-            ', '.join(ignore_app_dependencies_filepatterns),
-        )
-        return False
-
-    return True
-
-
 def find_apps(
-    paths,  # type: list[str] | str
-    target,  # type: str
-    build_system='cmake',  # type: str
-    recursive=False,  # type: bool
-    exclude_list=None,  # type: list[str] | None
-    work_dir=None,  # type: str | None
-    build_dir='build',  # type: str
-    config_rules_str=None,  # type: list[str] | str | None
-    build_log_path=None,  # type: str | None
-    size_json_path=None,  # type: str | None
-    check_warnings=False,  # type: bool
-    preserve=True,  # type: bool
-    manifest_rootpath=None,  # type: str | None
-    manifest_files=None,  # type: list[str] | str | None
-    default_build_targets=None,  # type: list[str] | str | None
-    modified_components=None,  # type: list[str] | str | None
-    modified_files=None,  # type: list[str] | str | None
-    ignore_app_dependencies_filepatterns=None,  # type: list[str] | str | None
-    sdkconfig_defaults=None,  # type: str | None
-):  # type: (...) -> list[App]
+    paths: t.Union[t.Iterable[str], str],
+    target: str,
+    *,
+    build_system: str = 'cmake',
+    recursive: bool = False,
+    exclude_list: t.Optional[t.List[str]] = None,
+    work_dir: t.Optional[str] = None,
+    build_dir: str = 'build',
+    config_rules_str: t.Union[t.Iterable[str], str, None] = None,
+    build_log_path: t.Optional[str] = None,
+    size_json_path: t.Optional[str] = None,
+    check_warnings: bool = False,
+    preserve: bool = True,
+    # settings starts here
+    default_build_targets: t.Union[t.Iterable[str], str, None] = None,
+    sdkconfig_defaults: t.Optional[str] = None,
+    # manifest files ones
+    manifest_rootpath: t.Optional[str] = None,
+    manifest_files: t.Union[t.Iterable[str], str, None] = None,
+    # check app dependency ones
+    modified_components: t.Union[t.Iterable[str], str, None] = None,
+    modified_files: t.Union[t.Iterable[str], str, None] = None,
+    ignore_app_dependencies_filepatterns: t.Union[t.Iterable[str], str, None] = None,
+) -> t.List[App]:
     """
     Find app directories in paths (possibly recursively), which contain apps for the given build system, compatible
     with the given target
 
     :param paths: list of app directories (can be / usually will be a relative path)
-    :type paths: list[str] | str
     :param target: desired value of IDF_TARGET; apps incompatible with the given target are skipped.
-    :type target: str
     :param build_system: name of the build system, now only support cmake
-    :type build_system: str
     :param recursive: Recursively search into the nested sub-folders if no app is found or not
-    :type recursive: bool
     :param exclude_list: list of paths to be excluded from the recursive search
-    :type exclude_list: list[str] | None
     :param work_dir: directory where the app should be copied before building. Support placeholders
-    :type work_dir: str | None
     :param build_dir: directory where the build will be done. Support placeholders.
-    :type build_dir: str
     :param config_rules_str: mapping of sdkconfig file name patterns to configuration names
-    :type config_rules_str: list[str] | str | None
     :param build_log_path: path of the build log. Support placeholders.
         The logs will go to stdout/stderr if not specified
-    :type build_log_path: str | None
     :param size_json_path: path of the size.json file. Support placeholders.
         Will not generate size file for each app if not specified
-    :type size_json_path: str | None
     :param check_warnings: Check for warnings in the build log or not
-    :type check_warnings: bool
     :param preserve: Preserve the built binaries or not
-    :type preserve: bool
     :param manifest_rootpath: The root path of the manifest files. Usually the folders specified in the manifest files
         are relative paths. Use the current directory if not specified
-    :type manifest_rootpath: str | None
     :param manifest_files: paths of the manifest files
-    :type manifest_files: list[str] | str | None
     :param default_build_targets: default build targets used in manifest files
-    :type default_build_targets: list[str] | str | None
     :param modified_components: modified components
-    :type modified_components: list[str] | str | None
     :param modified_files: modified files
-    :type modified_files: list[str] | str | None
     :param ignore_app_dependencies_filepatterns: file patterns that used for ignoring checking the component
         dependencies
-    :type ignore_app_dependencies_filepatterns: list[str] | str | None
     :param sdkconfig_defaults: semicolon-separated string, pass to idf.py -DSDKCONFIG_DEFAULTS if specified,
         also could be set via environment variables "SDKCONFIG_DEFAULTS"
-    :type sdkconfig_defaults: str | None
     :return: list of found apps
-    :rtype: list[App]
     """
-    if default_build_targets:
-        default_build_targets = to_list(default_build_targets)
-        LOGGER.info('Overriding DEFAULT_BUILD_TARGETS to %s', default_build_targets)
-        FolderRule.DEFAULT_BUILD_TARGETS = default_build_targets
-
-    # always set the manifest rootpath at the very beginning of find_apps in case ESP-IDF switches the branch.
-    Manifest.ROOTPATH = to_absolute_path(manifest_rootpath or os.curdir)
-
-    if manifest_files:
-        rules = set()
-        for _manifest_file in to_list(manifest_files):
-            LOGGER.debug('Loading manifest file: %s', _manifest_file)
-            rules.update(Manifest.from_file(_manifest_file).rules)
-        manifest = Manifest(rules)
-        App.MANIFEST = manifest
-
-    modified_components = to_list(modified_components)
-    modified_files = to_list(modified_files)
-    ignore_app_dependencies_filepatterns = to_list(ignore_app_dependencies_filepatterns)
+    CONFIG.reset_and_config(
+        default_build_targets=default_build_targets,
+        default_sdkconfig_defaults=sdkconfig_defaults,
+        manifest_rootpath=manifest_rootpath,
+        manifest_files=manifest_files,
+        modified_components=modified_components,
+        modified_files=modified_files,
+        ignore_app_dependencies_filepatterns=ignore_app_dependencies_filepatterns,
+    )
 
     apps = []
     if target == 'all':
@@ -173,9 +117,9 @@ def find_apps(
                 _find_apps(
                     path,
                     target,
-                    build_system,
-                    recursive,
-                    exclude_list or [],
+                    build_system=build_system,
+                    recursive=recursive,
+                    exclude_list=exclude_list or [],
                     work_dir=work_dir,
                     build_dir=build_dir or 'build',
                     config_rules_str=config_rules_str,
@@ -183,16 +127,6 @@ def find_apps(
                     size_json_path=size_json_path,
                     check_warnings=check_warnings,
                     preserve=preserve,
-                    manifest_rootpath=manifest_rootpath,
-                    check_app_dependencies=_check_app_dependency(
-                        manifest_rootpath=manifest_rootpath,
-                        modified_components=modified_components,
-                        modified_files=modified_files,
-                        ignore_app_dependencies_filepatterns=ignore_app_dependencies_filepatterns,
-                    ),
-                    modified_components=modified_components,
-                    modified_files=modified_files,
-                    sdkconfig_defaults_str=sdkconfig_defaults,
                 )
             )
     apps.sort()
@@ -202,87 +136,47 @@ def find_apps(
 
 
 def build_apps(
-    apps,  # type: list[App] | App
-    build_verbose=False,  # type: bool
-    parallel_count=1,  # type: int
-    parallel_index=1,  # type: int
-    dry_run=False,  # type: bool
-    keep_going=False,  # type: bool
-    collect_size_info=None,  # type: str | t.TextIO | None
-    collect_app_info=None,  # type: str | t.TextIO | None
-    ignore_warning_strs=None,  # type: list[str] | None
-    ignore_warning_file=None,  # type: t.TextIO | None
-    copy_sdkconfig=False,  # type: bool
-    manifest_rootpath=None,  # type: str | None
-    modified_components=None,  # type: list[str] | str | None
-    modified_files=None,  # type: list[str] | str | None
-    ignore_app_dependencies_filepatterns=None,  # type: list[str] | str | None
-):  # type: (...) -> (int, list[App]) | int
+    apps: t.List[App],
+    *,
+    build_verbose: bool = False,
+    parallel_count: int = 1,
+    parallel_index: int = 1,
+    dry_run: bool = False,
+    keep_going: bool = False,
+    collect_size_info: t.Optional[str] = None,
+    collect_app_info: t.Optional[str] = None,
+    ignore_warning_strs: t.Optional[t.List[str]] = None,
+    ignore_warning_file: t.Optional[t.List[t.TextIO]] = None,
+    copy_sdkconfig: bool = False,
+) -> int:
     """
     Build all the specified apps
 
     :param apps: list of apps to be built
-    :type apps: list[App] | App
     :param build_verbose: call ``--verbose`` in ``idf.py build`` or not
-    :type build_verbose: bool
     :param parallel_count: number of parallel tasks to run
-    :type parallel_count: int
     :param parallel_index: index of the parallel task to run
-    :type parallel_index: int
     :param dry_run: simulate this run or not
-    :type dry_run: bool
     :param keep_going: keep building or not if one app's build failed
-    :type keep_going: bool
     :param collect_size_info: file path to record all generated size files' paths if specified
-    :type collect_size_info: TextIO | None
     :param collect_app_info: file path to record all the built apps' info if specified
-    :type collect_app_info: TextIO | None
     :param ignore_warning_strs: ignore build warnings that matches any of the specified regex patterns
-    :type ignore_warning_strs: list[str] | None
     :param ignore_warning_file: ignore build warnings that matches any of the lines of the regex patterns in the
         specified file
-    :type ignore_warning_file: list[str] | None
     :param copy_sdkconfig: copy the sdkconfig file to the build directory or not
-    :type copy_sdkconfig: bool
-    :param manifest_rootpath: The root path of the manifest files. Usually the folders specified in the manifest files
-        are relative paths. Use the current directory if not specified
-    :type manifest_rootpath: str | None
-    :param modified_components: modified components
-    :type modified_components: list[str] | str | None
-    :param modified_files: modified files
-    :type modified_files: list[str] | str | None
-    :param ignore_app_dependencies_filepatterns: file patterns that used for ignoring checking the component
-        dependencies
-    :type ignore_app_dependencies_filepatterns: list[str] | str | None
-    :return: (exit_code, built_apps) if specified ``modified_components``
-    :rtype: int, list[App]
-    :return: exit_code if not specified ``modified_components``
+    :return: exit_code
     :rtype: int
     """
-    apps = to_list(apps)  # type: list[App]
-    modified_components = to_list(modified_components)
-    modified_files = to_list(modified_files)
-    ignore_app_dependencies_filepatterns = to_list(ignore_app_dependencies_filepatterns)
-
-    ignore_warnings_regexes = []
-    if ignore_warning_strs:
-        for s in ignore_warning_strs:
-            ignore_warnings_regexes.append(re.compile(s))
-    if ignore_warning_file:
-        for s in ignore_warning_file:
-            ignore_warnings_regexes.append(re.compile(s.strip()))
-    App.IGNORE_WARNS_REGEXES = ignore_warnings_regexes
+    App.set_ignore_warns_regexes(ignore_warning_strs=ignore_warning_strs, ignore_warning_files=ignore_warning_file)
 
     start, stop = get_parallel_start_stop(len(apps), parallel_count, parallel_index)
     LOGGER.info('Total %s apps. running build for app %s-%s', len(apps), start, stop)
 
-    failed_apps = []
     exit_code = 0
-
     LOGGER.info('Building the following apps:')
     if apps[start - 1 : stop]:
         for app in apps[start - 1 : stop]:
-            LOGGER.info('  %s (preserve: %s)', app, app.preserve)
+            LOGGER.info(app)
     else:
         LOGGER.info('  parallel count is too large. build nothing...')
 
@@ -310,9 +204,6 @@ def build_apps(
             LOGGER.info('=> Remove existing collect file %s', f)
         Path(f).touch()
 
-    actual_built_apps = []
-    built_apps = []  # type: list[App]
-    skipped_apps = []  # type: list[App]
     for i, app in enumerate(apps):
         index = i + 1  # we use 1-based
         if index < start or index > stop:
@@ -326,38 +217,20 @@ def build_apps(
         LOGGER.info('Building app %s: %s', index, repr(app))
         is_built = False
         try:
-            is_built = app.build(
-                manifest_rootpath=manifest_rootpath,
-                modified_components=modified_components,
-                modified_files=modified_files,
-                check_app_dependencies=_check_app_dependency(
-                    manifest_rootpath, modified_components, modified_files, ignore_app_dependencies_filepatterns
-                ),
-            )
+            is_built = app.build()
         except BuildError as e:
             LOGGER.error(str(e))
             if keep_going:
-                failed_apps.append(app)
                 exit_code = 1
             else:
-                if modified_components is not None:
-                    return 1, actual_built_apps
-                else:
-                    return 1
+                return 1
         finally:
-            if is_built:
-                built_apps.append(app)
-            else:
-                skipped_apps.append(app)
+            if app.collect_app_info:
+                with open(app.collect_app_info, 'a') as fw:
+                    fw.write(app.model_dump_json() + '\n')
+                LOGGER.info('=> Recorded app info in %s', app.collect_app_info)
 
             if is_built:
-                actual_built_apps.append(app)
-
-                if app.collect_app_info:
-                    with open(app.collect_app_info, 'a') as fw:
-                        fw.write(app.to_json() + '\n')
-                    LOGGER.info('=> Recorded app info in %s', app.collect_app_info)
-
                 if app.collect_size_info and app.size_json_path:
                     try:
                         if not os.path.isfile(app.size_json_path):
@@ -395,25 +268,25 @@ def build_apps(
 
             LOGGER.info('')  # add one empty line for separating different builds
 
+    built_apps = [app for app in apps if app.build_status == BuildStatus.SUCCESS]
     if built_apps:
         LOGGER.info('Built the following apps:')
         for app in built_apps:
             LOGGER.info('  %s', app)
 
+    skipped_apps = [app for app in apps if app.build_status == BuildStatus.SKIPPED]
     if skipped_apps:
         LOGGER.info('Skipped the following apps:')
         for app in skipped_apps:
             LOGGER.info('  %s', app)
 
+    failed_apps = [app for app in apps if app.build_status == BuildStatus.FAILED]
     if failed_apps:
         LOGGER.error('Build failed for the following apps:')
         for app in failed_apps:
             LOGGER.error('  %s', app)
 
-    if modified_components is not None:
-        return exit_code, actual_built_apps
-    else:
-        return exit_code
+    return exit_code
 
 
 class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
@@ -763,13 +636,6 @@ def main():
         ignore_warning_strs=args.ignore_warning_str,
         ignore_warning_file=args.ignore_warning_file,
         copy_sdkconfig=args.copy_sdkconfig,
-        manifest_rootpath=args.manifest_rootpath,
-        modified_components=args.modified_components,
-        modified_files=args.modified_files,
-        ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
     )
 
-    if args.modified_components is not None:
-        sys.exit(res[0])
-    else:
-        sys.exit(res)
+    sys.exit(res)

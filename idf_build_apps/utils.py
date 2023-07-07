@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+import typing as t
 from copy import (
     deepcopy,
 )
@@ -101,7 +102,7 @@ class InvalidInput(SystemExit):
     """Invalid input from user"""
 
 
-def rmdir(path, exclude_file_patterns=None):
+def rmdir(path: str, exclude_file_patterns: t.Optional[t.List[str]] = None):
     if not exclude_file_patterns:
         shutil.rmtree(path, ignore_errors=True)
         return
@@ -223,8 +224,8 @@ def to_version(s):  # type: (any) -> Version
 
 
 def files_matches_patterns(
-    files,  # type: list[str] | str
-    patterns,  # type: list[str] | str
+    files,  # type: t.Iterable[str] | str
+    patterns,  # type:  t.Iterable[str] | str
     rootpath=None,  # type: str
 ):  # type: (...) -> bool
     # can't match an absolute pattern with a relative path

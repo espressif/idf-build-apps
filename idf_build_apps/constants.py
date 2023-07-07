@@ -31,7 +31,9 @@ IDF_PATH = Path(_idf_env).resolve()
 IDF_PY = IDF_PATH / 'tools' / 'idf.py'
 IDF_SIZE_PY = IDF_PATH / 'tools' / 'idf_size.py'
 PROJECT_DESCRIPTION_JSON = 'project_description.json'
+
 DEFAULT_SDKCONFIG = 'sdkconfig.defaults'
+DEFAULT_BUILD_DIR = 'build'
 
 
 sys.path.append(str(IDF_PATH / 'tools' / 'idf_py_actions'))

@@ -3,7 +3,7 @@
 
 import os
 
-from idf_build_apps.utils import (
+from .utils import (
     to_absolute_path,
 )
 

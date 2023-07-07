@@ -1,31 +1,45 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
+import enum
 import json
 import os
 import re
 import shutil
 import sys
 import tempfile
+import typing as t
 from abc import (
     abstractmethod,
 )
 from copy import (
     deepcopy,
 )
+from functools import (
+    cached_property,
+)
 from pathlib import (
     Path,
+)
+from typing import (
+    ClassVar,
 )
 
 from packaging.version import (
     Version,
 )
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    computed_field,
+)
 
 from . import (
+    CONFIG,
     LOGGER,
 )
 from .constants import (
-    DEFAULT_SDKCONFIG,
+    DEFAULT_BUILD_DIR,
     IDF_PY,
     IDF_SIZE_PY,
     IDF_VERSION,
@@ -34,259 +48,228 @@ from .constants import (
     IDF_VERSION_PATCH,
     PROJECT_DESCRIPTION_JSON,
 )
-from .manifest.manifest import (
-    FolderRule,
-)
 from .utils import (
     BuildError,
-    files_matches_patterns,
     find_first_match,
     rmdir,
     subprocess_run,
     to_absolute_path,
-    to_list,
 )
 
 
-class BuildOrNot:
-    YES = 'yes'
-    NO = 'no'
+class BuildStatus(enum.StrEnum):
     UNKNOWN = 'unknown'
+    NOT_DECIDED = 'not_decided'
+    SHOULD_BE_BUILT = 'should be built'
+    SKIPPED = 'skipped'
+    FAILED = 'build failed'
+    SUCCESS = 'build success'
 
 
-class App:
-    TARGET_PLACEHOLDER = '@t'  # replace it with self.target
-    WILDCARD_PLACEHOLDER = '@w'  # replace it with the wildcard, usually the sdkconfig
-    NAME_PLACEHOLDER = '@n'  # replace it with self.name
-    FULL_NAME_PLACEHOLDER = '@f'  # replace it with escaped self.app_dir
-    INDEX_PLACEHOLDER = '@i'  # replace it with the build index
-    PARALLEL_INDEX_PLACEHOLDER = '@p'  # replace it with the parallel index
-    IDF_VERSION_PLACEHOLDER = '@v'  # replace it with the IDF version
+class App(BaseModel):
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
 
-    BUILD_SYSTEM = 'unknown'
+    BUILD_SYSTEM: ClassVar[str] = 'unknown'
 
-    SDKCONFIG_LINE_REGEX = re.compile(r"^([^=]+)=\"?([^\"\n]*)\"?\n*$")
+    # Placeholders
+    TARGET_PLACEHOLDER: ClassVar[str] = '@t'  # replace it with self.target
+    WILDCARD_PLACEHOLDER: ClassVar[str] = '@w'  # replace it with the wildcard, usually the CONFIG_NAME
+    NAME_PLACEHOLDER: ClassVar[str] = '@n'  # replace it with self.name
+    FULL_NAME_PLACEHOLDER: ClassVar[str] = '@f'  # replace it with escaped self.app_dir
+    INDEX_PLACEHOLDER: ClassVar[str] = '@i'  # replace it with the build index
+    PARALLEL_INDEX_PLACEHOLDER: ClassVar[str] = '@p'  # replace it with the parallel index
+    IDF_VERSION_PLACEHOLDER: ClassVar[str] = '@v'  # replace it with the IDF version
 
-    # could be assigned later, used for filtering out apps by supported_targets
-    MANIFEST = None  # type: Manifest | None
+    # The regex to match the sdkconfig settings lines
+    SDKCONFIG_LINE_REGEX: ClassVar[t.Pattern] = re.compile(r"^([^=]+)=\"?([^\"\n]*)\"?\n*$")
+    # The regex to match the build log for errors and warnings
+    LOG_ERROR_WARNING_REGEX: ClassVar[t.Pattern] = re.compile(r'(?:error|warning):', re.MULTILINE | re.IGNORECASE)
+    # The number of lines to show from the build log when an error occurs
+    LOG_DEBUG_LINES: ClassVar[int] = 25
+    # A list of regexes to ignore warnings from the build log
+    IGNORE_WARNS_REGEXES: ClassVar[t.List[t.Pattern]] = []
 
-    # This RE will match GCC errors and many other fatal build errors and warnings as well
-    LOG_ERROR_WARNING_REGEX = re.compile(r'(?:error|warning):', re.MULTILINE | re.IGNORECASE)
-    # Log this many trailing lines from a failed build log, also
-    LOG_DEBUG_LINES = 25
-    # IGNORE_WARNING_REGEX is a regex for warnings to be ignored. Could be assigned later
-    IGNORE_WARNS_REGEXES = []  # type: list[t.Pattern]
+    # ------------------
+    # Instance variables
+    # ------------------
+    # Attrs that support placeholders
+    _work_dir: t.Optional[str] = None
+    _build_dir: t.Optional[str] = None
+
+    _build_log_path: t.Optional[str] = None
+    _size_json_path: t.Optional[str] = None
+
+    _collect_app_info: t.Optional[str] = None
+    _collect_size_info: t.Optional[str] = None
+
+    # Others
+    app_dir: str
+    target: str
+    sdkconfig_path: t.Optional[str] = None
+    config_name: t.Optional[str] = None
+
+    # Build related
+    dry_run: bool = False
+    index: t.Union[int, None] = None
+    verbose: bool = False
+    check_warnings: bool = False
+    preserve: bool = True
+    parallel_index: int = 1
+    parallel_count: int = 1
+
+    skipped_reason: t.Optional[str] = None
+    failed_reason: t.Optional[str] = None
 
     def __init__(
         self,
-        app_dir,  # type: str
-        target,  # type: str
-        sdkconfig_path=None,  # type: str | None
-        config_name=None,  # type: str | None
-        work_dir=None,  # type: str | None
-        build_dir='build',  # type: str
-        build_log_path=None,  # type: str | None
-        size_json_path=None,  # type: str | None
-        check_warnings=False,  # type: bool
-        preserve=True,  # type: bool
-        sdkconfig_defaults_str=None,  # type: str | None
-    ):  # type: (...) -> None
-        # These internal variables store the paths with environment variables and placeholders;
-        # Public properties with similar names use the _expand method to get the actual paths.
-        self._app_dir = app_dir
-        self._work_dir = work_dir or app_dir
-        self._build_dir = build_dir or 'build'
+        *,
+        work_dir: t.Optional[str] = None,
+        build_dir: t.Optional[str] = None,
+        build_log_path: t.Optional[str] = None,
+        size_json_path: t.Optional[str] = None,
+        collect_app_info: t.Optional[str] = None,
+        collect_size_info: t.Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)  # validate the model
+        self._work_dir = work_dir or kwargs['app_dir']
+        self._build_dir = build_dir or DEFAULT_BUILD_DIR
         self._build_log_path = build_log_path
         self._size_json_path = size_json_path
+        self._collect_app_info = collect_app_info
+        self._collect_size_info = collect_size_info
 
-        self.name = os.path.basename(os.path.realpath(app_dir))
-        self.sdkconfig_path = sdkconfig_path
-        self.config_name = config_name
-        self.target = target
-        self.check_warnings = check_warnings
-        self.preserve = preserve
+        self._sdkconfig_files_defined_idf_target = None  # will be set by `self.sdkconfig_files`
+        self._build_status: BuildStatus = BuildStatus.UNKNOWN
 
-        # should be built or not
-        self.should_build = BuildOrNot.UNKNOWN
-        self._checked_should_build = False
-
-        # Some miscellaneous build properties which are set later, at the build stage
-        self.dry_run = False
-        self.index = None
-        self.verbose = False
-        self.parallel_index = 1
-        self.parallel_count = 1
-
-        self._collect_app_info = None
-        self._collect_size_info = None
-
-        # sdkconfig attrs, use properties instead
-        self._sdkconfig_defaults = self._get_sdkconfig_defaults(sdkconfig_defaults_str)
-        self._sdkconfig_files = None
-        self._sdkconfig_files_defined_target = None
-
-        self._process_sdkconfig_files()
-
-    def __repr__(self):
-        return '({}) App {}, target {}, sdkconfig {}, build in {}'.format(
-            self.BUILD_SYSTEM,
-            self.app_dir,
-            self.target,
-            self.sdkconfig_path or '(default)',
-            self.build_path,
-        )
-
-    def __str__(self):
-        return 'App {}, target {}, sdkconfig {}'.format(
-            self.app_dir,
-            self.target,
-            self.sdkconfig_path or '(default)',
-        )
+        self.sdkconfig_files  # noqa  # call it here
 
     def __lt__(self, other):
-        if self.app_dir != other.app_dir:
-            return self.app_dir < other.app_dir
-        elif self.target != other.target:
-            return self.target < other.target
-        else:
-            return self.config_name < other.config_name
+        if isinstance(other, App):
+            for k in self.model_dump():
+                if getattr(self, k) != getattr(other, k):
+                    return getattr(self, k) < getattr(other, k)
+                else:
+                    continue
+
+        return NotImplemented
 
     def __eq__(self, other):
-        for props in [
-            'app_dir',
-            'work_dir',
-            'build_dir',
-            'size_json_path',
-            'sdkconfig_files',
-            'config_name',
-            'target',
-            'check_warnings',
-            'preserve',
-        ]:
-            if getattr(self, props) != getattr(other, props):
-                return False
+        if isinstance(other, App):
+            # build_status is not calculated
+            self_dict = self.model_dump()
+            other_dict = other.model_dump()
+            for k in ['build_status']:
+                self_dict.pop(k)
+                other_dict.pop(k)
 
-        return True
+            return self_dict == other_dict
+
+        return NotImplemented
 
     def __hash__(self):
-        return hash(
-            (
-                self._app_dir,
-                self._work_dir,
-                self._build_dir,
-                self._build_log_path,
-                self._size_json_path,
-                self.name,
-                frozenset(self.sdkconfig_files),
-                self.config_name,
-                self.target,
-                self.check_warnings,
-                self.preserve,
-            )
-        )
+        hash_list = []
+        for v in self.__dict__.values():
+            if isinstance(v, list):
+                hash_list.append(tuple(v))
+            elif isinstance(v, dict):
+                hash_list.append(tuple(v.items()))
+            else:
+                hash_list.append(v)
 
-    @staticmethod
-    def _get_sdkconfig_defaults(sdkconfig_defaults_str=None):  # type: (str | None) -> list[str]
-        if sdkconfig_defaults_str is not None:
-            candidates = sdkconfig_defaults_str.split(';')
-        elif os.getenv('SDKCONFIG_DEFAULTS', None) is not None:
-            candidates = os.getenv('SDKCONFIG_DEFAULTS', None).split(';')
-        else:
-            candidates = [DEFAULT_SDKCONFIG]
+        return hash((type(self),) + tuple(hash_list))
 
-        return candidates
-
-    def _expand(self, path):  # type: (str) -> str
+    def expand_placeholders(self, s: t.Optional[str]) -> t.Optional[str]:
         """
-        Internal method, expands any of the placeholders in {app,work,build} paths.
+        Expand the placeholders and system variables in a string.
+
+        :param s: a string that may contain placeholders
+        :return: a string with placeholders expanded
         """
-        if not path:
-            return path
+        if not s:
+            return s
 
         if self.index is not None:
-            path = path.replace(self.INDEX_PLACEHOLDER, str(self.index))
-        path = path.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
-        path = path.replace(
-            self.IDF_VERSION_PLACEHOLDER, f'{IDF_VERSION_MAJOR}_{IDF_VERSION_MINOR}_{IDF_VERSION_PATCH}'
-        )
-        path = path.replace(self.TARGET_PLACEHOLDER, self.target)
-        path = path.replace(self.NAME_PLACEHOLDER, self.name)
-        if self.FULL_NAME_PLACEHOLDER in path:  # to avoid recursion to the call to app_dir in the next line:
-            path = path.replace(self.FULL_NAME_PLACEHOLDER, self.app_dir.replace(os.path.sep, '_'))
-        wildcard_pos = path.find(self.WILDCARD_PLACEHOLDER)
+            s = s.replace(self.INDEX_PLACEHOLDER, str(self.index))
+
+        s = s.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
+
+        s = s.replace(self.IDF_VERSION_PLACEHOLDER, f'{IDF_VERSION_MAJOR}_{IDF_VERSION_MINOR}_{IDF_VERSION_PATCH}')
+
+        s = s.replace(self.TARGET_PLACEHOLDER, self.target)
+
+        s = s.replace(self.NAME_PLACEHOLDER, self.name)
+
+        s = s.replace(self.FULL_NAME_PLACEHOLDER, self.app_dir.replace(os.path.sep, '_'))
+
+        wildcard_pos = s.find(self.WILDCARD_PLACEHOLDER)
         if wildcard_pos != -1:
             if self.config_name:
                 # if config name is defined, put it in place of the placeholder
-                path = path.replace(self.WILDCARD_PLACEHOLDER, self.config_name)
+                s = s.replace(self.WILDCARD_PLACEHOLDER, self.config_name)
             else:
                 # otherwise, remove the placeholder and one character on the left
                 # (which is usually an underscore, dash, or other delimiter)
                 left_of_wildcard = max(0, wildcard_pos - 1)
                 right_of_wildcard = wildcard_pos + len(self.WILDCARD_PLACEHOLDER)
-                path = path[0:left_of_wildcard] + path[right_of_wildcard:]
-        path = os.path.expandvars(path)
-        return path
+                s = s[0:left_of_wildcard] + s[right_of_wildcard:]
 
+        return os.path.expandvars(s)
+
+    ####################################
+    # Attrs that supports placeholders #
+    ####################################
+    @computed_field
     @property
-    def app_dir(self):
+    def work_dir(self) -> str:
+        return self.expand_placeholders(self._work_dir)
+
+    @computed_field
+    @property
+    def build_dir(self) -> str:
+        return self.expand_placeholders(self._build_dir)
+
+    @computed_field
+    @property
+    def build_log_path(self) -> t.Optional[str]:
+        return self.expand_placeholders(self._build_log_path)
+
+    @computed_field
+    @property
+    def size_json_path(self) -> t.Optional[str]:
+        return self.expand_placeholders(self._size_json_path)
+
+    @size_json_path.setter
+    def size_json_path(self, v: t.Optional[str]):
+        self._size_json_path = v
+
+    @computed_field
+    @property
+    def collect_app_info(self) -> t.Optional[str]:
+        return self.expand_placeholders(self._collect_app_info)
+
+    @computed_field
+    @property
+    def collect_size_info(self) -> t.Optional[str]:
+        return self.expand_placeholders(self._collect_size_info)
+
+    @computed_field
+    @property
+    def sdkconfig_files_defined_idf_target(self) -> t.Optional[str]:
+        return self._sdkconfig_files_defined_idf_target
+
+    @computed_field
+    @cached_property  # calculated once
+    def sdkconfig_files(self) -> t.List[str]:
         """
-        :return: directory of the app
-        """
-        return self._expand(self._app_dir)
+        Get all sdkconfig files that will be used to build the app.
 
-    @property
-    def work_dir(self):
-        """
-        :return: directory where the app should be copied to, prior to the build.
-        """
-        return self._expand(self._work_dir)
+        .. note::
 
-    @property
-    def build_dir(self):
-        """
-        :return: build directory, either relative to the work directory (if relative path is used) or absolute path.
-        """
-        return self._expand(self._build_dir)
-
-    @property
-    def build_path(self):
-        if os.path.isabs(self.build_dir):
-            return self.build_dir
-
-        return os.path.realpath(os.path.join(self.work_dir, self.build_dir))
-
-    @property
-    def build_log_path(self):
-        if self._build_log_path:
-            return os.path.join(self.build_path, self._expand(self._build_log_path))
-
-        return None
-
-    @property
-    def size_json_path(self):
-        if self._size_json_path:
-            return os.path.join(self.build_path, self._expand(self._size_json_path))
-
-        return None
-
-    @property
-    def collect_app_info(self):
-        if self._collect_app_info:
-            return self._expand(self._collect_app_info)
-
-        return None
-
-    @property
-    def collect_size_info(self):
-        if self._collect_size_info:
-            return self._expand(self._collect_size_info)
-
-        return None
-
-    def _process_sdkconfig_files(self):
-        """
-        Expand environment variables in default sdkconfig files and remove some CI
-        related settings.
+            1. The order of the files is important, the later ones will override the previous ones.
+            2. The environment variables inside the sdkconfig files are expanded.
         """
         res = []
 
@@ -294,7 +277,7 @@ class App:
         if not os.path.isdir(expanded_dir):
             os.makedirs(expanded_dir)
 
-        for f in self._sdkconfig_defaults + ([self.sdkconfig_path] if self.sdkconfig_path else []):
+        for f in CONFIG.default_sdkconfig_defaults + ([self.sdkconfig_path] if self.sdkconfig_path else []):
             if not os.path.isabs(f):
                 f = os.path.join(self.work_dir, f)
 
@@ -311,7 +294,7 @@ class App:
                         m = self.SDKCONFIG_LINE_REGEX.match(line)
                         key = m.group(1) if m else None
                         if key == 'CONFIG_IDF_TARGET':
-                            self._sdkconfig_files_defined_target = m.group(2)
+                            self._sdkconfig_files_defined_idf_target = m.group(2)
 
                         if isinstance(self, CMakeApp):
                             if key in self.SDKCONFIG_TEST_OPTS:
@@ -353,59 +336,147 @@ class App:
         except OSError:
             pass
 
-        self._sdkconfig_files = res
+        return [os.path.realpath(f) for f in res]
+
+    @computed_field
+    @property
+    def build_status(self) -> BuildStatus:
+        if self._build_status != BuildStatus.UNKNOWN:
+            return self._build_status
+
+        if not CONFIG.check_app_dependencies:
+            self.build_status = BuildStatus.SHOULD_BE_BUILT
+            return self._build_status
+
+        if self.is_modified():
+            self.build_status = BuildStatus.SHOULD_BE_BUILT
+            return self._build_status
+
+        # depends components?
+        if CONFIG.check_app_dependencies and CONFIG.modified_components is not None:
+            if self.depends_components:
+                if set(self.depends_components).intersection(CONFIG.modified_components):
+                    LOGGER.debug(
+                        '=> Should be built. %s depends on components: %s, modified components %s',
+                        self,
+                        ', '.join(self.depends_components),
+                        ', '.join(CONFIG.modified_components),
+                    )
+                    self.build_status = BuildStatus.SHOULD_BE_BUILT
+                    return self._build_status
+
+                # if current app defined depends_components, but no dependent components modified,
+                # this app should not be built
+                self.build_status = BuildStatus.SKIPPED
+                self.skipped_reason = (
+                    'No depends_components modified. {} depends on components: {}, modified components {}'.format(
+                        self,
+                        ', '.join(self.depends_components),
+                        ', '.join(CONFIG.modified_components),
+                    )
+                )
+                return self._build_status
+
+        # or depends file patterns?
+        if CONFIG.check_app_dependencies and CONFIG.modified_files is not None:
+            if self.depends_filepatterns:
+                if CONFIG.matches_modified_files(self.depends_filepatterns):
+                    LOGGER.debug(
+                        '=> Should be built. %s depends on file patterns: %s, modified files %s',
+                        self,
+                        ', '.join(self.depends_filepatterns),
+                        ', '.join(CONFIG.modified_files),
+                    )
+                    self.build_status = BuildStatus.SHOULD_BE_BUILT
+                    return self._build_status
+
+                # if current app defined depends_filepatterns, but no dependent files modified,
+                # this app should not be built
+                self.build_status = BuildStatus.SKIPPED
+                return self._build_status
+
+        # not decided, leave it to the build stage `idf.py reconfigure`
+        self.build_status = BuildStatus.NOT_DECIDED
+        return self._build_status
+
+    @build_status.setter
+    def build_status(self, value: BuildStatus):
+        self._build_status = value
+
+    ############################
+    # Un-serialized Properties #
+    ############################
+    @cached_property  # calculated once
+    def name(self) -> str:
+        return os.path.basename(self.app_dir)
 
     @property
-    def sdkconfig_files_defined_idf_target(self):  # type: () -> str | None
-        return self._sdkconfig_files_defined_target
+    def build_path(self) -> str:
+        if os.path.isabs(self.build_dir):
+            return self.build_dir
+
+        return str(to_absolute_path(os.path.join(self.work_dir, self.build_dir)))
 
     @property
-    def sdkconfig_files(self):  # type: () -> list[str]
-        return [os.path.realpath(file) for file in self._sdkconfig_files]
-
-    @property
-    def depends_components(self):  # type: () -> list[str]
-        if self.MANIFEST:
-            return self.MANIFEST.depends_components(self.app_dir)
+    def depends_components(self) -> t.List[str]:
+        if CONFIG.manifest:
+            return CONFIG.manifest.depends_components(self.app_dir)
 
         return []
 
     @property
-    def depends_filepatterns(self):  # type: () -> list[str]
-        if self.MANIFEST:
-            return self.MANIFEST.depends_filepatterns(self.app_dir)
+    def depends_filepatterns(self) -> t.List[str]:
+        if CONFIG.manifest:
+            return CONFIG.manifest.depends_filepatterns(self.app_dir)
 
         return []
 
     @property
-    def supported_targets(self):
-        if self.MANIFEST:
-            return self.MANIFEST.enable_build_targets(
+    def supported_targets(self) -> t.List[str]:
+        if CONFIG.manifest:
+            return CONFIG.manifest.enable_build_targets(
                 self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
             )
 
         if self.sdkconfig_files_defined_idf_target:
             return [self.sdkconfig_files_defined_idf_target]
 
-        return FolderRule.DEFAULT_BUILD_TARGETS
+        return CONFIG.default_build_targets
 
     @property
-    def verified_targets(self):
-        if self.MANIFEST:
-            return self.MANIFEST.enable_test_targets(
+    def verified_targets(self) -> t.List[str]:
+        if CONFIG.manifest:
+            return CONFIG.manifest.enable_test_targets(
                 self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
             )
 
         return []
 
+    ###########
+    # Methods #
+    ###########
+    @classmethod
+    def set_ignore_warns_regexes(
+        cls,
+        *,
+        ignore_warning_strs: t.Optional[t.List[str]] = None,
+        ignore_warning_files: t.Optional[t.List[t.TextIO]] = None,
+    ) -> None:
+        ignore_warnings_regexes = []
+        for s in ignore_warning_strs or []:
+            ignore_warnings_regexes.append(re.compile(s))
+        for f in ignore_warning_files or []:
+            for s in f:
+                ignore_warnings_regexes.append(re.compile(s.strip()))
+        App.IGNORE_WARNS_REGEXES = ignore_warnings_regexes
+
     @abstractmethod
-    def build(
-        self,
-        manifest_rootpath=None,  # type: str | None
-        modified_components=None,  # type: list[str] | str | None
-        modified_files=None,  # type: list[str] | str | None
-        check_app_dependencies=False,  # type: bool
-    ):  # type: (...) -> bool
+    def build(self) -> str:
+        """
+        Build the app.
+
+        :return: True if build successfully, otherwise False
+        """
         pass
 
     def write_size_json(self):
@@ -434,24 +505,13 @@ class App:
         )
         LOGGER.info('=> Generated size info to %s', self.size_json_path)
 
-    def to_json(self):
-        # keeping backward compatibility, only provide these stuffs
-        return json.dumps(
-            {
-                'build_system': self.BUILD_SYSTEM,
-                'app_dir': self.app_dir,
-                'work_dir': self.work_dir,
-                'build_dir': self.build_dir,
-                'build_log_path': self.build_log_path,
-                'sdkconfig': self.sdkconfig_path,
-                'config': self.config_name,
-                'target': self.target,
-                'verbose': self.verbose,
-                'preserve': self.preserve,
-            }
-        )
+    def is_error_or_warning(self, line: str) -> t.Tuple[bool, bool]:
+        """
+        Check if the line is an error or warning, and if the warning is ignored or not.
 
-    def is_error_or_warning(self, line):  # type: (str) -> tuple[bool, bool]  # is_error_or_warning, is_ignored
+        :param line: the line to check
+        :return: a tuple of (is_error_or_warning, is_ignored)
+        """
         if not self.LOG_ERROR_WARNING_REGEX.search(line):
             return False, False
 
@@ -464,13 +524,29 @@ class App:
         return True, is_ignored
 
     @classmethod
-    def is_app(cls, path):  # type: (str) -> bool
-        raise NotImplementedError('Please implement this function in sub classes')
+    @abstractmethod
+    def is_app(cls, path: str) -> bool:
+        """
+        Check if the path is an app or not.
 
-    def is_modified(self, modified_files):  # type: (list[str] | None) -> bool
+        :param path: the path to check
+        :return: True if the path is an app, False otherwise
+        """
+        pass
+
+    def is_modified(self) -> bool:
+        """
+        Check if the app is modified or not.
+
+        .. note::
+
+            .md files are ignored.
+
+        :return: True if the app is modified, False otherwise
+        """
         _app_dir_fullpath = to_absolute_path(self.app_dir)
-        if modified_files:
-            for f in modified_files:
+        if CONFIG.modified_files:
+            for f in CONFIG.modified_files:
                 _f_fullpath = to_absolute_path(f)
                 if _f_fullpath.parts[-1].endswith('.md'):
                     continue
@@ -480,100 +556,28 @@ class App:
 
         return False
 
-    def check_should_build(
-        self,
-        manifest_rootpath,  # type: str
-        check_app_dependencies,  # type: bool
-        modified_components,  # type: list[str] | None
-        modified_files,  # type: list[str] | None
-    ):  # type: (...) -> None
-        if self.should_build != BuildOrNot.UNKNOWN:
-            return
-
-        if not check_app_dependencies:
-            self.should_build = BuildOrNot.YES
-            self._checked_should_build = True
-            return
-
-        if self.is_modified(modified_files):
-            self.should_build = BuildOrNot.YES
-            self._checked_should_build = True
-            return
-
-        # check app dependencies
-        modified_components = to_list(modified_components)
-        modified_files = to_list(modified_files)
-
-        _modified_components = BuildOrNot.UNKNOWN
-        _modified_files = BuildOrNot.UNKNOWN
-
-        # depends components?
-        if check_app_dependencies and modified_components is not None:
-            if set(self.depends_components).intersection(set(modified_components)):
-                LOGGER.debug(
-                    '=> Should be built. %s requires components: %s, modified components %s',
-                    self,
-                    ', '.join(self.depends_components),
-                    ', '.join(modified_components),
-                )
-                _modified_components = BuildOrNot.YES
-            # if not defined dependency, we left it unknown and decide with idf.py reconfigure
-            elif self.depends_components:
-                _modified_components = BuildOrNot.NO
-
-        # or depends file patterns?
-        if check_app_dependencies and modified_files is not None:
-            if files_matches_patterns(modified_files, self.depends_filepatterns, manifest_rootpath):
-                LOGGER.debug(
-                    '=> Should be built. %s depends on file patterns: %s, modified files %s',
-                    self,
-                    ', '.join(self.depends_filepatterns),
-                    ', '.join(modified_files),
-                )
-                _modified_files = BuildOrNot.YES
-            # if not defined dependency, we left it unknown and decide with idf.py reconfigure
-            elif self.depends_filepatterns:
-                _modified_files = BuildOrNot.NO
-
-        if _modified_components == BuildOrNot.YES or _modified_files == BuildOrNot.YES:
-            self.should_build = BuildOrNot.YES
-        elif _modified_components == BuildOrNot.NO or _modified_files == BuildOrNot.NO:
-            self.should_build = BuildOrNot.NO
-
-        self._checked_should_build = True
-
 
 class CMakeApp(App):
-    BUILD_SYSTEM = 'cmake'
+    BUILD_SYSTEM: ClassVar[str] = 'cmake'
 
     # If these keys are present in sdkconfig.defaults, they will be extracted and passed to CMake
-    SDKCONFIG_TEST_OPTS = [
+    SDKCONFIG_TEST_OPTS: ClassVar[t.List[str]] = [
         'EXCLUDE_COMPONENTS',
         'TEST_EXCLUDE_COMPONENTS',
         'TEST_COMPONENTS',
     ]
-
     # These keys in sdkconfig.defaults are not propagated to the final sdkconfig file:
-    SDKCONFIG_IGNORE_OPTS = ['TEST_GROUPS']
-
+    SDKCONFIG_IGNORE_OPTS: ClassVar[t.List[str]] = ['TEST_GROUPS']
     # While ESP-IDF component CMakeLists files can be identified by the presence of 'idf_component_register' string,
     # there is no equivalent for the project CMakeLists files. This seems to be the best option...
-    CMAKE_PROJECT_LINE = r'include($ENV{IDF_PATH}/tools/cmake/project.cmake)'
+    CMAKE_PROJECT_LINE: ClassVar[str] = r'include($ENV{IDF_PATH}/tools/cmake/project.cmake)'
 
-    def __init__(self, *args, **kwargs):
-        self.cmake_vars = {}
-        super().__init__(*args, **kwargs)
+    # ------------------
+    # Instance variables
+    # ------------------
+    cmake_vars: t.Dict[str, str] = {}
 
-    def build(
-        self,
-        manifest_rootpath=None,  # type: str | None
-        modified_components=None,  # type: list[str] | str | None
-        modified_files=None,  # type: list[str] | str | None
-        check_app_dependencies=False,  # type: bool
-    ):  # type: (...) -> bool
-        modified_components = to_list(modified_components)
-        modified_files = to_list(modified_files)
-
+    def build(self) -> bool:
         LOGGER.debug('=> Preparing...')
         if self.work_dir != self.app_dir:
             if os.path.exists(self.work_dir):
@@ -602,6 +606,9 @@ class CMakeApp(App):
             LOGGER.info('=> Writing build log to %s', self.build_log_path)
 
         if self.dry_run:
+            self.build_status = BuildStatus.SKIPPED
+            self.skipped_reason = 'dry run'
+
             LOGGER.debug('==> Skipping... (dry run)')
             return True
 
@@ -631,15 +638,11 @@ class CMakeApp(App):
             '-DSDKCONFIG_DEFAULTS={}'.format(';'.join(self.sdkconfig_files) if self.sdkconfig_files else ';'),
         ]
 
-        if not self._checked_should_build:
-            self.check_should_build(
-                manifest_rootpath=manifest_rootpath,
-                modified_components=modified_components,
-                modified_files=modified_files,
-                check_app_dependencies=check_app_dependencies,
-            )
-
-        if modified_components is not None and check_app_dependencies and self.should_build == BuildOrNot.UNKNOWN:
+        if (
+            CONFIG.check_app_dependencies
+            and CONFIG.modified_components is not None
+            and self.build_status == BuildStatus.NOT_DECIDED
+        ):
             subprocess_run(
                 common_args + ['reconfigure'],
                 log_terminal=False if self.build_log_path else True,
@@ -651,18 +654,18 @@ class CMakeApp(App):
             with open(os.path.join(self.build_path, PROJECT_DESCRIPTION_JSON)) as fr:
                 build_components = {item for item in json.load(fr)['build_components'] if item}
 
-            if not set(modified_components).intersection(set(build_components)):
-                LOGGER.info(
-                    '=> Skip building... app %s depends components: %s, while current build modified components: %s',
-                    self.app_dir,
-                    build_components,
-                    modified_components,
+            if not build_components.intersection(CONFIG.modified_components):
+                self.build_status = BuildStatus.SKIPPED
+                self.skipped_reason = (
+                    f'No depends_components modified. '
+                    f'{self} depends on components: {", ".join(self.depends_components)},'
+                    f' modified components {", ".join(CONFIG.modified_components)}'
                 )
                 return False
             else:
-                self.should_build = BuildOrNot.YES
+                self.build_status = BuildStatus.SHOULD_BE_BUILT
 
-        if self.should_build == BuildOrNot.NO:
+        if self.build_status == BuildStatus.SKIPPED:
             LOGGER.info('=> Skip building...')
             return False
 
@@ -690,7 +693,7 @@ class CMakeApp(App):
         log_file.close()
 
         # help debug
-        has_unignored_warning = False
+        unignored_warnings: t.List[str] = []
         with open(log_file.name) as f:
             lines = [line.rstrip() for line in f.readlines() if line.rstrip()]
             for line in lines:
@@ -699,8 +702,8 @@ class CMakeApp(App):
                     if ignored:
                         LOGGER.info('[Ignored warning] %s', line)
                     else:
-                        LOGGER.warning('%s', line)
-                        has_unignored_warning = True
+                        LOGGER.warning(line)
+                        unignored_warnings.append(line)
 
             if returncode != 0:
                 # print last few lines to help debug
@@ -712,8 +715,14 @@ class CMakeApp(App):
                 for line in lines[-self.LOG_DEBUG_LINES :]:
                     LOGGER.error('%s', line)
 
-        if returncode == 0 and self.size_json_path:
-            self.write_size_json()
+        if returncode != 0:
+            debug_lines = lines[-self.LOG_DEBUG_LINES :]
+            self.build_status = BuildStatus.FAILED
+            self.failed_reason = '\n'.join(debug_lines)
+        else:
+            self.build_status = BuildStatus.SUCCESS
+            if self.size_json_path:
+                self.write_size_json()
 
         if not self.preserve:
             LOGGER.info('=> Removing build directory %s', self.build_path)
@@ -731,18 +740,20 @@ class CMakeApp(App):
         if returncode != 0:
             raise BuildError(f'Build failed with exit code {returncode}')
 
-        if self.check_warnings and has_unignored_warning:
-            raise BuildError('Build succeeded with warnings')
+        if self.check_warnings and unignored_warnings:
+            self.build_status = BuildStatus.FAILED
+            self.failed_reason = 'Build succeeded with unignored warnings:\n' + '\n'.join(unignored_warnings)
+            raise BuildError('Build succeeded with unignored warnings')
 
-        if has_unignored_warning:
-            LOGGER.info('=> Build succeeded with warnings')
+        if unignored_warnings:
+            LOGGER.warning('=> Build succeeded with unignored warnings')
         else:
             LOGGER.info('=> Build succeeded')
 
         return True
 
     @classmethod
-    def is_app(cls, path):  # type: (str) -> bool
+    def is_app(cls, path: str) -> bool:
         cmakelists_path = os.path.join(path, 'CMakeLists.txt')
         if not os.path.exists(cmakelists_path):
             return False

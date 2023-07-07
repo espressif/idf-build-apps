@@ -8,11 +8,11 @@ from packaging.version import (
 )
 
 import idf_build_apps.constants
+from idf_build_apps import (
+    CONFIG,
+)
 from idf_build_apps.manifest.if_parser import (
     BOOL_STMT,
-)
-from idf_build_apps.manifest.manifest import (
-    Manifest,
 )
 
 
@@ -35,13 +35,12 @@ test2:
     )
 
     os.chdir(tmpdir)
-    Manifest.ROOTPATH = tmpdir
-    manifest = Manifest.from_file(yaml_file)
+    CONFIG.reset_and_config(manifest_rootpath=tmpdir, manifest_files=yaml_file)
 
-    assert manifest.enable_build_targets('test1') == ['esp32', 'esp32c3', 'esp32s2']
-    assert manifest.enable_test_targets('test1') == ['esp32', 'esp32s2']
-    assert manifest.enable_build_targets('test2') == ['linux']
-    assert manifest.enable_test_targets('test2') == ['linux']
+    assert CONFIG.manifest.enable_build_targets('test1') == ['esp32', 'esp32c3', 'esp32s2']
+    assert CONFIG.manifest.enable_test_targets('test1') == ['esp32', 'esp32s2']
+    assert CONFIG.manifest.enable_build_targets('test2') == ['linux']
+    assert CONFIG.manifest.enable_test_targets('test2') == ['linux']
 
 
 class TestIfParser:
