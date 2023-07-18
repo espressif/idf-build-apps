@@ -315,7 +315,6 @@ def build_apps(
             LOGGER.info('=> Remove existing collect file %s', f)
         Path(f).touch()
 
-    actual_built_apps = []
     built_apps = []  # type: list[App]
     skipped_apps = []  # type: list[App]
     for i, app in enumerate(apps):
@@ -339,25 +338,22 @@ def build_apps(
                     manifest_rootpath, modified_components, modified_files, ignore_app_dependencies_filepatterns
                 ),
             )
-        except BuildError as e:
-            LOGGER.error(str(e))
-            if keep_going:
-                failed_apps.append(app)
-                exit_code = 1
-            else:
-                if modified_components is not None:
-                    return 1, actual_built_apps
-                else:
-                    return 1
-        finally:
             if is_built:
                 built_apps.append(app)
             else:
                 skipped_apps.append(app)
-
+        except BuildError as e:
+            LOGGER.error(str(e))
+            failed_apps.append(app)
+            if keep_going:
+                exit_code = 1
+            else:
+                if modified_components is not None:
+                    return 1, built_apps
+                else:
+                    return 1
+        finally:
             if is_built:
-                actual_built_apps.append(app)
-
                 if app.collect_app_info:
                     with open(app.collect_app_info, 'a') as fw:
                         fw.write(app.to_json() + '\n')
@@ -416,7 +412,7 @@ def build_apps(
             LOGGER.error('  %s', app)
 
     if modified_components is not None:
-        return exit_code, actual_built_apps
+        return exit_code, built_apps
     else:
         return exit_code
 
