@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.0.3 (2023-07-19)
+
+### Fix
+
+- correct final reports with skipped apps and failed built apps
+- skip while collecting only when both depend components and files unmatched
+
 ## v1.0.2 (2023-07-05)
 
 ### Feat
