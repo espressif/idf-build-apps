@@ -545,8 +545,10 @@ class App(object):
 
         if _modified_components == BuildOrNot.YES or _modified_files == BuildOrNot.YES:
             self.should_build = BuildOrNot.YES
-        elif _modified_components == BuildOrNot.NO or _modified_files == BuildOrNot.NO:
+        elif _modified_components == BuildOrNot.NO:  # _modified_files == BuildOrNot.NO or UNKNOWN
             self.should_build = BuildOrNot.NO
+        # elif modified_components == BuildOrNot.UNKNOWN and modified_files == BuildOrNot.No or UNKNOWN:
+        #     we left it unknown and decide with idf.py reconfigure
 
         self._checked_should_build = True
 
