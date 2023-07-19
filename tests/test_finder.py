@@ -186,19 +186,21 @@ get-started:
     @pytest.mark.parametrize(
         'modified_components, modified_files, could_find_apps',
         [
-            ([], str(IDF_PATH / 'examples' / 'README.md'), False),
-            (None, [str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], False),
+            ([], str(IDF_PATH / 'examples' / 'README.md'), (True, False)),
+            (None, [str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], (True, True)),
             (
                 [],
                 [
                     str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md'),
                     str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.c'),
                 ],
-                True,
+                (True, True),
             ),
         ],
     )
-    def test_with_depends_filepatterns(self, tmp_path, modified_components, modified_files, could_find_apps):
+    def test_with_depends_components_and_filepatterns(
+        self, tmp_path, modified_components, modified_files, could_find_apps
+    ):
         test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
@@ -218,12 +220,36 @@ get-started:
             test_dir,
             'esp32',
             recursive=True,
+            manifest_files=yaml_file,
+            modified_components=modified_components,
+        )
+        if could_find_apps[0]:
+            assert filtered_apps == apps
+        else:
+            assert not filtered_apps
+
+        yaml_file.write_text(
+            f'''
+{test_dir}:
+    depends_components:
+        - foo
+    depends_filepatterns:
+        - examples/get-started/hello_world/**
+        - examples/foo/**
+''',
+            encoding='utf8',
+        )
+
+        filtered_apps = find_apps(
+            test_dir,
+            'esp32',
+            recursive=True,
             manifest_rootpath=str(IDF_PATH),
             manifest_files=yaml_file,
             modified_components=modified_components,
             modified_files=modified_files,
         )
-        if could_find_apps:
+        if could_find_apps[1]:
             assert filtered_apps == apps
         else:
             assert not filtered_apps
