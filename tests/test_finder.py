@@ -318,6 +318,28 @@ class TestFindWithSdkconfigFiles:
             except:  # noqa
                 pass
 
+    def test_with_sdkconfig_defaults_idf_target_but_disabled(self, tmp_path):
+        manifest_file = tmp_path / 'manifest.yml'
+        manifest_file.write_text(
+            f'''
+{IDF_PATH}/examples:
+    disable:
+       - if: IDF_TARGET == "esp32s2"
+'''
+        )
+
+        sdkconfig_defaults = tmp_path / 'sdkconfig.defaults'
+        sdkconfig_defaults.write_text('CONFIG_IDF_TARGET="esp32s2"')
+
+        test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
+        assert not find_apps(
+            test_dir,
+            'esp32s2',
+            recursive=True,
+            sdkconfig_defaults=str(sdkconfig_defaults),
+            manifest_files=[manifest_file],
+        )
+
     def test_with_config_rules(self, tmp_path, monkeypatch):
         create_project('test1', tmp_path)
 
