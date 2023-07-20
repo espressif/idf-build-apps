@@ -111,15 +111,16 @@ class FolderRule:
         if default_sdkconfig_target:
             if default_sdkconfig_target not in res:
                 LOGGER.warning(
-                    'sdkconfig set `CONFIG_IDF_TARGET=%s` is not enabled for folder %s. ' 'Skip building this App...',
+                    'sdkconfig defined `CONFIG_IDF_TARGET=%s` is not enabled for folder %s. Skip building this App...',
                     default_sdkconfig_target,
                     self.folder,
                 )
                 return []
             else:
                 LOGGER.debug(
-                    'sdkconfig set `CONFIG_IDF_TARGET=%s` overrides the supported targets for folder %s',
+                    'sdkconfig defined `CONFIG_IDF_TARGET=%s` overrides the supported targets for folder %s',
                     default_sdkconfig_target,
+                    self.folder,
                 )
                 res = [default_sdkconfig_target]
 
