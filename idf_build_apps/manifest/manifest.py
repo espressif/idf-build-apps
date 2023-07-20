@@ -7,6 +7,9 @@ from pathlib import (
 
 import yaml
 
+from .. import (
+    LOGGER,
+)
 from ..constants import (
     ALL_TARGETS,
     SUPPORTED_TARGETS,
@@ -105,8 +108,20 @@ class FolderRule:
             if self._enable_build(target, config_name):
                 res.append(target)
 
-        if default_sdkconfig_target and res != [default_sdkconfig_target]:
-            res = [default_sdkconfig_target]
+        if default_sdkconfig_target:
+            if default_sdkconfig_target not in res:
+                LOGGER.warning(
+                    'sdkconfig set `CONFIG_IDF_TARGET=%s` is not enabled for folder %s. ' 'Skip building this App...',
+                    default_sdkconfig_target,
+                    self.folder,
+                )
+                return []
+            else:
+                LOGGER.debug(
+                    'sdkconfig set `CONFIG_IDF_TARGET=%s` overrides the supported targets for folder %s',
+                    default_sdkconfig_target,
+                )
+                res = [default_sdkconfig_target]
 
         return sorted(res)
 
