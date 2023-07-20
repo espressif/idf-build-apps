@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.0.4 (2023-07-20)
+
+### Fix
+
+- stop overriding supported targets with sdkconfig file defined one for disabled app
+
 ## v1.0.3 (2023-07-19)
 
 ### Fix
