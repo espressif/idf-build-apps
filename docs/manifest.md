@@ -24,7 +24,7 @@ One typical manifest file look like this:
 ### Operands
 
 - Capitalized Words
-  - Variables start with `SOC_`. The value would be parsed from `IDF_PATH/components/soc/[TARGET]/include/soc/*_caps.h`
+  - Variables defined in `IDF_PATH/components/soc/[TARGET]/include/soc/*_caps.h` or in `IDF_PATH/components/esp_rom/[TARGET]/*_caps.h`. e.g., `SOC_WIFI_SUPPORTED`, `ESP_ROM_HAS_SPI_FLASH`
   - `IDF_TARGET`
   - `IDF_VERSION` (IDF_VERSION_MAJOR.IDF_VERSION_MINOR.IDF_VERSION_PATCH. e.g., 5.2.0. Will convert to Version object to do a version comparison instead of a string comparison)
   - `IDF_VERSION_MAJOR`

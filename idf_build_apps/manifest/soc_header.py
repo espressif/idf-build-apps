@@ -24,6 +24,9 @@ from pyparsing import (
     nums,
 )
 
+from .. import (
+    LOGGER,
+)
 from ..constants import (
     ALL_TARGETS,
     IDF_PATH,
@@ -68,6 +71,8 @@ def parse_define(define_line):  # type: (str) -> ParseResults
 
 
 class SocHeader(dict):
+    CAPS_HEADER_FILEPATTERN = '*_caps.h'
+
     def __init__(self, target):  # type: (str) -> None
         if target != 'linux':
             soc_header_dict = self._parse_soc_header(target)
@@ -77,33 +82,44 @@ class SocHeader(dict):
         super(SocHeader, self).__init__(**soc_header_dict)
 
     @staticmethod
-    def _parse_soc_header(target):  # type: (str) -> dict[str, any]
-        soc_headers_dir_candidates = [
-            # other branches
-            IDF_PATH / 'components' / 'soc' / target / 'include' / 'soc',
-            # release/v4.2
-            IDF_PATH / 'components' / 'soc' / 'soc' / target / 'include' / 'soc',
-        ]
-
-        # get the soc_headers_dir
-        soc_headers_dir = None
-        for d in soc_headers_dir_candidates:
+    def _get_dir_from_candidates(candidates):  # type: (list[Path]) -> Path | None
+        for d in candidates:
             if not d.is_dir():
-                logging.debug('No soc header files folder: %s', d.absolute())
+                logging.debug('folder "%s" not found. Skipping...', d.absolute())
             else:
-                soc_headers_dir = d
-                break
+                return d
 
-        if not soc_headers_dir:
-            return {}
+        return None
+
+    @classmethod
+    def _parse_soc_header(cls, target):  # type: (str) -> dict[str, any]
+        soc_headers_dir = cls._get_dir_from_candidates(
+            [
+                # other branches
+                IDF_PATH / 'components' / 'soc' / target / 'include' / 'soc',
+                # release/v4.2
+                IDF_PATH / 'components' / 'soc' / 'soc' / target / 'include' / 'soc',
+            ]
+        )
+        esp_rom_headers_dir = cls._get_dir_from_candidates(
+            [
+                IDF_PATH / 'components' / 'esp_rom' / target,
+            ]
+        )
+
+        header_files = []
+        if soc_headers_dir:
+            header_files += list(soc_headers_dir.glob(cls.CAPS_HEADER_FILEPATTERN))
+        if esp_rom_headers_dir:
+            header_files += list(esp_rom_headers_dir.glob(cls.CAPS_HEADER_FILEPATTERN))
 
         output_dict = {}
-        for soc_header_file in soc_headers_dir.glob('*_caps.h'):
-            for line in get_defines(soc_header_file):
+        for f in header_files:
+            for line in get_defines(f):
                 try:
                     res = parse_define(line)
                 except ParseException:
-                    logging.debug('Failed to parse: %s', line)
+                    LOGGER.debug('Failed to parse: %s', line)
                     continue
 
                 if 'str_value' in res:
