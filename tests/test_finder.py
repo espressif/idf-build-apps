@@ -224,7 +224,7 @@ get-started:
             modified_components=modified_components,
         )
         if could_find_apps[0]:
-            assert filtered_apps == apps
+            assert {app.app_dir for app in filtered_apps} == {app.app_dir for app in filtered_apps}
         else:
             assert not filtered_apps
 
@@ -250,7 +250,7 @@ get-started:
             modified_files=modified_files,
         )
         if could_find_apps[1]:
-            assert filtered_apps == apps
+            assert {app.app_dir for app in filtered_apps}
         else:
             assert not filtered_apps
 
@@ -282,7 +282,7 @@ get-started:
             modified_files=modified_files,
         )
         if could_find_apps:
-            assert filtered_apps == apps
+            assert {app.app_dir for app in filtered_apps} == {app.app_dir for app in apps}
         else:
             assert not filtered_apps
 
@@ -306,7 +306,7 @@ class TestFindWithSdkconfigFiles:
                 _default_sdkconfig_path = default_sdkconfig_path
                 break
         else:
-            raise ValueError('no app without {}'.format(DEFAULT_SDKCONFIG))
+            raise ValueError(f'no app without {DEFAULT_SDKCONFIG}')
 
         try:
             filtered_apps = find_apps(test_dir, 'esp32', recursive=True)

@@ -8,7 +8,7 @@ repos:
         args: [ '-f=lf' ]
       - id: double-quote-string-fixer
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.4.2
+    rev: v1.5.1
     hooks:
       - id: insert-license
         files: \.py$
@@ -16,22 +16,21 @@ repos:
           - --license-filepath
           - license_header.txt        # defaults to: LICENSE.txt
           - --use-current-year
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.8.0
+    hooks:
+      - id: pyupgrade
+        args: [--py37-plus]
   - repo: https://github.com/pycqa/isort
-    rev: 5.11.5
+    rev: 5.12.0
     hooks:
       - id: isort
   - repo: https://github.com/psf/black
-    rev: 23.1.0
+    rev: 23.3.0
     hooks:
       - id: black
-  - repo: https://github.com/pycqa/flake8
-    rev: 5.0.4  # 6.x does not support type hint comment
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: 'v0.0.277'
     hooks:
-      - id: flake8
-        # E1/W1 Indentation
-        # E2/W2 Whitespace
-        # E3/W3 Blank line
-        # E4/W4 Import
-        # E5/W5 Line Length
-        # E722 do not use bare 'except' (temporary workaround)
-        args: ['--ignore', 'E1,W1,E2,W2,E3,W3,E4,W4,E5,W5,E722']
+      - id: ruff
+        args: ['--fix']

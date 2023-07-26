@@ -5,6 +5,9 @@
 Tools for building ESP-IDF related apps.
 """
 
+# ruff: noqa: E402
+# avoid circular imports
+
 import logging
 
 __version__ = '1.1.0'

@@ -3,6 +3,7 @@
 
 import logging
 import sys
+import typing as t
 
 from . import (
     LOGGER,
@@ -10,17 +11,17 @@ from . import (
 
 
 class ColoredFormatter(logging.Formatter):
-    grey = '\x1b[37;20m'
-    yellow = '\x1b[33;20m'
-    red = '\x1b[31;20m'
-    bold_red = '\x1b[31;1m'
+    grey: str = '\x1b[37;20m'
+    yellow: str = '\x1b[33;20m'
+    red: str = '\x1b[31;20m'
+    bold_red: str = '\x1b[31;1m'
 
-    reset = '\x1b[0m'
+    reset: str = '\x1b[0m'
 
-    fmt = '%(asctime)s %(levelname)8s %(message)s'
-    datefmt = '%Y-%m-%d %H:%M:%S'
+    fmt: str = '%(asctime)s %(levelname)8s %(message)s'
+    datefmt: str = '%Y-%m-%d %H:%M:%S'
 
-    FORMATS = {
+    FORMATS: t.Dict[int, str] = {
         logging.DEBUG: grey + fmt + reset,
         logging.INFO: fmt,
         logging.WARNING: yellow + fmt + reset,
@@ -28,14 +29,14 @@ class ColoredFormatter(logging.Formatter):
         logging.CRITICAL: bold_red + fmt + reset,
     }
 
-    def __init__(self, colored=True):  # type: (bool) -> None
+    def __init__(self, colored: bool = True) -> None:
         self.colored = colored
         if sys.platform == 'win32':  # does not support it
             self.colored = False
 
-        super(ColoredFormatter, self).__init__(datefmt=self.datefmt)
+        super().__init__(datefmt=self.datefmt)
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         if self.colored:
             log_fmt = self.FORMATS.get(record.levelno)
         else:
@@ -50,18 +51,14 @@ class ColoredFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def setup_logging(verbose=0, log_file=None, colored=True):  # type: (int, str | None, bool) -> None
+def setup_logging(verbose: int = 0, log_file: t.Optional[str] = None, colored: bool = True) -> None:
     """
     Setup logging stream handler
 
     :param verbose: 0 - WARNING, 1 - INFO, 2+ - DEBUG
-    :type verbose: int
     :param log_file: log file path
-    :type log_file: str
     :param colored: colored output or not
-    :type colored: bool
     :return: None
-    :rtype: None
     """
     if not verbose:
         level = logging.WARNING

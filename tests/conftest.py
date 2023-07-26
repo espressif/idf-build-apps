@@ -30,19 +30,19 @@ def create_project(name, folder):
             [
                 'cmake_minimum_required(VERSION 3.16)',
                 'include($ENV{IDF_PATH}/tools/cmake/project.cmake)',
-                'project({})'.format(name),
+                f'project({name})',
             ]
         )
 
     with open(os.path.join(p, 'main', 'CMakeLists.txt'), 'w') as fw:
         fw.writelines(
             [
-                'idf_component_register(SRCS "{}.c"'.format(name),
+                f'idf_component_register(SRCS "{name}.c"',
                 '    INCLUDE_DIRS ".")',
             ]
         )
 
-    with open(os.path.join(p, 'main', '{}.c'.format(name)), 'w') as fw:
+    with open(os.path.join(p, 'main', f'{name}.c'), 'w') as fw:
         fw.writelines(
             [
                 '#include <stdio.h>',

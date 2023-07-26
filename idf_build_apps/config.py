@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import typing as t
 from pathlib import (
     Path,
 )
@@ -12,15 +13,15 @@ from idf_build_apps.utils import (
 
 
 class InvalidTomlError(SystemExit):
-    def __init__(self, filepath, msg):  # type: (str | Path, str) -> None
-        super().__init__('Failed parsing toml file "{}" with error: {}'.format(filepath, msg))
+    def __init__(self, filepath: t.Union[str, Path], msg: str) -> None:
+        super().__init__(f'Failed parsing toml file "{filepath}" with error: {msg}')
 
 
 PYPROJECT_TOML_FN = 'pyproject.toml'
 IDF_BUILD_APPS_TOML_FN = '.idf_build_apps.toml'
 
 
-def load_toml(filepath):  # type: (str | Path) -> dict
+def load_toml(filepath: t.Union[str, Path]) -> dict:
     try:
         import tomllib  # python 3.11
 
@@ -38,7 +39,7 @@ def load_toml(filepath):  # type: (str | Path) -> dict
             raise InvalidTomlError(filepath, str(e))
 
 
-def _get_config_from_file(filepath):  # type: (Path) -> (dict | None, Path)
+def _get_config_from_file(filepath: Path) -> t.Tuple[t.Optional[dict], Path]:
     config = None
     if filepath.is_file():
         if filepath.parts[-1] == PYPROJECT_TOML_FN:
@@ -51,7 +52,7 @@ def _get_config_from_file(filepath):  # type: (Path) -> (dict | None, Path)
     return config, filepath
 
 
-def _get_config_from_path(dirpath):  # type: (Path) -> (dict | None, Path)
+def _get_config_from_path(dirpath: Path) -> t.Tuple[t.Optional[dict], Path]:
     config = None
     filepath = dirpath
     if (dirpath / PYPROJECT_TOML_FN).is_file():
@@ -63,7 +64,7 @@ def _get_config_from_path(dirpath):  # type: (Path) -> (dict | None, Path)
     return config, filepath
 
 
-def get_valid_config(starts_from=os.getcwd(), custom_path=None):  # type: (str, str | None) -> dict | None
+def get_valid_config(starts_from: str = os.getcwd(), custom_path: t.Optional[str] = None) -> t.Optional[dict]:
     root_dir = to_absolute_path('/')
     cur_dir = to_absolute_path(starts_from)
 
@@ -72,14 +73,14 @@ def get_valid_config(starts_from=os.getcwd(), custom_path=None):  # type: (str, 
         config, filepath = _get_config_from_file(to_absolute_path(custom_path))
         if config is not None:
             # use print here since the verbose settings may be set in the config file
-            print('Using custom config file: {}'.format(filepath))
+            print(f'Using custom config file: {filepath}')
             return config
 
     while cur_dir != root_dir and config is None:
         config, filepath = _get_config_from_path(cur_dir)
         if config is not None:
             # use print here since the verbose settings may be set in the config file
-            print('Using config file: {}'.format(filepath))
+            print(f'Using config file: {filepath}')
             return config
 
         if (cur_dir / '.git').exists():
