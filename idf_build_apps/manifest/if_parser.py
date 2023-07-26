@@ -5,6 +5,9 @@ import os
 from ast import (
     literal_eval,
 )
+from typing import (
+    Any,
+)
 
 from packaging.version import (
     Version,
@@ -12,6 +15,7 @@ from packaging.version import (
 from pyparsing import (
     Keyword,
     Literal,
+    ParseResults,
     QuotedString,
     Suppress,
     Word,
@@ -43,7 +47,7 @@ class Stmt:
     Statement
     """
 
-    def get_value(self, target, config_name):  # type: (str, str) -> any
+    def get_value(self, target: str, config_name: str) -> Any:
         """
         Lazy calculated. All subclasses of `Stmt` should implement this function.
 
@@ -68,10 +72,10 @@ class ChipAttr(Stmt):
     - CONFIG_NAME: config name defined in the config rules
     """
 
-    def __init__(self, t):
-        self.attr = t[0]
+    def __init__(self, t: ParseResults):
+        self.attr: str = t[0]
 
-    def get_value(self, target, config_name):  # type: (str, str) -> any
+    def get_value(self, target: str, config_name: str) -> Any:
         from .manifest import FolderRule  # lazy-load
 
         if self.attr == 'IDF_TARGET':
@@ -106,26 +110,26 @@ class ChipAttr(Stmt):
 
 
 class Integer(Stmt):
-    def __init__(self, t):
-        self.expr = t[0]
+    def __init__(self, t: ParseResults):
+        self.expr: str = t[0]
 
-    def get_value(self, target, config_name):  # type: (str, str) -> any
+    def get_value(self, target: str, config_name: str) -> Any:
         return literal_eval(self.expr)
 
 
 class String(Stmt):
-    def __init__(self, t):
-        self.expr = t[0]
+    def __init__(self, t: ParseResults):
+        self.expr: str = t[0]
 
-    def get_value(self, target, config_name):  # type: (str, str) -> any
+    def get_value(self, target: str, config_name: str) -> Any:
         return literal_eval(f'"{self.expr}"')  # double quotes is swallowed by QuotedString
 
 
 class List_(Stmt):
-    def __init__(self, t):
+    def __init__(self, t: ParseResults):
         self.expr = t
 
-    def get_value(self, target, config_name):  # type: (str, str) -> any
+    def get_value(self, target: str, config_name: str) -> Any:
         return [item.get_value(target, config_name) for item in self.expr]
 
 
@@ -141,12 +145,12 @@ class BoolStmt(Stmt):
         'in': lambda x, y: x in y,
     }
 
-    def __init__(self, t):
-        self.left = t[0]  # type: Stmt
-        self.comparison = t[1]  # type: str
-        self.right = t[2]  # type: Stmt
+    def __init__(self, t: ParseResults):
+        self.left: Stmt = t[0]
+        self.comparison: str = t[1]
+        self.right: Stmt = t[2]
 
-    def get_value(self, target, config_name):  # type: (str, str) -> any
+    def get_value(self, target: str, config_name: str) -> Any:
         _l = self.left.get_value(target, config_name)
         _r = self.right.get_value(target, config_name)
 
@@ -173,20 +177,20 @@ class BoolExpr(Stmt):
 
 
 class BoolAnd(BoolExpr):
-    def __init__(self, t):
-        self.left = t[0][0]  # type: BoolStmt
-        self.right = t[0][2]  # type: BoolStmt
+    def __init__(self, t: ParseResults):
+        self.left: BoolStmt = t[0][0]
+        self.right: BoolStmt = t[0][2]
 
-    def get_value(self, target, config_name):  # type: (str, str) -> any
+    def get_value(self, target: str, config_name: str) -> Any:
         return self.left.get_value(target, config_name) and self.right.get_value(target, config_name)
 
 
 class BoolOr(BoolExpr):
-    def __init__(self, t):
-        self.left = t[0][0]  # type: BoolStmt
-        self.right = t[0][2]  # type: BoolStmt
+    def __init__(self, t: ParseResults):
+        self.left: BoolStmt = t[0][0]
+        self.right: BoolStmt = t[0][2]
 
-    def get_value(self, target, config_name):  # type: (str, str) -> any
+    def get_value(self, target: str, config_name: str) -> Any:
         return self.left.get_value(target, config_name) or self.right.get_value(target, config_name)
 
 

@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+import typing as t
 from copy import (
     deepcopy,
 )
@@ -24,7 +25,7 @@ from . import (
 
 
 class ConfigRule:
-    def __init__(self, file_name, config_name):  # type: (str, str) -> None
+    def __init__(self, file_name: str, config_name: t.Optional[str]) -> None:
         """
         ConfigRule represents the sdkconfig file and the config name.
 
@@ -39,19 +40,16 @@ class ConfigRule:
         :param config_name: name of the corresponding build configuration, or None if the value of wildcard is to be
             used
         """
-
         self.file_name = file_name
         self.config_name = config_name
 
 
-def config_rules_from_str(rule_strings):  # type: (list[str] | str) -> list[ConfigRule]
+def config_rules_from_str(rule_strings: t.Union[t.List[str], str]) -> t.List[ConfigRule]:
     """
     Helper function to convert strings like 'file_name=config_name' into `ConfigRule` objects
 
     :param rule_strings: list of rules as strings or a single rule string
-    :type rule_strings: list[str] | str
     :return: list of ConfigRules
-    :rtype: list[ConfigRule]
     """
     if not rule_strings:
         return []
@@ -64,18 +62,14 @@ def config_rules_from_str(rule_strings):  # type: (list[str] | str) -> list[Conf
     return sorted(rules, key=lambda x: x.file_name)
 
 
-def get_parallel_start_stop(total, parallel_count, parallel_index):  # type: (int, int, int) -> (int, int)
+def get_parallel_start_stop(total: int, parallel_count: int, parallel_index: int) -> t.Tuple[int, int]:
     """
     Calculate the start and stop indices for a parallel task (1-based).
 
     :param total: total number of tasks
-    :type total: int
     :param parallel_count: number of parallel tasks to run
-    :type parallel_count: int
     :param parallel_index: index of the parallel task to run
-    :type parallel_index: int
     :return: start and stop indices, [start, stop]
-    :rtype: (int, int)
     """
     if parallel_count == 1:
         return 1, total
@@ -93,7 +87,7 @@ class BuildError(RuntimeError):
 
 
 class InvalidCommand(SystemExit):
-    def __init__(self, msg):
+    def __init__(self, msg: str) -> None:
         super().__init__('Invalid Command: ' + msg.strip())
 
 
@@ -101,7 +95,7 @@ class InvalidInput(SystemExit):
     """Invalid input from user"""
 
 
-def rmdir(path, exclude_file_patterns=None):
+def rmdir(path: str, exclude_file_patterns: t.Union[t.List[str], str, None] = None) -> None:
     if not exclude_file_patterns:
         shutil.rmtree(path, ignore_errors=True)
         return
@@ -123,7 +117,7 @@ def rmdir(path, exclude_file_patterns=None):
                 pass
 
 
-def find_first_match(pattern, path):
+def find_first_match(pattern: str, path: str) -> t.Optional[str]:
     for root, _, files in os.walk(path):
         res = fnmatch.filter(files, pattern)
         if res:
@@ -132,27 +126,21 @@ def find_first_match(pattern, path):
 
 
 def subprocess_run(
-    cmd,  # type: list[str]
-    log_terminal=True,  # type: bool
-    log_fs=None,  # type: t.TextIO | None
-    check=False,  # type: bool
-    additional_env_dict=None,  # type: dict[str, any] | None
-):  # type: (...) -> int
+    cmd: t.List[str],
+    log_terminal: bool = True,
+    log_fs: t.Optional[t.TextIO] = None,
+    check: bool = False,
+    additional_env_dict: t.Optional[t.Dict[str, str]] = None,
+) -> int:
     """
     Subprocess.run for older python versions
 
     :param cmd: cmd
-    :type cmd: list[str]
     :param log_terminal: print to `sys.stdout` if set to `True`
-    :type log_terminal: bool
     :param log_fs: write to this file stream if not `None`
-    :type log_fs: TextIO
     :param check: raise `BuildError` when return code is non-zero
-    :type check: bool
     :param additional_env_dict: additional environment variables
-    :type additional_env_dict: dict[str, any] | None
     :return: return code
-    :rtype: int
     """
     LOGGER.debug('==> Running %s', ' '.join(cmd))
 
@@ -179,30 +167,50 @@ def subprocess_run(
     return returncode
 
 
-def to_list(s):
+def to_list(s: t.Any) -> t.Optional[t.List[t.Any]]:
     """
     Turn all objects to lists
 
     :param s: anything
-    :type s: any
-    :return: ``list(s)``, if ``s`` is a tuple or a set
-    :return: itself, if ``s`` is a list
-    :return: ``[s]``, if ``s`` is other type
-    :return: ``None``, if ``s`` is None
-    :rtype: list | None
+    :return:
+        - ``None``, if ``s`` is None
+        - itself, if ``s`` is a list
+        - ``list(s)``, if ``s`` is a tuple or a set
+        - ``[s]``, if ``s`` is other type
+
     """
     if s is None:
         return s
 
+    if isinstance(s, list):
+        return s
+
     if isinstance(s, set) or isinstance(s, tuple):
         return list(s)
-    elif isinstance(s, list):
+
+    return [s]
+
+
+def to_set(s: t.Any) -> t.Optional[t.Set[t.Any]]:
+    """
+    Turn all objects to sets
+
+    :param s: anything
+    :return:
+        - ``None``, if ``s`` is None
+        - itself, if ``s`` is a set
+        - ``set(to_list(s))``, if ``s`` is other type
+    """
+    if s is None:
         return s
-    else:
-        return [s]
+
+    if isinstance(s, set):
+        return s
+
+    return set(to_list(s))
 
 
-def to_absolute_path(s, rootpath=None):  # type: (str, str | None) -> Path
+def to_absolute_path(s: str, rootpath: t.Optional[str] = None) -> Path:
     rp = Path(os.path.expanduser(rootpath or '.')).resolve()
 
     sp = Path(os.path.expanduser(s))
@@ -212,7 +220,7 @@ def to_absolute_path(s, rootpath=None):  # type: (str, str | None) -> Path
         return (rp / sp).resolve()
 
 
-def to_version(s):  # type: (any) -> Version
+def to_version(s: t.Any) -> Version:
     if isinstance(s, Version):
         return s
 
@@ -223,10 +231,10 @@ def to_version(s):  # type: (any) -> Version
 
 
 def files_matches_patterns(
-    files,  # type: list[str] | str
-    patterns,  # type: list[str] | str
-    rootpath=None,  # type: str
-):  # type: (...) -> bool
+    files: t.Union[t.List[str], str],
+    patterns: t.Union[t.List[str], str],
+    rootpath: t.Optional[str] = None,
+) -> bool:
     # can't match an absolute pattern with a relative path
     # change all to absolute paths
     files = [to_absolute_path(f, rootpath) for f in to_list(files)]

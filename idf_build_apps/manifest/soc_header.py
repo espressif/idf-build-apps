@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import typing as t
+from pathlib import (
+    Path,
+)
 
 from pyparsing import (
     CaselessLiteral,
@@ -13,6 +17,7 @@ from pyparsing import (
     OneOrMore,
     Optional,
     ParseException,
+    ParseResults,
     QuotedString,
     Word,
     alphas,
@@ -46,7 +51,7 @@ _value = Optional('(').suppress() + MatchFirst(_hex_value | _str_value | _int_va
 _define_expr = '#define' + Optional(_name)('name') + Optional(_value)
 
 
-def get_defines(header_path):  # type: (Path) -> list[str]
+def get_defines(header_path: Path) -> t.List[str]:
     defines = []
     logging.debug('Reading macros from %s...', header_path)
     with open(str(header_path)) as f:
@@ -60,7 +65,7 @@ def get_defines(header_path):  # type: (Path) -> list[str]
     return defines
 
 
-def parse_define(define_line):  # type: (str) -> ParseResults
+def parse_define(define_line: str) -> ParseResults:
     res = _define_expr.parseString(define_line)
 
     return res
@@ -69,7 +74,7 @@ def parse_define(define_line):  # type: (str) -> ParseResults
 class SocHeader(dict):
     CAPS_HEADER_FILEPATTERN = '*_caps.h'
 
-    def __init__(self, target):  # type: (str) -> None
+    def __init__(self, target: str) -> None:
         if target != 'linux':
             soc_header_dict = self._parse_soc_header(target)
         else:
@@ -78,7 +83,7 @@ class SocHeader(dict):
         super().__init__(**soc_header_dict)
 
     @staticmethod
-    def _get_dir_from_candidates(candidates):  # type: (list[Path]) -> Path | None
+    def _get_dir_from_candidates(candidates: t.List[Path]) -> t.Optional[Path]:
         for d in candidates:
             if not d.is_dir():
                 logging.debug('folder "%s" not found. Skipping...', d.absolute())
@@ -88,7 +93,7 @@ class SocHeader(dict):
         return None
 
     @classmethod
-    def _parse_soc_header(cls, target):  # type: (str) -> dict[str, any]
+    def _parse_soc_header(cls, target: str) -> t.Dict[str, t.Any]:
         soc_headers_dir = cls._get_dir_from_candidates(
             [
                 # other branches
@@ -128,4 +133,4 @@ class SocHeader(dict):
         return output_dict
 
 
-SOC_HEADERS = {target: SocHeader(target) for target in ALL_TARGETS}
+SOC_HEADERS: t.Dict[str, SocHeader] = {target: SocHeader(target) for target in ALL_TARGETS}

@@ -6,6 +6,7 @@ import os
 import re
 import sys
 import tempfile
+import typing as t
 from pathlib import (
     Path,
 )
@@ -44,7 +45,7 @@ PREVIEW_TARGETS = getattr(_idf_py_constant_py, 'PREVIEW_TARGETS', [])
 ALL_TARGETS = SUPPORTED_TARGETS + PREVIEW_TARGETS
 
 
-def _idf_version_from_cmake():  # type: () -> (int, int, int)
+def _idf_version_from_cmake() -> t.Tuple[int, int, int]:
     version_path = str(IDF_PATH / 'tools' / 'cmake' / 'version.cmake')
     if not os.path.isfile(version_path):
         raise ValueError(f'File {version_path} does not exist')

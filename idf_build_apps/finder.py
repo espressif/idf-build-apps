@@ -3,6 +3,7 @@
 
 import os.path
 import re
+import typing as t
 from pathlib import (
     Path,
 )
@@ -11,6 +12,7 @@ from . import (
     LOGGER,
 )
 from .app import (
+    App,
     BuildOrNot,
     CMakeApp,
 )
@@ -22,26 +24,26 @@ from .utils import (
 
 
 def _get_apps_from_path(
-    path,  # type: str
-    target,  # type: str
-    build_system='cmake',  # type: str
-    work_dir=None,  # type: str | None
-    build_dir='build',  # type: str
-    config_rules_str=None,  # type: list[str] | str | None
-    build_log_path=None,  # type: str | None
-    size_json_path=None,  # type: str | None
-    check_warnings=False,  # type: bool
-    preserve=True,  # type: bool
-    manifest_rootpath=None,  # type: str | None
-    modified_components=None,  # type: list[str] | str | None
-    modified_files=None,  # type: list[str] | str | None,
-    check_app_dependencies=False,  # type: bool
-    sdkconfig_defaults_str=None,  # type: str | None
-):  # type: (...) -> list[App]
+    path: str,
+    target: str,
+    build_system: str = 'cmake',
+    work_dir: t.Optional[str] = None,
+    build_dir: str = 'build',
+    config_rules_str: t.Union[t.List[str], str, None] = None,
+    build_log_path: t.Optional[str] = None,
+    size_json_path: t.Optional[str] = None,
+    check_warnings: bool = False,
+    preserve: bool = True,
+    manifest_rootpath: t.Optional[str] = None,
+    modified_components: t.Union[t.List[str], str, None] = None,
+    modified_files: t.Union[t.List[str], str, None] = None,
+    check_app_dependencies: bool = False,
+    sdkconfig_defaults_str: t.Optional[str] = None,
+) -> t.List[App]:
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
 
-    def _validate_app(_app):  # type: (App) -> bool
+    def _validate_app(_app: App) -> bool:
         if target not in _app.supported_targets:
             LOGGER.debug('=> Skipping. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
             return False
@@ -145,13 +147,13 @@ def _get_apps_from_path(
 
 
 def _find_apps(
-    path,  # type: str
-    target,  # type: str
-    build_system='cmake',  # type: str
-    recursive=False,  # type: bool
-    exclude_list=None,  # type: list[str] | None
+    path: str,
+    target: str,
+    build_system: str = 'cmake',
+    recursive: bool = False,
+    exclude_list: t.Optional[t.List[str]] = None,
     **kwargs,
-):  # type: (...) -> list[App]
+) -> t.List[App]:
     exclude_list = exclude_list or []
     LOGGER.debug(
         'Looking for %s apps in %s%s with target %s', build_system, path, ' recursively' if recursive else '', target
