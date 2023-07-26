@@ -31,7 +31,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: wheel
-          path: dist/idf_build_apps-*-py2.py3-none-any.whl
+          path: dist/idf_build_apps-*.whl
 
   build-apps-on-idf-env:
     if: ${{ github.ref == 'refs/heads/main' }}
@@ -51,7 +51,7 @@ jobs:
         run: |
           bash $IDF_PATH/install.sh
           . $IDF_PATH/export.sh
-          pip install idf_build_apps-*-py2.py3-none-any.whl
+          pip install idf_build_apps-*.whl
           python -m idf_build_apps build -vv -t esp32 \
             -p $IDF_PATH/examples/get-started/hello_world \
             --size-file size_info.json
