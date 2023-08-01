@@ -131,6 +131,7 @@ def subprocess_run(
     log_fs: t.Optional[t.TextIO] = None,
     check: bool = False,
     additional_env_dict: t.Optional[t.Dict[str, str]] = None,
+    **kwargs,
 ) -> int:
     """
     Subprocess.run for older python versions
@@ -149,7 +150,7 @@ def subprocess_run(
         subprocess_env = deepcopy(os.environ)
         subprocess_env.update(additional_env_dict)
 
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=subprocess_env)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=subprocess_env, **kwargs)
     for line in p.stdout:
         if isinstance(line, bytes):
             line = line.decode('utf-8')

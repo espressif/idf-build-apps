@@ -408,12 +408,135 @@ class App(BaseModel):
 
         return []
 
-    @abstractmethod
     def build(
         self,
         manifest_rootpath: t.Optional[str] = None,
         modified_components: t.Union[t.List[str], str, None] = None,
         modified_files: t.Union[t.List[str], str, None] = None,
+        check_app_dependencies: bool = False,
+    ) -> bool:
+        # Preparing the work dir, buidl dir, sdkconfig files, etc.
+        LOGGER.debug('=> Preparing...')
+        if self.work_dir != self.app_dir:
+            if os.path.exists(self.work_dir):
+                LOGGER.debug('==> Work directory %s exists, removing', self.work_dir)
+                if not self.dry_run:
+                    shutil.rmtree(self.work_dir)
+            LOGGER.debug('==> Copying app from %s to %s', self.app_dir, self.work_dir)
+            if not self.dry_run:
+                shutil.copytree(self.app_dir, self.work_dir)
+
+        if os.path.exists(self.build_path):
+            LOGGER.debug('==> Build directory %s exists, removing', self.build_path)
+            if not self.dry_run:
+                shutil.rmtree(self.build_path)
+
+        if not self.dry_run:
+            os.makedirs(self.build_path)
+
+        sdkconfig_file = os.path.join(self.work_dir, 'sdkconfig')
+        if os.path.exists(sdkconfig_file):
+            LOGGER.debug('==> Removing sdkconfig file: %s', sdkconfig_file)
+            if not self.dry_run:
+                os.unlink(sdkconfig_file)
+
+        if self.build_log_path:
+            LOGGER.info('=> Writing build log to %s', self.build_log_path)
+
+        if self.dry_run:
+            LOGGER.debug('==> Skipping... (dry run)')
+            return True
+
+        if self.build_log_path:
+            logfile = open(self.build_log_path, 'w')
+            keep_logfile = True
+        else:
+            # delete manually later, used for tracking debugging info
+            logfile = tempfile.NamedTemporaryFile('w', delete=False)
+            keep_logfile = False
+
+        # Build
+        build_with_error = None
+        is_built = False
+
+        try:
+            is_built = self._build(
+                logfile=logfile,
+                manifest_rootpath=manifest_rootpath,
+                modified_components=to_list(modified_components),
+                modified_files=to_list(modified_files),
+                check_app_dependencies=check_app_dependencies,
+            )
+        except BuildError as e:
+            build_with_error = e
+        finally:
+            logfile.close()
+
+        # Debug
+        has_unignored_warning = False
+        with open(logfile.name) as fr:
+            lines = [line.rstrip() for line in fr.readlines() if line.rstrip()]
+            for line in lines:
+                is_error_or_warning, ignored = self.is_error_or_warning(line)
+                if is_error_or_warning:
+                    if ignored:
+                        LOGGER.info('[Ignored warning] %s', line)
+                    else:
+                        LOGGER.warning('%s', line)
+                        has_unignored_warning = True
+
+        if build_with_error:
+            # print last few lines to help debug
+            LOGGER.error(
+                'Last %s lines from the build log "%s":',
+                self.LOG_DEBUG_LINES,
+                logfile.name,
+            )
+            for line in lines[-self.LOG_DEBUG_LINES :]:
+                LOGGER.error('%s', line)
+
+        if not keep_logfile and not build_with_error:
+            os.unlink(logfile.name)
+            LOGGER.debug('==> Removed temporary build log file %s', logfile.name)
+
+        # Generate Size Files
+        if is_built and self.size_json_path:
+            self.write_size_json()
+
+        # Cleanup build directory if not preserving
+        if not self.preserve:
+            LOGGER.info('=> Removing build directory %s', self.build_path)
+            exclude_list = []
+            if self.size_json_path:
+                exclude_list.append(os.path.basename(self.size_json_path))
+            if self.build_log_path:
+                exclude_list.append(os.path.basename(self.build_log_path))
+
+            rmdir(
+                self.build_path,
+                exclude_file_patterns=exclude_list,
+            )
+
+        if build_with_error:
+            raise build_with_error
+
+        if self.check_warnings and has_unignored_warning:
+            raise BuildError('Build succeeded with warnings')
+
+        if has_unignored_warning:
+            LOGGER.info('=> Build succeeded with warnings')
+        else:
+            LOGGER.info('=> Build succeeded')
+
+        return is_built
+
+    @abstractmethod
+    def _build(
+        self,
+        logfile: t.TextIO,
+        manifest_rootpath: t.Optional[str] = None,
+        modified_components: t.Optional[t.List[str]] = None,
+        modified_files: t.Optional[t.List[str]] = None,
         check_app_dependencies: bool = False,
     ) -> bool:
         pass
@@ -427,8 +550,8 @@ class App(BaseModel):
             )
             return
 
-        subprocess_run(
-            (
+        if IDF_VERSION >= Version('4.1'):
+            subprocess_run(
                 [
                     sys.executable,
                     str(IDF_SIZE_PY),
@@ -438,14 +561,28 @@ class App(BaseModel):
                     '-o',
                     self.size_json_path,
                     map_file,
-                ]
-            ),
-            check=True,
-        )
+                ],
+                check=True,
+            )
+        else:
+            with open(self.size_json_path, 'w') as fw:
+                subprocess_run(
+                    (
+                        [
+                            sys.executable,
+                            str(IDF_SIZE_PY),
+                            '--json',
+                            map_file,
+                        ]
+                    ),
+                    log_terminal=False,
+                    log_fs=fw,
+                    check=True,
+                )
+
         LOGGER.info('=> Generated size info to %s', self.size_json_path)
 
     def to_json(self) -> str:
-        # keeping backward compatibility, only provide these stuffs
         return self.model_dump_json()
 
     def is_error_or_warning(self, line: str) -> t.Tuple[bool, bool]:
@@ -542,6 +679,71 @@ class App(BaseModel):
         self._checked_should_build = True
 
 
+class MakeApp(App):
+    BUILD_SYSTEM = 'make'
+
+    MAKE_PROJECT_LINE: t.ClassVar[str] = r'include $(IDF_PATH)/make/project.mk'
+
+    @property
+    def supported_targets(self) -> t.List[str]:
+        if self.MANIFEST:
+            return self.MANIFEST.enable_build_targets(
+                self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
+            )
+
+        if self.sdkconfig_files_defined_idf_target:
+            return [self.sdkconfig_files_defined_idf_target]
+
+        return ['esp8266'] + FolderRule.DEFAULT_BUILD_TARGETS
+
+    def _build(
+        self,
+        logfile: t.TextIO,
+        manifest_rootpath: t.Optional[str] = None,
+        modified_components: t.Union[t.List[str], str, None] = None,
+        modified_files: t.Union[t.List[str], str, None] = None,
+        check_app_dependencies: bool = False,
+    ) -> bool:
+        # additional env variables
+        additional_env_dict = {
+            'IDF_TARGET': self.target,
+            'BUILD_DIR_BASE': self.build_path,
+        }
+
+        commands = [
+            # generate sdkconfig
+            ['make', 'defconfig'],
+            # build
+            ['make', f'-j{os.cpu_count() or 1}'],
+        ]
+
+        for cmd in commands:
+            subprocess_run(
+                cmd,
+                log_terminal=False if self.build_log_path else True,
+                log_fs=logfile,
+                check=True,
+                additional_env_dict=additional_env_dict,
+                cwd=self.work_dir,
+            )
+
+        return True
+
+    @classmethod
+    def is_app(cls, path: str) -> bool:
+        makefile_path = os.path.join(path, 'Makefile')
+        if not os.path.exists(makefile_path):
+            return False
+
+        with open(makefile_path) as makefile:
+            makefile_content = makefile.read()
+
+        if cls.MAKE_PROJECT_LINE not in makefile_content:
+            return False
+
+        return True
+
+
 class CMakeApp(App):
     BUILD_SYSTEM = 'cmake'
 
@@ -564,53 +766,14 @@ class CMakeApp(App):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def build(
+    def _build(
         self,
+        logfile: t.TextIO,
         manifest_rootpath: t.Optional[str] = None,
         modified_components: t.Union[t.List[str], str, None] = None,
         modified_files: t.Union[t.List[str], str, None] = None,
         check_app_dependencies: bool = False,
     ) -> bool:
-        modified_components = to_list(modified_components)
-        modified_files = to_list(modified_files)
-
-        LOGGER.debug('=> Preparing...')
-        if self.work_dir != self.app_dir:
-            if os.path.exists(self.work_dir):
-                LOGGER.debug('==> Work directory %s exists, removing', self.work_dir)
-                if not self.dry_run:
-                    shutil.rmtree(self.work_dir)
-            LOGGER.debug('==> Copying app from %s to %s', self.app_dir, self.work_dir)
-            if not self.dry_run:
-                shutil.copytree(self.app_dir, self.work_dir)
-
-        if os.path.exists(self.build_path):
-            LOGGER.debug('==> Build directory %s exists, removing', self.build_path)
-            if not self.dry_run:
-                shutil.rmtree(self.build_path)
-
-        if not self.dry_run:
-            os.makedirs(self.build_path)
-
-        sdkconfig_file = os.path.join(self.work_dir, 'sdkconfig')
-        if os.path.exists(sdkconfig_file):
-            LOGGER.debug('==> Removing sdkconfig file: %s', sdkconfig_file)
-            if not self.dry_run:
-                os.unlink(sdkconfig_file)
-
-        if self.build_log_path:
-            LOGGER.info('=> Writing build log to %s', self.build_log_path)
-
-        if self.dry_run:
-            LOGGER.debug('==> Skipping... (dry run)')
-            return True
-
-        if self.build_log_path:
-            log_file = open(self.build_log_path, 'w')
-        else:
-            # delete manually later, used for tracking debugging info
-            log_file = tempfile.NamedTemporaryFile('w', delete=False)
-
         # additional env variables
         # IDF_TARGET to bypass the idf.py build check
         additional_env_dict = {
@@ -643,7 +806,7 @@ class CMakeApp(App):
             subprocess_run(
                 common_args + ['reconfigure'],
                 log_terminal=False if self.build_log_path else True,
-                log_fs=log_file,
+                log_fs=logfile,
                 check=True,
                 additional_env_dict=additional_env_dict,
             )
@@ -680,64 +843,13 @@ class CMakeApp(App):
         if self.verbose:
             build_args.append('-v')
 
-        returncode = subprocess_run(
+        subprocess_run(
             build_args,
             log_terminal=False if self.build_log_path else True,
-            log_fs=log_file,
+            log_fs=logfile,
+            check=True,
             additional_env_dict=additional_env_dict,
         )
-
-        log_file.close()
-
-        # help debug
-        has_unignored_warning = False
-        with open(log_file.name) as f:
-            lines = [line.rstrip() for line in f.readlines() if line.rstrip()]
-            for line in lines:
-                is_error_or_warning, ignored = self.is_error_or_warning(line)
-                if is_error_or_warning:
-                    if ignored:
-                        LOGGER.info('[Ignored warning] %s', line)
-                    else:
-                        LOGGER.warning('%s', line)
-                        has_unignored_warning = True
-
-            if returncode != 0:
-                # print last few lines to help debug
-                LOGGER.error(
-                    'Last %s lines from the build log "%s":',
-                    self.LOG_DEBUG_LINES,
-                    self.build_log_path,
-                )
-                for line in lines[-self.LOG_DEBUG_LINES :]:
-                    LOGGER.error('%s', line)
-
-        if returncode == 0 and self.size_json_path:
-            self.write_size_json()
-
-        if not self.preserve:
-            LOGGER.info('=> Removing build directory %s', self.build_path)
-            exclude_list = []
-            if self.size_json_path:
-                exclude_list.append(os.path.basename(self.size_json_path))
-            if self.build_log_path:
-                exclude_list.append(os.path.basename(self.build_log_path))
-
-            rmdir(
-                self.build_path,
-                exclude_file_patterns=exclude_list,
-            )
-
-        if returncode != 0:
-            raise BuildError(f'Build failed with exit code {returncode}')
-
-        if self.check_warnings and has_unignored_warning:
-            raise BuildError('Build succeeded with warnings')
-
-        if has_unignored_warning:
-            LOGGER.info('=> Build succeeded with warnings')
-        else:
-            LOGGER.info('=> Build succeeded')
 
         return True
 

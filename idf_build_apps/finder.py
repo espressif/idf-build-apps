@@ -15,6 +15,7 @@ from .app import (
     App,
     BuildOrNot,
     CMakeApp,
+    MakeApp,
 )
 from .utils import (
     config_rules_from_str,
@@ -63,8 +64,10 @@ def _get_apps_from_path(
 
     if build_system == 'cmake':
         app_cls = CMakeApp
+    elif build_system == 'make':
+        app_cls = MakeApp
     else:
-        raise ValueError('Only Support CMake for now')
+        raise ValueError('Only Support "make" and "cmake"')
 
     if not app_cls.is_app(path):
         LOGGER.debug('Skipping. %s is not an app', path)

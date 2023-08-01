@@ -11,6 +11,9 @@ from pathlib import (
     Path,
 )
 
+from . import (
+    LOGGER,
+)
 from .utils import (
     to_version,
 )
@@ -39,7 +42,11 @@ sys.path.append(str(IDF_PATH / 'tools' / 'idf_py_actions'))
 if _BUILDING_DOCS:
     _idf_py_constant_py = object()
 else:
-    _idf_py_constant_py = importlib.import_module('constants')
+    try:
+        _idf_py_constant_py = importlib.import_module('constants')
+    except ModuleNotFoundError:
+        LOGGER.warning('Cannot import constants from idf_py_actions')
+        _idf_py_constant_py = object()
 SUPPORTED_TARGETS = getattr(_idf_py_constant_py, 'SUPPORTED_TARGETS', [])
 PREVIEW_TARGETS = getattr(_idf_py_constant_py, 'PREVIEW_TARGETS', [])
 ALL_TARGETS = SUPPORTED_TARGETS + PREVIEW_TARGETS
