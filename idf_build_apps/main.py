@@ -447,7 +447,7 @@ def get_parser() -> argparse.ArgumentParser:
     common_args.add_argument('-p', '--paths', nargs='+', help='One or more paths to look for apps')
     common_args.add_argument('-t', '--target', help='filter apps by given target')
     common_args.add_argument(
-        '--build-system', default='cmake', choices=['cmake'], help='filter apps by given build system'
+        '--build-system', default='cmake', choices=['cmake', 'make'], help='filter apps by given build system'
     )
     common_args.add_argument(
         '--recursive',
