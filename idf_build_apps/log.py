@@ -8,6 +8,9 @@ import typing as t
 from . import (
     LOGGER,
 )
+from .constants import (
+    BuildStage,
+)
 
 
 class ColoredFormatter(logging.Formatter):
@@ -19,14 +22,16 @@ class ColoredFormatter(logging.Formatter):
     reset: str = '\x1b[0m'
 
     fmt: str = '%(asctime)s %(levelname)8s %(message)s'
+    app_fmt: str = f'%(asctime)s %(levelname)8s %(build_stage){BuildStage.max_length()}s| %(message)s'
+
     datefmt: str = '%Y-%m-%d %H:%M:%S'
 
     FORMATS: t.Dict[int, str] = {
-        logging.DEBUG: grey + fmt + reset,
-        logging.INFO: fmt,
-        logging.WARNING: yellow + fmt + reset,
-        logging.ERROR: red + fmt + reset,
-        logging.CRITICAL: bold_red + fmt + reset,
+        logging.DEBUG: f'{grey}{{}}{reset}',
+        logging.INFO: '{}',
+        logging.WARNING: f'{yellow}{{}}{reset}',
+        logging.ERROR: f'{red}{{}}{reset}',
+        logging.CRITICAL: f'{bold_red}{{}}{reset}',
     }
 
     def __init__(self, colored: bool = True) -> None:
@@ -37,10 +42,15 @@ class ColoredFormatter(logging.Formatter):
         super().__init__(datefmt=self.datefmt)
 
     def format(self, record: logging.LogRecord) -> str:
-        if self.colored:
-            log_fmt = self.FORMATS.get(record.levelno)
+        if getattr(record, 'build_stage', None):
+            base_fmt = self.app_fmt
         else:
-            log_fmt = self.fmt
+            base_fmt = self.fmt
+
+        if self.colored:
+            log_fmt = self.FORMATS.get(record.levelno).format(base_fmt)
+        else:
+            log_fmt = base_fmt
 
         if record.levelno in [logging.WARNING, logging.ERROR]:
             record.msg = '>>> ' + str(record.msg)

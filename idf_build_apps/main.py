@@ -24,6 +24,7 @@ from .config import (
 )
 from .constants import (
     ALL_TARGETS,
+    BuildStatus,
 )
 from .finder import (
     _find_apps,
@@ -36,7 +37,6 @@ from .manifest.manifest import (
     Manifest,
 )
 from .utils import (
-    BuildError,
     InvalidCommand,
     files_matches_patterns,
     get_parallel_start_stop,
@@ -198,7 +198,7 @@ def build_apps(
     modified_components: t.Optional[t.Union[t.List[str], str]] = None,
     modified_files: t.Optional[t.Union[t.List[str], str]] = None,
     ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
-) -> t.Union[t.Tuple[int, t.List[App]], int]:
+) -> int:
     """
     Build all the specified apps
 
@@ -220,9 +220,7 @@ def build_apps(
     :param modified_files: modified files
     :param ignore_app_dependencies_filepatterns: file patterns that used for ignoring checking the component
         dependencies
-    :return:
-        - (exit_code, built_apps) if specified ``modified_components``
-        - exit_code if not specified ``modified_components``
+    :return: exit code
     """
     apps = to_list(apps)
     modified_components = to_list(modified_components)
@@ -241,9 +239,7 @@ def build_apps(
     start, stop = get_parallel_start_stop(len(apps), parallel_count, parallel_index)
     LOGGER.info('Total %s apps. running build for app %s-%s', len(apps), start, stop)
 
-    failed_apps = []
     exit_code = 0
-
     LOGGER.info('Building the following apps:')
     if apps[start - 1 : stop]:
         for app in apps[start - 1 : stop]:
@@ -272,11 +268,9 @@ def build_apps(
     for f in collect_files:
         if os.path.isfile(f):
             os.remove(f)
-            LOGGER.info('=> Remove existing collect file %s', f)
+            LOGGER.info('Remove existing collect file %s', f)
         Path(f).touch()
 
-    built_apps = []
-    skipped_apps = []
     for i, app in enumerate(apps):
         index = i + 1  # we use 1-based
         if index < start or index > stop:
@@ -287,94 +281,84 @@ def build_apps(
         app.index = index
         app.verbose = build_verbose
 
-        LOGGER.info('Building app %s: %s', index, repr(app))
-        is_built = False
-        try:
-            is_built = app.build(
-                manifest_rootpath=manifest_rootpath,
-                modified_components=modified_components,
-                modified_files=modified_files,
-                check_app_dependencies=_check_app_dependency(
-                    manifest_rootpath, modified_components, modified_files, ignore_app_dependencies_filepatterns
-                ),
-            )
-            if is_built:
-                built_apps.append(app)
+        LOGGER.info('(%s/%s) Building app: %s', index, len(apps), app)
+        app.build(
+            manifest_rootpath=manifest_rootpath,
+            modified_components=modified_components,
+            modified_files=modified_files,
+            check_app_dependencies=_check_app_dependency(
+                manifest_rootpath, modified_components, modified_files, ignore_app_dependencies_filepatterns
+            ),
+        )
+        if app.build_comment:
+            LOGGER.info('%s (%s)', app.build_status.value, app.build_comment)
+        else:
+            LOGGER.info('%s', app.build_status.value)
+
+        if app.collect_app_info:
+            with open(app.collect_app_info, 'a') as fw:
+                fw.write(app.to_json() + '\n')
+            LOGGER.info('Recorded app info in %s', app.collect_app_info)
+
+        if copy_sdkconfig:
+            try:
+                shutil.copy(
+                    os.path.join(app.work_dir, 'sdkconfig'),
+                    os.path.join(app.build_path, 'sdkconfig'),
+                )
+            except Exception as e:
+                LOGGER.warning('Copy sdkconfig file from failed: %s', e)
             else:
-                skipped_apps.append(app)
-        except BuildError as e:
-            LOGGER.error(str(e))
-            failed_apps.append(app)
-            if keep_going:
+                LOGGER.info('Copied sdkconfig file from %s to %s', app.work_dir, app.build_path)
+
+        if app.build_status == BuildStatus.FAILED:
+            if not keep_going:
+                return 1
+            else:
                 exit_code = 1
-            else:
-                if modified_components is not None:
-                    return 1, built_apps
+        elif app.build_status == BuildStatus.SUCCESS:
+            if app.collect_size_info and app.size_json_path:
+                try:
+                    if not os.path.isfile(app.size_json_path):
+                        app.write_size_json()
+                except Exception as e:
+                    LOGGER.warning('Adding size info failed: %s', e)
                 else:
-                    return 1
-        finally:
-            if is_built:
-                if app.collect_app_info:
-                    with open(app.collect_app_info, 'a') as fw:
-                        fw.write(app.to_json() + '\n')
-                    LOGGER.info('=> Recorded app info in %s', app.collect_app_info)
-
-                if app.collect_size_info and app.size_json_path:
-                    try:
-                        if not os.path.isfile(app.size_json_path):
-                            app.write_size_json()
-                    except Exception as e:
-                        LOGGER.warning('Adding size info for app %s failed:', app.name)
-                        LOGGER.warning(e)
-                    else:
-                        with open(app.collect_size_info, 'a') as fw:
-                            fw.write(
-                                json.dumps(
-                                    {
-                                        'app_name': app.name,
-                                        'config_name': app.config_name,
-                                        'target': app.target,
-                                        'path': app.size_json_path,
-                                    }
-                                )
-                                + '\n'
+                    with open(app.collect_size_info, 'a') as fw:
+                        fw.write(
+                            json.dumps(
+                                {
+                                    'app_name': app.name,
+                                    'config_name': app.config_name,
+                                    'target': app.target,
+                                    'path': app.size_json_path,
+                                }
                             )
-                        LOGGER.info('=> Recorded size info file path in %s', app.collect_size_info)
-
-                if copy_sdkconfig:
-                    try:
-                        shutil.copy(
-                            os.path.join(app.work_dir, 'sdkconfig'),
-                            os.path.join(app.build_path, 'sdkconfig'),
+                            + '\n'
                         )
-                    except Exception as e:
-                        LOGGER.warning('Copy sdkconfig file from app %s work dir %s failed:', app.name, app.work_dir)
-                        LOGGER.warning(e)
-                        pass
-                    else:
-                        LOGGER.info('=> Copied sdkconfig file from %s to %s', app.work_dir, app.build_path)
+                    LOGGER.info('Recorded size info file path in %s', app.collect_size_info)
 
-            LOGGER.info('')  # add one empty line for separating different builds
+        LOGGER.info('')  # add one empty line for separating different builds
 
+    built_apps = [app for app in apps if app.build_status == BuildStatus.SUCCESS]
     if built_apps:
         LOGGER.info('Built the following apps:')
         for app in built_apps:
             LOGGER.info('  %s', app)
 
+    skipped_apps = [app for app in apps if app.build_status == BuildStatus.SKIPPED]
     if skipped_apps:
         LOGGER.info('Skipped the following apps:')
         for app in skipped_apps:
             LOGGER.info('  %s', app)
 
+    failed_apps = [app for app in apps if app.build_status == BuildStatus.FAILED]
     if failed_apps:
         LOGGER.error('Build failed for the following apps:')
         for app in failed_apps:
             LOGGER.error('  %s', app)
 
-    if modified_components is not None:
-        return exit_code, built_apps
-    else:
-        return exit_code
+    return exit_code
 
 
 class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
@@ -707,30 +691,26 @@ def main():
 
         sys.exit(0)
 
-    # build from now on
     if args.no_preserve:
         for app in apps:
             app.preserve = False
 
-    res = build_apps(
-        apps,
-        build_verbose=args.build_verbose,
-        parallel_count=args.parallel_count,
-        parallel_index=args.parallel_index,
-        dry_run=args.dry_run,
-        keep_going=args.keep_going,
-        collect_size_info=args.collect_size_info,
-        collect_app_info=args.collect_app_info,
-        ignore_warning_strs=args.ignore_warning_str,
-        ignore_warning_file=args.ignore_warning_file,
-        copy_sdkconfig=args.copy_sdkconfig,
-        manifest_rootpath=args.manifest_rootpath,
-        modified_components=args.modified_components,
-        modified_files=args.modified_files,
-        ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
+    sys.exit(
+        build_apps(
+            apps,
+            build_verbose=args.build_verbose,
+            parallel_count=args.parallel_count,
+            parallel_index=args.parallel_index,
+            dry_run=args.dry_run,
+            keep_going=args.keep_going,
+            collect_size_info=args.collect_size_info,
+            collect_app_info=args.collect_app_info,
+            ignore_warning_strs=args.ignore_warning_str,
+            ignore_warning_file=args.ignore_warning_file,
+            copy_sdkconfig=args.copy_sdkconfig,
+            manifest_rootpath=args.manifest_rootpath,
+            modified_components=args.modified_components,
+            modified_files=args.modified_files,
+            ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
+        )
     )
-
-    if args.modified_components is not None:
-        sys.exit(res[0])
-    else:
-        sys.exit(res)

@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
+import enum
 import importlib
 import os
 import re
@@ -78,3 +79,21 @@ else:
     IDF_VERSION_MAJOR, IDF_VERSION_MINOR, IDF_VERSION_PATCH = _idf_version_from_cmake()
 
 IDF_VERSION = to_version(f'{IDF_VERSION_MAJOR}.{IDF_VERSION_MINOR}.{IDF_VERSION_PATCH}')
+
+
+class BuildStatus(str, enum.Enum):
+    UNKNOWN = 'unknown'
+    SKIPPED = 'skipped'
+    SHOULD_BE_BUILT = 'should be built'
+    FAILED = 'build failed'
+    SUCCESS = 'build success'
+
+
+class BuildStage(str, enum.Enum):
+    PRE_BUILD = 'Pre Build'
+    BUILD = 'Build'
+    POST_BUILD = 'Post Build'
+
+    @classmethod
+    def max_length(cls) -> int:
+        return max(len(v.value) for v in cls.__members__.values())

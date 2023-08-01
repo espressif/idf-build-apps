@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-import enum
 import json
+import logging
 import os
 import re
 import shutil
@@ -14,6 +14,9 @@ from abc import (
 )
 from copy import (
     deepcopy,
+)
+from functools import (
+    lru_cache,
 )
 from pathlib import (
     Path,
@@ -39,6 +42,8 @@ from .constants import (
     IDF_VERSION_MINOR,
     IDF_VERSION_PATCH,
     PROJECT_DESCRIPTION_JSON,
+    BuildStage,
+    BuildStatus,
 )
 from .manifest.manifest import (
     FolderRule,
@@ -55,10 +60,16 @@ from .utils import (
 )
 
 
-class BuildOrNot(str, enum.Enum):
-    YES = 'yes'
-    NO = 'no'
-    UNKNOWN = 'unknown'
+class _AppBuildStageFilter(logging.Filter):
+    def __init__(self, *args, app, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.app = app
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if self.app._build_stage:
+            record.build_stage = self.app._build_stage.value
+
+        return True
 
 
 class App(BaseModel):
@@ -90,7 +101,9 @@ class App(BaseModel):
     target: str
     sdkconfig_path: t.Optional[str] = None
     config_name: t.Optional[str] = None
-    should_build: BuildOrNot = BuildOrNot.UNKNOWN
+
+    build_status: BuildStatus = BuildStatus.UNKNOWN
+    build_comment: t.Optional[str] = None
 
     # Attrs that support placeholders
     _work_dir: t.Optional[str] = None
@@ -110,6 +123,9 @@ class App(BaseModel):
     preserve: bool = True
     parallel_index: int = 1
     parallel_count: int = 1
+
+    # logging
+    _build_stage: t.Optional[BuildStage] = None
 
     def __init__(
         self,
@@ -137,6 +153,8 @@ class App(BaseModel):
             }
         )
         super().__init__(**kwargs)
+        self._logger = LOGGER.getChild(str(hash(self)))
+        self._logger.addFilter(_AppBuildStageFilter(app=self))
 
         # These internal variables store the paths with environment variables and placeholders;
         # Public properties with similar names use the _expand method to get the actual paths.
@@ -158,6 +176,14 @@ class App(BaseModel):
         self._sdkconfig_files_defined_target = None
 
         self._process_sdkconfig_files()
+
+    def __str__(self):
+        return 'App {}({}), target {}, sdkconfig {}'.format(
+            self.app_dir,
+            self.BUILD_SYSTEM,
+            self.target,
+            self.sdkconfig_path or '(default)',
+        )
 
     def __lt__(self, other: t.Any) -> bool:
         if isinstance(other, App):
@@ -295,8 +321,7 @@ class App(BaseModel):
 
     def _process_sdkconfig_files(self):
         """
-        Expand environment variables in default sdkconfig files and remove some CI
-        related settings.
+        Expand environment variables in default sdkconfig files and remove some CI related settings.
         """
         res = []
 
@@ -309,7 +334,7 @@ class App(BaseModel):
                 f = os.path.join(self.work_dir, f)
 
             if not os.path.isfile(f):
-                LOGGER.debug('=> sdkconfig file %s not exists, skipping...', f)
+                self._logger.debug('sdkconfig file %s not exists, skipping...', f)
                 continue
 
             expanded_fp = os.path.join(expanded_dir, os.path.basename(f))
@@ -336,19 +361,19 @@ class App(BaseModel):
             with open(f) as fr:
                 with open(expanded_fp) as new_fr:
                     if fr.read() == new_fr.read():
-                        LOGGER.debug('=> Use sdkconfig file %s', f)
+                        self._logger.debug('Use sdkconfig file %s', f)
                         try:
                             os.unlink(expanded_fp)
                         except OSError:
-                            LOGGER.debug('=> Failed to remove file %s', expanded_fp)
+                            self._logger.debug('Failed to remove file %s', expanded_fp)
                         res.append(f)
                     else:
-                        LOGGER.debug('=> Expand sdkconfig file %s to %s', f, expanded_fp)
+                        self._logger.debug('Expand sdkconfig file %s to %s', f, expanded_fp)
                         res.append(expanded_fp)
                         # copy the related target-specific sdkconfig files
                         for target_specific_file in Path(f).parent.glob(os.path.basename(f) + f'.{self.target}'):
-                            LOGGER.debug(
-                                '=> Copy target-specific sdkconfig file %s to %s', target_specific_file, expanded_dir
+                            self._logger.debug(
+                                'Copy target-specific sdkconfig file %s to %s', target_specific_file, expanded_dir
                             )
                             shutil.copy(target_specific_file, expanded_dir)
 
@@ -366,10 +391,14 @@ class App(BaseModel):
         self._sdkconfig_files = res
 
     @property
+    @lru_cache()
+    # @cached_property requires python 3.8
     def sdkconfig_files_defined_idf_target(self) -> t.Optional[str]:
         return self._sdkconfig_files_defined_target
 
     @property
+    @lru_cache()
+    # @cached_property requires python 3.8
     def sdkconfig_files(self) -> t.List[str]:
         return [os.path.realpath(file) for file in self._sdkconfig_files]
 
@@ -414,38 +443,47 @@ class App(BaseModel):
         modified_components: t.Union[t.List[str], str, None] = None,
         modified_files: t.Union[t.List[str], str, None] = None,
         check_app_dependencies: bool = False,
-    ) -> bool:
-        # Preparing the work dir, buidl dir, sdkconfig files, etc.
-        LOGGER.debug('=> Preparing...')
+    ) -> None:
+        self._build_stage = BuildStage.PRE_BUILD
         if self.work_dir != self.app_dir:
             if os.path.exists(self.work_dir):
-                LOGGER.debug('==> Work directory %s exists, removing', self.work_dir)
-                if not self.dry_run:
+                if self.dry_run:
+                    self._logger.debug('[dry run] Removed existing work dir: %s', self.work_dir)
+                else:
                     shutil.rmtree(self.work_dir)
-            LOGGER.debug('==> Copying app from %s to %s', self.app_dir, self.work_dir)
-            if not self.dry_run:
+                    self._logger.debug('Removed existing work dir: %s', self.work_dir)
+
+            if self.dry_run:
+                self._logger.debug('[dry run] Copied app from %s to %s', self.app_dir, self.work_dir)
+            else:
                 shutil.copytree(self.app_dir, self.work_dir)
+                self._logger.debug('Copied app from %s to %s', self.app_dir, self.work_dir)
 
         if os.path.exists(self.build_path):
-            LOGGER.debug('==> Build directory %s exists, removing', self.build_path)
-            if not self.dry_run:
+            if self.dry_run:
+                self._logger.debug('[dry run] Removed existing build dir: %s', self.build_path)
+            else:
                 shutil.rmtree(self.build_path)
+                self._logger.debug('Removed existing build dir: %s', self.build_path)
 
         if not self.dry_run:
             os.makedirs(self.build_path)
 
         sdkconfig_file = os.path.join(self.work_dir, 'sdkconfig')
         if os.path.exists(sdkconfig_file):
-            LOGGER.debug('==> Removing sdkconfig file: %s', sdkconfig_file)
-            if not self.dry_run:
+            if self.dry_run:
+                self._logger.debug('[dry run] Removed existing sdkconfig file: %s', sdkconfig_file)
+            else:
                 os.unlink(sdkconfig_file)
+                self._logger.debug('Removed existing sdkconfig file: %s', sdkconfig_file)
 
         if self.build_log_path:
-            LOGGER.info('=> Writing build log to %s', self.build_log_path)
+            self._logger.info('Writing build log to %s', self.build_log_path)
 
         if self.dry_run:
-            LOGGER.debug('==> Skipping... (dry run)')
-            return True
+            self.build_status = BuildStatus.SKIPPED
+            self.build_comment = 'dry run'
+            return
 
         if self.build_log_path:
             logfile = open(self.build_log_path, 'w')
@@ -455,12 +493,9 @@ class App(BaseModel):
             logfile = tempfile.NamedTemporaryFile('w', delete=False)
             keep_logfile = False
 
-        # Build
-        build_with_error = None
-        is_built = False
-
+        self._build_stage = BuildStage.BUILD
         try:
-            is_built = self._build(
+            self._build(
                 logfile=logfile,
                 manifest_rootpath=manifest_rootpath,
                 modified_components=to_list(modified_components),
@@ -468,11 +503,12 @@ class App(BaseModel):
                 check_app_dependencies=check_app_dependencies,
             )
         except BuildError as e:
-            build_with_error = e
+            self.build_status = BuildStatus.FAILED
+            self.build_comment = str(e)
         finally:
             logfile.close()
 
-        # Debug
+        self._build_stage = BuildStage.POST_BUILD
         has_unignored_warning = False
         with open(logfile.name) as fr:
             lines = [line.rstrip() for line in fr.readlines() if line.rstrip()]
@@ -480,32 +516,32 @@ class App(BaseModel):
                 is_error_or_warning, ignored = self.is_error_or_warning(line)
                 if is_error_or_warning:
                     if ignored:
-                        LOGGER.info('[Ignored warning] %s', line)
+                        self._logger.info('[Ignored warning] %s', line)
                     else:
-                        LOGGER.warning('%s', line)
+                        self._logger.warning('%s', line)
                         has_unignored_warning = True
 
-        if build_with_error:
+        if self.build_status == BuildStatus.FAILED:
             # print last few lines to help debug
-            LOGGER.error(
+            self._logger.error(
                 'Last %s lines from the build log "%s":',
                 self.LOG_DEBUG_LINES,
                 logfile.name,
             )
             for line in lines[-self.LOG_DEBUG_LINES :]:
-                LOGGER.error('%s', line)
+                self._logger.error('%s', line)
 
-        if not keep_logfile and not build_with_error:
+        # remove the log file if not specified and build succeeded
+        if not keep_logfile and self.build_status == BuildStatus.SUCCESS:
             os.unlink(logfile.name)
-            LOGGER.debug('==> Removed temporary build log file %s', logfile.name)
+            self._logger.debug('Removed temporary build log file: %s', logfile.name)
 
         # Generate Size Files
-        if is_built and self.size_json_path:
+        if self.build_status == BuildStatus.SUCCESS and self.size_json_path:
             self.write_size_json()
 
         # Cleanup build directory if not preserving
         if not self.preserve:
-            LOGGER.info('=> Removing build directory %s', self.build_path)
             exclude_list = []
             if self.size_json_path:
                 exclude_list.append(os.path.basename(self.size_json_path))
@@ -516,19 +552,14 @@ class App(BaseModel):
                 self.build_path,
                 exclude_file_patterns=exclude_list,
             )
+            self._logger.debug('Removed built binaries under: %s', self.build_path)
 
-        if build_with_error:
-            raise build_with_error
-
+        # Build Result
         if self.check_warnings and has_unignored_warning:
-            raise BuildError('Build succeeded with warnings')
-
-        if has_unignored_warning:
-            LOGGER.info('=> Build succeeded with warnings')
-        else:
-            LOGGER.info('=> Build succeeded')
-
-        return is_built
+            self.build_status = BuildStatus.FAILED
+            self.build_comment = 'build succeeded with warnings'
+        elif has_unignored_warning:
+            self.build_comment = 'build succeeded with warnings'
 
     @abstractmethod
     def _build(
@@ -544,7 +575,7 @@ class App(BaseModel):
     def write_size_json(self) -> None:
         map_file = find_first_match('*.map', self.build_path)
         if not map_file:
-            LOGGER.warning(
+            self._logger.warning(
                 '.map file not found. Cannot write size json to file: %s',
                 self.size_json_path,
             )
@@ -580,7 +611,7 @@ class App(BaseModel):
                     check=True,
                 )
 
-        LOGGER.info('=> Generated size info to %s', self.size_json_path)
+        self._logger.info('Generated size info to %s', self.size_json_path)
 
     def to_json(self) -> str:
         return self.model_dump_json()
@@ -621,16 +652,16 @@ class App(BaseModel):
         modified_components: t.Union[t.List[str], str, None],
         modified_files: t.Union[t.List[str], str, None],
     ) -> None:
-        if self.should_build != BuildOrNot.UNKNOWN:
+        if self.build_status != BuildStatus.UNKNOWN:
             return
 
         if not check_app_dependencies:
-            self.should_build = BuildOrNot.YES
+            self.build_status = BuildStatus.SHOULD_BE_BUILT
             self._checked_should_build = True
             return
 
         if self.is_modified(modified_files):
-            self.should_build = BuildOrNot.YES
+            self.build_status = BuildStatus.SHOULD_BE_BUILT
             self._checked_should_build = True
             return
 
@@ -638,41 +669,41 @@ class App(BaseModel):
         modified_components = to_list(modified_components)
         modified_files = to_list(modified_files)
 
-        _modified_components = BuildOrNot.UNKNOWN
-        _modified_files = BuildOrNot.UNKNOWN
+        _modified_components = BuildStatus.UNKNOWN
+        _modified_files = BuildStatus.UNKNOWN
 
         # depends components?
         if check_app_dependencies and modified_components is not None:
             if set(self.depends_components).intersection(set(modified_components)):
-                LOGGER.debug(
-                    '=> Should be built. %s requires components: %s, modified components %s',
+                self._logger.debug(
+                    'Should be built. %s requires components: %s, modified components %s',
                     self,
                     ', '.join(self.depends_components),
                     ', '.join(modified_components),
                 )
-                _modified_components = BuildOrNot.YES
+                _modified_components = BuildStatus.SHOULD_BE_BUILT
             # if not defined dependency, we left it unknown and decide with idf.py reconfigure
             elif self.depends_components:
-                _modified_components = BuildOrNot.NO
+                _modified_components = BuildStatus.SKIPPED
 
         # or depends file patterns?
         if check_app_dependencies and modified_files is not None:
             if files_matches_patterns(modified_files, self.depends_filepatterns, manifest_rootpath):
-                LOGGER.debug(
-                    '=> Should be built. %s depends on file patterns: %s, modified files %s',
+                self._logger.debug(
+                    'Should be built. %s depends on file patterns: %s, modified files %s',
                     self,
                     ', '.join(self.depends_filepatterns),
                     ', '.join(modified_files),
                 )
-                _modified_files = BuildOrNot.YES
+                _modified_files = BuildStatus.SHOULD_BE_BUILT
             # if not defined dependency, we left it unknown and decide with idf.py reconfigure
             elif self.depends_filepatterns:
-                _modified_files = BuildOrNot.NO
+                _modified_files = BuildStatus.SKIPPED
 
-        if _modified_components == BuildOrNot.YES or _modified_files == BuildOrNot.YES:
-            self.should_build = BuildOrNot.YES
-        elif _modified_components == BuildOrNot.NO:  # _modified_files == BuildOrNot.NO or UNKNOWN
-            self.should_build = BuildOrNot.NO
+        if _modified_components == BuildStatus.SHOULD_BE_BUILT or _modified_files == BuildStatus.SHOULD_BE_BUILT:
+            self.build_status = BuildStatus.SHOULD_BE_BUILT
+        elif _modified_components == BuildStatus.SKIPPED:  # _modified_files == BuildOrNot.NO or UNKNOWN
+            self.build_status = BuildStatus.SKIPPED
         # elif modified_components == BuildOrNot.UNKNOWN and modified_files == BuildOrNot.No or UNKNOWN:
         #     we left it unknown and decide with idf.py reconfigure
 
@@ -703,7 +734,7 @@ class MakeApp(App):
         modified_components: t.Union[t.List[str], str, None] = None,
         modified_files: t.Union[t.List[str], str, None] = None,
         check_app_dependencies: bool = False,
-    ) -> bool:
+    ) -> None:
         # additional env variables
         additional_env_dict = {
             'IDF_TARGET': self.target,
@@ -727,7 +758,7 @@ class MakeApp(App):
                 cwd=self.work_dir,
             )
 
-        return True
+        self.build_status = BuildStatus.SUCCESS
 
     @classmethod
     def is_app(cls, path: str) -> bool:
@@ -763,9 +794,6 @@ class CMakeApp(App):
 
     cmake_vars: t.Dict[str, str] = {}
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def _build(
         self,
         logfile: t.TextIO,
@@ -773,7 +801,7 @@ class CMakeApp(App):
         modified_components: t.Union[t.List[str], str, None] = None,
         modified_files: t.Union[t.List[str], str, None] = None,
         check_app_dependencies: bool = False,
-    ) -> bool:
+    ) -> None:
         # additional env variables
         # IDF_TARGET to bypass the idf.py build check
         additional_env_dict = {
@@ -802,7 +830,7 @@ class CMakeApp(App):
                 check_app_dependencies=check_app_dependencies,
             )
 
-        if modified_components is not None and check_app_dependencies and self.should_build == BuildOrNot.UNKNOWN:
+        if modified_components is not None and check_app_dependencies and self.build_status == BuildStatus.UNKNOWN:
             subprocess_run(
                 common_args + ['reconfigure'],
                 log_terminal=False if self.build_log_path else True,
@@ -810,24 +838,21 @@ class CMakeApp(App):
                 check=True,
                 additional_env_dict=additional_env_dict,
             )
+            self._logger.debug('generated project_description.json to check app dependencies')
 
             with open(os.path.join(self.build_path, PROJECT_DESCRIPTION_JSON)) as fr:
                 build_components = {item for item in json.load(fr)['build_components'] if item}
 
             if not set(modified_components).intersection(set(build_components)):
-                LOGGER.info(
-                    '=> Skip building... app %s depends components: %s, while current build modified components: %s',
-                    self.app_dir,
-                    build_components,
-                    modified_components,
+                self.build_status = BuildStatus.SKIPPED
+                self.build_comment = (
+                    f'app {self.app_dir} depends components: {build_components}, '
+                    f'while current build modified components: {modified_components}'
                 )
-                return False
-            else:
-                self.should_build = BuildOrNot.YES
+                return
 
-        if self.should_build == BuildOrNot.NO:
-            LOGGER.info('=> Skip building...')
-            return False
+        if self.build_status == BuildStatus.SKIPPED:
+            return
 
         # idf.py build
         build_args = deepcopy(common_args)
@@ -851,7 +876,7 @@ class CMakeApp(App):
             additional_env_dict=additional_env_dict,
         )
 
-        return True
+        self.build_status = BuildStatus.SUCCESS
 
     @classmethod
     def is_app(cls, path: str) -> bool:
