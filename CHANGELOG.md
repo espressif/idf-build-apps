@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.1 (2023-08-02)
+
+### Fix
+
+- ignore idf_size.py error
+
 ## v1.1.0 (2023-07-21)
 
 ### Feat
