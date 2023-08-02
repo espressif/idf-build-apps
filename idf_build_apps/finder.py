@@ -13,9 +13,11 @@ from . import (
 )
 from .app import (
     App,
-    BuildOrNot,
     CMakeApp,
     MakeApp,
+)
+from .constants import (
+    BuildStatus,
 )
 from .utils import (
     config_rules_from_str,
@@ -57,7 +59,7 @@ def _get_apps_from_path(
         )
 
         # for unknown ones, we keep them to the build stage to judge
-        if _app.should_build == BuildOrNot.NO:
+        if _app.build_status == BuildStatus.SKIPPED:
             return False
 
         return True

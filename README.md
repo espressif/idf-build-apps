@@ -10,7 +10,7 @@
 
 An [ESP-IDF][esp-idf] project would typically contain:
 
-- Build recipe in CMake and the main component with app sources
+- Build recipe in CMake or Make and the main component with app sources
 - (Optional) One or more [sdkconfig][sdkconfig] files
 
 `app` is the abbreviation for application. An application is the binary that is being built with the specified [sdkconfig][sdkconfig] and the target chip. `idf-build-apps` could build one project into a number of applications.
