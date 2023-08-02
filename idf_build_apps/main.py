@@ -318,12 +318,7 @@ def build_apps(
                 exit_code = 1
         elif app.build_status == BuildStatus.SUCCESS:
             if app.collect_size_info and app.size_json_path:
-                try:
-                    if not os.path.isfile(app.size_json_path):
-                        app.write_size_json()
-                except Exception as e:
-                    LOGGER.warning('Adding size info failed: %s', e)
-                else:
+                if os.path.isfile(app.size_json_path):
                     with open(app.collect_size_info, 'a') as fw:
                         fw.write(
                             json.dumps(
