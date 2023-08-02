@@ -416,7 +416,7 @@ class App(object):
     ):  # type: (...) -> bool
         pass
 
-    def write_size_json(self):
+    def _write_size_json(self):
         map_file = find_first_match('*.map', self.build_path)
         if not map_file:
             LOGGER.warning(
@@ -441,6 +441,12 @@ class App(object):
             check=True,
         )
         LOGGER.info('=> Generated size info to %s', self.size_json_path)
+
+    def write_size_json(self):  # type: () -> None
+        try:
+            self._write_size_json()
+        except Exception as e:
+            LOGGER.warning('Failed to generate size json: %s', e)
 
     def to_json(self):
         # keeping backward compatibility, only provide these stuffs

@@ -360,13 +360,7 @@ def build_apps(
                     LOGGER.info('=> Recorded app info in %s', app.collect_app_info)
 
                 if app.collect_size_info and app.size_json_path:
-                    try:
-                        if not os.path.isfile(app.size_json_path):
-                            app.write_size_json()
-                    except Exception as e:
-                        LOGGER.warning('Adding size info for app %s failed:', app.name)
-                        LOGGER.warning(e)
-                    else:
+                    if os.path.isfile(app.size_json_path):
                         with open(app.collect_size_info, 'a') as fw:
                             fw.write(
                                 json.dumps(
