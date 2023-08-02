@@ -570,7 +570,7 @@ class App(BaseModel):
     ) -> bool:
         pass
 
-    def write_size_json(self) -> None:
+    def _write_size_json(self) -> None:
         map_file = find_first_match('*.map', self.build_path)
         if not map_file:
             self._logger.warning(
@@ -610,6 +610,12 @@ class App(BaseModel):
                 )
 
         self._logger.info('Generated size info to %s', self.size_json_path)
+
+    def write_size_json(self) -> None:
+        try:
+            self._write_size_json()
+        except Exception as e:
+            self._logger.warning('Failed to generate size json: %s', e)
 
     def to_json(self) -> str:
         return self.model_dump_json()
