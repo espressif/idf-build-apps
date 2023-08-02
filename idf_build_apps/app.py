@@ -258,7 +258,6 @@ class App(BaseModel):
         path = os.path.expandvars(path)
         return path
 
-    @computed_field
     @property
     def name(self) -> str:
         return os.path.basename(os.path.realpath(self.app_dir))
@@ -279,7 +278,6 @@ class App(BaseModel):
         """
         return self._expand(self._build_dir)
 
-    @computed_field
     @property
     def build_path(self) -> str:
         if os.path.isabs(self.build_dir):
