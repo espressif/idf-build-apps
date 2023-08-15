@@ -627,6 +627,14 @@ class CMakeApp(App):
             # delete manually later, used for tracking debugging info
             log_file = tempfile.NamedTemporaryFile('w', delete=False)
 
+        if not self._checked_should_build:
+            self.check_should_build(
+                manifest_rootpath=manifest_rootpath,
+                modified_components=modified_components,
+                modified_files=modified_files,
+                check_app_dependencies=check_app_dependencies,
+            )
+
         # additional env variables
         # IDF_TARGET to bypass the idf.py build check
         additional_env_dict = {
@@ -647,15 +655,11 @@ class CMakeApp(App):
             '-DSDKCONFIG_DEFAULTS={}'.format(';'.join(self.sdkconfig_files) if self.sdkconfig_files else ';'),
         ]
 
-        if not self._checked_should_build:
-            self.check_should_build(
-                manifest_rootpath=manifest_rootpath,
-                modified_components=modified_components,
-                modified_files=modified_files,
-                check_app_dependencies=check_app_dependencies,
-            )
-
         if modified_components is not None and check_app_dependencies and self.should_build == BuildOrNot.UNKNOWN:
+            if not modified_components:
+                LOGGER.info('=> Skip building... current build does not modify any components')
+                return False
+
             subprocess_run(
                 common_args + ['reconfigure'],
                 log_terminal=False if self.build_log_path else True,
