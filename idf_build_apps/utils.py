@@ -95,6 +95,14 @@ class InvalidInput(SystemExit):
     """Invalid input from user"""
 
 
+class InvalidIfClause(SystemExit):
+    """Invalid if clause in manifest file"""
+
+
+class InvalidManifest(SystemExit):
+    """Invalid manifest file"""
+
+
 def rmdir(path: str, exclude_file_patterns: t.Union[t.List[str], str, None] = None) -> None:
     if not exclude_file_patterns:
         shutil.rmtree(path, ignore_errors=True)
