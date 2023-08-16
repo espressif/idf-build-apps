@@ -1,11 +1,15 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+
 import os.path
 from pathlib import (
     Path,
 )
 
 import yaml
+from pyparsing import (
+    ParseException,
+)
 
 from .. import (
     LOGGER,
@@ -14,24 +18,28 @@ from ..constants import (
     ALL_TARGETS,
     SUPPORTED_TARGETS,
 )
+from ..utils import (
+    InvalidIfClause,
+    InvalidManifest,
+)
 from .if_parser import (
     BOOL_EXPR,
     BoolExpr,
 )
 
 
-class InvalidManifestError(ValueError):
-    """Invalid manifest file"""
-
-
 class IfClause:
     def __init__(self, stmt, temporary=False, reason=None):  # type: (str, bool, str | None) -> None
-        self.stmt = BOOL_EXPR.parseString(stmt)[0]  # type: BoolExpr
+        try:
+            self.stmt = BOOL_EXPR.parseString(stmt)[0]  # type: BoolExpr
+        except ParseException:
+            raise InvalidIfClause('Invalid if statement: {}'.format(stmt))
+
         self.temporary = temporary
         self.reason = reason
 
         if self.temporary is True and not self.reason:
-            raise InvalidManifestError('"reason" must be set when "temporary: true"')
+            raise InvalidIfClause('"reason" must be set when "temporary: true"')
 
     def get_value(self, target, config_name):  # type: (str, str) -> any
         return self.stmt.get_value(target, config_name)
@@ -164,7 +172,10 @@ class Manifest:
             else:
                 folder = Path(cls.ROOTPATH, folder)
 
-            rules.append(FolderRule(folder, **folder_rule if folder_rule else {}))
+            try:
+                rules.append(FolderRule(folder, **folder_rule if folder_rule else {}))
+            except InvalidIfClause as e:
+                raise InvalidManifest('Invalid manifest file {}: {}'.format(path, e))
 
         return Manifest(rules)
 
