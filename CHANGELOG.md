@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.2 (2023-08-16)
+
+### Feat
+
+- improve logging when manifest file is invalid
+- skip running "idf.py reconfigure" when modified components is empty
+
 ## v1.1.1 (2023-08-02)
 
 ### Fix
