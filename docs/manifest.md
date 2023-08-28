@@ -148,7 +148,7 @@ examples/foo:
     - comp1
     - comp2
     - comp3
-  depends_files:
+  depends_filepatterns:
     - "common_header_files/**/*"
 ```
 
