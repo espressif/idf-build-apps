@@ -442,38 +442,34 @@ class App(BaseModel):
         modified_files: t.Union[t.List[str], str, None] = None,
         check_app_dependencies: bool = False,
     ) -> None:
-        self._build_stage = BuildStage.PRE_BUILD
+        if self.dry_run:
+            self._build_stage = BuildStage.DRY_RUN
+        else:
+            self._build_stage = BuildStage.PRE_BUILD
+
         if self.work_dir != self.app_dir:
             if os.path.exists(self.work_dir):
-                if self.dry_run:
-                    self._logger.debug('[dry run] Removed existing work dir: %s', self.work_dir)
-                else:
+                self._logger.debug('Removed existing work dir: %s', self.work_dir)
+                if not self.dry_run:
                     shutil.rmtree(self.work_dir)
-                    self._logger.debug('Removed existing work dir: %s', self.work_dir)
 
-            if self.dry_run:
-                self._logger.debug('[dry run] Copied app from %s to %s', self.app_dir, self.work_dir)
-            else:
+            self._logger.debug('Copied app from %s to %s', self.app_dir, self.work_dir)
+            if not self.dry_run:
                 shutil.copytree(self.app_dir, self.work_dir)
-                self._logger.debug('Copied app from %s to %s', self.app_dir, self.work_dir)
 
         if os.path.exists(self.build_path):
-            if self.dry_run:
-                self._logger.debug('[dry run] Removed existing build dir: %s', self.build_path)
-            else:
+            self._logger.debug('Removed existing build dir: %s', self.build_path)
+            if not self.dry_run:
                 shutil.rmtree(self.build_path)
-                self._logger.debug('Removed existing build dir: %s', self.build_path)
 
         if not self.dry_run:
             os.makedirs(self.build_path)
 
         sdkconfig_file = os.path.join(self.work_dir, 'sdkconfig')
         if os.path.exists(sdkconfig_file):
-            if self.dry_run:
-                self._logger.debug('[dry run] Removed existing sdkconfig file: %s', sdkconfig_file)
-            else:
+            self._logger.debug('Removed existing sdkconfig file: %s', sdkconfig_file)
+            if not self.dry_run:
                 os.unlink(sdkconfig_file)
-                self._logger.debug('Removed existing sdkconfig file: %s', sdkconfig_file)
 
         if self.build_log_path:
             self._logger.info('Writing build log to %s', self.build_log_path)
