@@ -178,11 +178,12 @@ class App(BaseModel):
         self._process_sdkconfig_files()
 
     def __str__(self):
-        return 'App {}({}), target {}, sdkconfig {}'.format(
-            self.app_dir,
+        return '({}) App {}, target {}, sdkconfig {}, build in {}'.format(
             self.BUILD_SYSTEM,
+            self.app_dir,
             self.target,
             self.sdkconfig_path or '(default)',
+            self.build_path,
         )
 
     def __lt__(self, other: t.Any) -> bool:
