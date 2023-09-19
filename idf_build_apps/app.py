@@ -666,15 +666,17 @@ class App(BaseModel):
             self._checked_should_build = True
             return
 
+        # if no special rules defined, we left it unknown and decide with idf.py reconfigure
+        if not self.depends_components and not self.depends_filepatterns:
+            self._checked_should_build = True
+            return
+
         # check app dependencies
         modified_components = to_list(modified_components)
         modified_files = to_list(modified_files)
 
-        _modified_components = BuildStatus.UNKNOWN
-        _modified_files = BuildStatus.UNKNOWN
-
         # depends components?
-        if check_app_dependencies and modified_components is not None:
+        if self.depends_components and modified_components is not None:
             if set(self.depends_components).intersection(set(modified_components)):
                 self._logger.debug(
                     'Should be built. %s requires components: %s, modified components %s',
@@ -682,13 +684,12 @@ class App(BaseModel):
                     ', '.join(self.depends_components),
                     ', '.join(modified_components),
                 )
-                _modified_components = BuildStatus.SHOULD_BE_BUILT
-            # if not defined dependency, we left it unknown and decide with idf.py reconfigure
-            elif self.depends_components:
-                _modified_components = BuildStatus.SKIPPED
+                self._checked_should_build = True
+                self.build_status = BuildStatus.SHOULD_BE_BUILT
+                return
 
         # or depends file patterns?
-        if check_app_dependencies and modified_files is not None:
+        if self.depends_filepatterns and modified_files is not None:
             if files_matches_patterns(modified_files, self.depends_filepatterns, manifest_rootpath):
                 self._logger.debug(
                     'Should be built. %s depends on file patterns: %s, modified files %s',
@@ -696,18 +697,12 @@ class App(BaseModel):
                     ', '.join(self.depends_filepatterns),
                     ', '.join(modified_files),
                 )
-                _modified_files = BuildStatus.SHOULD_BE_BUILT
-            # if not defined dependency, we left it unknown and decide with idf.py reconfigure
-            elif self.depends_filepatterns:
-                _modified_files = BuildStatus.SKIPPED
+                self._checked_should_build = True
+                self.build_status = BuildStatus.SHOULD_BE_BUILT
+                return
 
-        if _modified_components == BuildStatus.SHOULD_BE_BUILT or _modified_files == BuildStatus.SHOULD_BE_BUILT:
-            self.build_status = BuildStatus.SHOULD_BE_BUILT
-        elif _modified_components == BuildStatus.SKIPPED:  # _modified_files == BuildOrNot.NO or UNKNOWN
-            self.build_status = BuildStatus.SKIPPED
-        # elif modified_components == BuildOrNot.UNKNOWN and modified_files == BuildOrNot.No or UNKNOWN:
-        #     we left it unknown and decide with idf.py reconfigure
-
+        # special rules defined, but not matched
+        self.build_status = BuildStatus.SKIPPED
         self._checked_should_build = True
 
 
