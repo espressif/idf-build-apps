@@ -3,6 +3,7 @@
 
 import os
 
+import pytest
 from packaging.version import (
     Version,
 )
@@ -14,9 +15,12 @@ from idf_build_apps.manifest.if_parser import (
 from idf_build_apps.manifest.manifest import (
     Manifest,
 )
+from idf_build_apps.utils import (
+    InvalidManifest,
+)
 
 
-def test_manifest(tmpdir):
+def test_manifest(tmpdir, recwarn):
     yaml_file = tmpdir / 'test.yml'
     yaml_file.write_text(
         """
@@ -37,11 +41,21 @@ test2:
     os.chdir(tmpdir)
     Manifest.ROOTPATH = tmpdir
     manifest = Manifest.from_file(yaml_file)
+    msg_fmt = 'Folder "{}" does not exist. Please check your manifest file {}'
+
+    # two warnings warn test1 test2 not exists
+    assert len(recwarn) == 2
+    assert recwarn.pop(UserWarning).message.args[0] == msg_fmt.format(os.path.join(tmpdir, 'test1'), yaml_file)
+    assert recwarn.pop(UserWarning).message.args[0] == msg_fmt.format(os.path.join(tmpdir, 'test2'), yaml_file)
 
     assert manifest.enable_build_targets('test1') == ['esp32', 'esp32c3', 'esp32s2']
     assert manifest.enable_test_targets('test1') == ['esp32', 'esp32s2']
     assert manifest.enable_build_targets('test2') == ['linux']
     assert manifest.enable_test_targets('test2') == ['linux']
+
+    Manifest.CHECK_MANIFEST_RULES = True
+    with pytest.raises(InvalidManifest, match=msg_fmt.format(os.path.join(tmpdir, 'test1'), yaml_file)):
+        Manifest.from_file(yaml_file)
 
 
 class TestIfParser:

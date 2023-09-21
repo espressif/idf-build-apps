@@ -3,6 +3,7 @@
 
 import os.path
 import typing as t
+import warnings
 from pathlib import (
     Path,
 )
@@ -154,8 +155,12 @@ class DefaultRule(FolderRule):
 class Manifest:
     # could be reassigned later
     ROOTPATH = os.curdir
+    CHECK_MANIFEST_RULES = False
 
-    def __init__(self, rules: t.Iterable[FolderRule]) -> None:
+    def __init__(
+        self,
+        rules: t.Iterable[FolderRule],
+    ) -> None:
         self.rules = sorted(rules, key=lambda x: x.folder)
 
     @classmethod
@@ -169,6 +174,13 @@ class Manifest:
                 folder = Path(folder)
             else:
                 folder = Path(cls.ROOTPATH, folder)
+
+            if not folder.exists():
+                msg = f'Folder "{folder}" does not exist. Please check your manifest file {path}'
+                if cls.CHECK_MANIFEST_RULES:
+                    raise InvalidManifest(msg)
+                else:
+                    warnings.warn(msg)
 
             try:
                 rules.append(FolderRule(folder, **folder_rule if folder_rule else {}))

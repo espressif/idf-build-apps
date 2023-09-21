@@ -74,6 +74,7 @@ def _check_app_dependency(
 def find_apps(
     paths: t.Union[t.List[str], str],
     target: str,
+    *,
     build_system: str = 'cmake',
     recursive: bool = False,
     exclude_list: t.Optional[t.List[str]] = None,
@@ -86,6 +87,7 @@ def find_apps(
     preserve: bool = True,
     manifest_rootpath: t.Optional[str] = None,
     manifest_files: t.Optional[t.Union[t.List[str], str]] = None,
+    check_manifest_rules: bool = False,
     default_build_targets: t.Optional[t.Union[t.List[str], str]] = None,
     modified_components: t.Optional[t.Union[t.List[str], str]] = None,
     modified_files: t.Optional[t.Union[t.List[str], str]] = None,
@@ -113,6 +115,7 @@ def find_apps(
     :param manifest_rootpath: The root path of the manifest files. Usually the folders specified in the manifest files
         are relative paths. Use the current directory if not specified
     :param manifest_files: paths of the manifest files
+    :param check_manifest_rules: check the manifest rules or not
     :param default_build_targets: default build targets used in manifest files
     :param modified_components: modified components
     :param modified_files: modified files
@@ -129,6 +132,7 @@ def find_apps(
 
     # always set the manifest rootpath at the very beginning of find_apps in case ESP-IDF switches the branch.
     Manifest.ROOTPATH = to_absolute_path(manifest_rootpath or os.curdir)
+    Manifest.CHECK_MANIFEST_RULES = check_manifest_rules
 
     if manifest_files:
         rules = set()
@@ -184,6 +188,7 @@ def find_apps(
 
 def build_apps(
     apps: t.Union[t.List[App], App],
+    *,
     build_verbose: bool = False,
     parallel_count: int = 1,
     parallel_index: int = 1,
@@ -486,6 +491,7 @@ def get_parser() -> argparse.ArgumentParser:
     common_args.add_argument(
         '--check-warnings', action='store_true', help='If set, fail the build if warnings are found'
     )
+
     common_args.add_argument(
         '--manifest-file',
         nargs='+',
@@ -497,11 +503,18 @@ def get_parser() -> argparse.ArgumentParser:
         'Would use the current directory if not set',
     )
     common_args.add_argument(
+        '--check-manifest-rules',
+        action='store_true',
+        help='Exit with error if any of the manifest rules does not exist on your filesystem',
+    )
+
+    common_args.add_argument(
         '--default-build-targets',
         nargs='+',
         help='space-separated list of supported targets. Targets supported in current ESP-IDF branch '
         '(except preview ones) would be used if this option is not set.',
     )
+
     common_args.add_argument(
         '--modified-components',
         nargs='*',
@@ -669,6 +682,7 @@ def main():
         check_warnings=args.check_warnings,
         manifest_rootpath=args.manifest_rootpath,
         manifest_files=args.manifest_file,
+        check_manifest_rules=args.check_manifest_rules,
         default_build_targets=args.default_build_targets,
         modified_components=args.modified_components,
         modified_files=args.modified_files,
