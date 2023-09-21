@@ -74,6 +74,7 @@ def _check_app_dependency(
 def find_apps(
     paths: t.Union[t.List[str], str],
     target: str,
+    *,
     build_system: str = 'cmake',
     recursive: bool = False,
     exclude_list: t.Optional[t.List[str]] = None,
@@ -187,6 +188,7 @@ def find_apps(
 
 def build_apps(
     apps: t.Union[t.List[App], App],
+    *,
     build_verbose: bool = False,
     parallel_count: int = 1,
     parallel_index: int = 1,
