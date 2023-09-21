@@ -90,6 +90,7 @@ class BuildStatus(str, enum.Enum):
 
 
 class BuildStage(str, enum.Enum):
+    DRY_RUN = 'Dry Run'
     PRE_BUILD = 'Pre Build'
     BUILD = 'Build'
     POST_BUILD = 'Post Build'

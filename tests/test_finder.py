@@ -187,12 +187,12 @@ get-started:
         'modified_components, modified_files, could_find_apps',
         [
             ([], str(IDF_PATH / 'examples' / 'README.md'), (True, False)),
-            (None, [str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], (True, True)),
+            (None, [str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md')], (True, True)),
             (
                 [],
                 [
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md'),
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.c'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'main' / 'hello_world_main.c'),
                 ],
                 (True, True),
             ),

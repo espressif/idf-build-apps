@@ -178,11 +178,12 @@ class App(BaseModel):
         self._process_sdkconfig_files()
 
     def __str__(self):
-        return 'App {}({}), target {}, sdkconfig {}'.format(
-            self.app_dir,
+        return '({}) App {}, target {}, sdkconfig {}, build in {}'.format(
             self.BUILD_SYSTEM,
+            self.app_dir,
             self.target,
             self.sdkconfig_path or '(default)',
+            self.build_path,
         )
 
     def __lt__(self, other: t.Any) -> bool:
@@ -442,38 +443,34 @@ class App(BaseModel):
         modified_files: t.Union[t.List[str], str, None] = None,
         check_app_dependencies: bool = False,
     ) -> None:
-        self._build_stage = BuildStage.PRE_BUILD
+        if self.dry_run:
+            self._build_stage = BuildStage.DRY_RUN
+        else:
+            self._build_stage = BuildStage.PRE_BUILD
+
         if self.work_dir != self.app_dir:
             if os.path.exists(self.work_dir):
-                if self.dry_run:
-                    self._logger.debug('[dry run] Removed existing work dir: %s', self.work_dir)
-                else:
+                self._logger.debug('Removed existing work dir: %s', self.work_dir)
+                if not self.dry_run:
                     shutil.rmtree(self.work_dir)
-                    self._logger.debug('Removed existing work dir: %s', self.work_dir)
 
-            if self.dry_run:
-                self._logger.debug('[dry run] Copied app from %s to %s', self.app_dir, self.work_dir)
-            else:
+            self._logger.debug('Copied app from %s to %s', self.app_dir, self.work_dir)
+            if not self.dry_run:
                 shutil.copytree(self.app_dir, self.work_dir)
-                self._logger.debug('Copied app from %s to %s', self.app_dir, self.work_dir)
 
         if os.path.exists(self.build_path):
-            if self.dry_run:
-                self._logger.debug('[dry run] Removed existing build dir: %s', self.build_path)
-            else:
+            self._logger.debug('Removed existing build dir: %s', self.build_path)
+            if not self.dry_run:
                 shutil.rmtree(self.build_path)
-                self._logger.debug('Removed existing build dir: %s', self.build_path)
 
         if not self.dry_run:
             os.makedirs(self.build_path)
 
         sdkconfig_file = os.path.join(self.work_dir, 'sdkconfig')
         if os.path.exists(sdkconfig_file):
-            if self.dry_run:
-                self._logger.debug('[dry run] Removed existing sdkconfig file: %s', sdkconfig_file)
-            else:
+            self._logger.debug('Removed existing sdkconfig file: %s', sdkconfig_file)
+            if not self.dry_run:
                 os.unlink(sdkconfig_file)
-                self._logger.debug('Removed existing sdkconfig file: %s', sdkconfig_file)
 
         if self.build_log_path:
             self._logger.info('Writing build log to %s', self.build_log_path)
@@ -669,15 +666,17 @@ class App(BaseModel):
             self._checked_should_build = True
             return
 
+        # if no special rules defined, we left it unknown and decide with idf.py reconfigure
+        if not self.depends_components and not self.depends_filepatterns:
+            self._checked_should_build = True
+            return
+
         # check app dependencies
         modified_components = to_list(modified_components)
         modified_files = to_list(modified_files)
 
-        _modified_components = BuildStatus.UNKNOWN
-        _modified_files = BuildStatus.UNKNOWN
-
         # depends components?
-        if check_app_dependencies and modified_components is not None:
+        if self.depends_components and modified_components is not None:
             if set(self.depends_components).intersection(set(modified_components)):
                 self._logger.debug(
                     'Should be built. %s requires components: %s, modified components %s',
@@ -685,13 +684,12 @@ class App(BaseModel):
                     ', '.join(self.depends_components),
                     ', '.join(modified_components),
                 )
-                _modified_components = BuildStatus.SHOULD_BE_BUILT
-            # if not defined dependency, we left it unknown and decide with idf.py reconfigure
-            elif self.depends_components:
-                _modified_components = BuildStatus.SKIPPED
+                self._checked_should_build = True
+                self.build_status = BuildStatus.SHOULD_BE_BUILT
+                return
 
         # or depends file patterns?
-        if check_app_dependencies and modified_files is not None:
+        if self.depends_filepatterns and modified_files is not None:
             if files_matches_patterns(modified_files, self.depends_filepatterns, manifest_rootpath):
                 self._logger.debug(
                     'Should be built. %s depends on file patterns: %s, modified files %s',
@@ -699,18 +697,12 @@ class App(BaseModel):
                     ', '.join(self.depends_filepatterns),
                     ', '.join(modified_files),
                 )
-                _modified_files = BuildStatus.SHOULD_BE_BUILT
-            # if not defined dependency, we left it unknown and decide with idf.py reconfigure
-            elif self.depends_filepatterns:
-                _modified_files = BuildStatus.SKIPPED
+                self._checked_should_build = True
+                self.build_status = BuildStatus.SHOULD_BE_BUILT
+                return
 
-        if _modified_components == BuildStatus.SHOULD_BE_BUILT or _modified_files == BuildStatus.SHOULD_BE_BUILT:
-            self.build_status = BuildStatus.SHOULD_BE_BUILT
-        elif _modified_components == BuildStatus.SKIPPED:  # _modified_files == BuildOrNot.NO or UNKNOWN
-            self.build_status = BuildStatus.SKIPPED
-        # elif modified_components == BuildOrNot.UNKNOWN and modified_files == BuildOrNot.No or UNKNOWN:
-        #     we left it unknown and decide with idf.py reconfigure
-
+        # special rules defined, but not matched
+        self.build_status = BuildStatus.SKIPPED
         self._checked_should_build = True
 
 
