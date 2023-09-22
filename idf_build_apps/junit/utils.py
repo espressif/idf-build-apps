@@ -9,11 +9,13 @@ import sys
 import typing as t
 
 
-def get_size(b: int) -> str:
+def get_size(b: float) -> str:
     for unit in ['', 'K', 'M', 'G', 'T', 'P']:
         if b < 1024:
             return f'{b:.2f}{unit}B'
         b /= 1024
+
+    return f'{b:.2f}EB'
 
 
 def get_processor_name():
@@ -33,14 +35,14 @@ def get_processor_name():
     return ''
 
 
-def get_sys_info() -> t.Dict[str, t.Any]:
+def get_sys_info() -> t.Dict[str, str]:
     info = {
         'platform': platform.system(),
         'platform-release': platform.release(),
         'architecture': platform.machine(),
         'hostname': socket.gethostname(),
         'processor': get_processor_name(),
-        'cpu_count': os.cpu_count(),
+        'cpu_count': str(os.cpu_count()) if os.cpu_count() else 'Unknown',
     }
 
     if sys.platform != 'win32':

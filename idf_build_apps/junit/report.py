@@ -58,7 +58,7 @@ class TestCase:
         error_reason: t.Optional[str] = None,
         failure_reason: t.Optional[str] = None,
         skipped_reason: t.Optional[str] = None,
-        properties: dict = None,
+        properties: t.Optional[t.Dict[str, str]] = None,
         duration_sec: float = 0,
         timestamp: t.Optional[datetime] = None,
     ) -> None:
@@ -128,7 +128,7 @@ class TestSuite:
     def __init__(self, name: str) -> None:
         self.name = name
 
-        self.test_cases = []
+        self.test_cases: t.List[TestCase] = []
 
         self.tests = 0  # passed, actually
         self.errors = 0  # setup error
@@ -136,7 +136,7 @@ class TestSuite:
         self.skipped = 0
 
         self.duration_sec: float = 0
-        self.timestamp = datetime.utcnow().isoformat()
+        self.timestamp = datetime.utcnow()
 
         self.properties = get_sys_info()
 
@@ -164,7 +164,8 @@ class TestSuite:
                 'failures': str(self.failures),
                 'skipped': str(self.skipped),
                 'time': str(self.duration_sec),
-                'timestamp': self.timestamp,
+                'timestamp': self.timestamp.isoformat(),
+                **self.properties,
             },
         )
 

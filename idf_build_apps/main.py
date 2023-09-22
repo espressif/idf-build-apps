@@ -29,6 +29,11 @@ from .constants import (
 from .finder import (
     _find_apps,
 )
+from .junit import (
+    TestCase,
+    TestReport,
+    TestSuite,
+)
 from .log import (
     setup_logging,
 )
@@ -203,6 +208,7 @@ def build_apps(
     modified_components: t.Optional[t.Union[t.List[str], str]] = None,
     modified_files: t.Optional[t.Union[t.List[str], str]] = None,
     ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
+    junitxml_filepath: t.Optional[str] = None,
 ) -> int:
     """
     Build all the specified apps
@@ -231,6 +237,8 @@ def build_apps(
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
     ignore_app_dependencies_filepatterns = to_list(ignore_app_dependencies_filepatterns)
+
+    test_suite = TestSuite('build_apps')
 
     ignore_warnings_regexes = []
     if ignore_warning_strs:
@@ -287,6 +295,7 @@ def build_apps(
         app.verbose = build_verbose
 
         LOGGER.info('(%s/%s) Building app: %s', index, len(apps), app)
+
         app.build(
             manifest_rootpath=manifest_rootpath,
             modified_components=modified_components,
@@ -295,6 +304,8 @@ def build_apps(
                 manifest_rootpath, modified_components, modified_files, ignore_app_dependencies_filepatterns
             ),
         )
+        test_suite.add_test_case(TestCase.from_app(app))
+
         if app.build_comment:
             LOGGER.info('%s (%s)', app.build_status.value, app.build_comment)
         else:
@@ -357,6 +368,9 @@ def build_apps(
         LOGGER.error('Build failed for the following apps:')
         for app in failed_apps:
             LOGGER.error('  %s', app)
+
+    if junitxml_filepath:
+        TestReport([test_suite], junitxml_filepath).create_test_report()
 
     return exit_code
 
@@ -609,6 +623,10 @@ def get_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='Copy the sdkconfig file to the build directory',
     )
+    build_parser.add_argument(
+        '--junitxml',
+        help='Path to the junitxml file. If specified, the junitxml file will be generated',
+    )
 
     return parser
 
@@ -721,5 +739,6 @@ def main():
             modified_components=args.modified_components,
             modified_files=args.modified_files,
             ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
+            junitxml_filepath=args.junitxml,
         )
     )
