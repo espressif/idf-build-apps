@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import shutil
 
 import pytest
 from packaging.version import (
@@ -66,3 +67,16 @@ class TestIfParser:
 
         statement = 'IDF_VERSION in  ["5.9.0"]'
         assert BOOL_STMT.parseString(statement)[0].get_value('esp32', 'foo') is True
+
+
+@pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')
+def test_idf_version_keywords_type():
+    from idf_build_apps.constants import (
+        IDF_VERSION_MAJOR,
+        IDF_VERSION_MINOR,
+        IDF_VERSION_PATCH,
+    )
+
+    assert isinstance(IDF_VERSION_MAJOR, int)
+    assert isinstance(IDF_VERSION_MINOR, int)
+    assert isinstance(IDF_VERSION_PATCH, int)

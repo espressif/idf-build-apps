@@ -1,10 +1,16 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+
 import shutil
+import xml.etree.ElementTree as ET
+from copy import (
+    deepcopy,
+)
 
 import pytest
 
 from idf_build_apps import (
+    build_apps,
     find_apps,
 )
 from idf_build_apps.app import (
@@ -59,11 +65,11 @@ class TestBuild:
         [
             ('/foo', BuildStatus.SKIPPED),
             (str(IDF_PATH / 'examples' / 'README.md'), BuildStatus.SKIPPED),
-            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], BuildStatus.SKIPPED),
+            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md')], BuildStatus.SKIPPED),
             (
                 [
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md'),
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.c'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'main' / 'hello_world_main.c'),
                 ],
                 BuildStatus.SUCCESS,
             ),
@@ -96,15 +102,45 @@ class TestBuild:
             app.build()
             assert app.build_status == BuildStatus.SUCCESS
 
+    def test_build_with_junit_output(self, tmpdir):
+        test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
 
-@pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')
-def test_idf_version_keywords_type():
-    from idf_build_apps.constants import (
-        IDF_VERSION_MAJOR,
-        IDF_VERSION_MINOR,
-        IDF_VERSION_PATCH,
-    )
+        apps = [
+            CMakeApp(test_dir, 'esp32', build_dir='build_1'),
+            CMakeApp(test_dir, 'esp32', build_dir='build_2'),
+        ]
 
-    assert isinstance(IDF_VERSION_MAJOR, int)
-    assert isinstance(IDF_VERSION_MINOR, int)
-    assert isinstance(IDF_VERSION_PATCH, int)
+        build_apps(deepcopy(apps), dry_run=True, junitxml_filepath=str(tmpdir / 'test.xml'))
+
+        with open(tmpdir / 'test.xml') as f:
+            xml = ET.fromstring(f.read())
+
+        test_suite = xml.findall('testsuite')[0]
+        assert test_suite.attrib['tests'] == '0'
+        assert test_suite.attrib['failures'] == '0'
+        assert test_suite.attrib['errors'] == '0'
+        assert test_suite.attrib['skipped'] == '2'
+
+        for i, testcase in enumerate(test_suite.findall('testcase')):
+            assert testcase.attrib['name'] == apps[i].build_path
+            assert float(testcase.attrib['time']) > 0
+            assert testcase.find('skipped') is not None
+            assert testcase.find('skipped').attrib['message'] == 'dry run'
+
+        build_apps(deepcopy(apps), junitxml_filepath=str(tmpdir / 'test.xml'))
+
+        with open(tmpdir / 'test.xml') as f:
+            xml = ET.fromstring(f.read())
+
+        test_suite = xml.findall('testsuite')[0]
+        assert test_suite.attrib['tests'] == '2'
+        assert test_suite.attrib['failures'] == '0'
+        assert test_suite.attrib['errors'] == '0'
+        assert test_suite.attrib['skipped'] == '0'
+
+        for i, testcase in enumerate(test_suite.findall('testcase')):
+            assert testcase.attrib['name'] == apps[i].build_path
+            assert float(testcase.attrib['time']) > 0
+            assert testcase.find('skipped') is None
+            assert testcase.find('error') is None
+            assert testcase.find('failure') is None

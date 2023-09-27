@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
+import functools
 import json
 import logging
 import os
@@ -14,6 +15,9 @@ from abc import (
 )
 from copy import (
     deepcopy,
+)
+from datetime import (
+    datetime,
 )
 from functools import (
     lru_cache,
@@ -126,6 +130,8 @@ class App(BaseModel):
 
     # logging
     _build_stage: t.Optional[BuildStage] = None
+    _build_duration: float = 0
+    _build_timestamp: t.Optional[datetime] = None
 
     def __init__(
         self,
@@ -178,12 +184,14 @@ class App(BaseModel):
         self._process_sdkconfig_files()
 
     def __str__(self):
-        return '({}) App {}, target {}, sdkconfig {}, build in {}'.format(
+        return '({}) App {}, target {}, sdkconfig {}, build in {}, {} in {}s'.format(
             self.BUILD_SYSTEM,
             self.app_dir,
             self.target,
             self.sdkconfig_path or '(default)',
             self.build_path,
+            self.build_status.value,
+            self._build_duration,
         )
 
     def __lt__(self, other: t.Any) -> bool:
@@ -436,6 +444,18 @@ class App(BaseModel):
 
         return []
 
+    def record_build_duration(func):
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            self._build_timestamp = datetime.utcnow()
+            try:
+                return func(self, *args, **kwargs)
+            finally:
+                self._build_duration = (datetime.utcnow() - self._build_timestamp).total_seconds()
+
+        return wrapper
+
+    @record_build_duration
     def build(
         self,
         manifest_rootpath: t.Optional[str] = None,
