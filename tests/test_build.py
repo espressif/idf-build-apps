@@ -59,11 +59,11 @@ class TestBuild:
         [
             ('/foo', BuildStatus.SKIPPED),
             (str(IDF_PATH / 'examples' / 'README.md'), BuildStatus.SKIPPED),
-            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], BuildStatus.SKIPPED),
+            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md')], BuildStatus.SKIPPED),
             (
                 [
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md'),
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.c'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'main' / 'hello_world_main.c'),
                 ],
                 BuildStatus.SUCCESS,
             ),

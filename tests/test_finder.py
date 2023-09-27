@@ -145,11 +145,11 @@ get-started:
         [
             ('/foo', False),
             (str(IDF_PATH / 'examples' / 'README.md'), False),
-            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], False),
+            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md')], False),
             (
                 [
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md'),
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.c'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'main' / 'hello_world_main.c'),
                 ],
                 True,
             ),
@@ -259,11 +259,11 @@ get-started:
         [
             (None, True),
             (str(IDF_PATH / 'examples' / 'README.md'), True),
-            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md')], True),
+            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md')], True),
             (
                 [
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.md'),
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'a.c'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md'),
+                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'main' / 'hello_world_main.c'),
                 ],
                 True,
             ),
