@@ -22,7 +22,7 @@ class ColoredFormatter(logging.Formatter):
     reset: str = '\x1b[0m'
 
     fmt: str = '%(asctime)s %(levelname)8s %(message)s'
-    app_fmt: str = f'%(asctime)s %(levelname)8s %(build_stage){BuildStage.max_length()}s| %(message)s'
+    app_fmt: str = f'%(asctime)s %(levelname)8s [%(build_stage){BuildStage.max_length()}s] %(message)s'
 
     datefmt: str = '%Y-%m-%d %H:%M:%S'
 

@@ -110,7 +110,7 @@ class TestBuild:
             CMakeApp(test_dir, 'esp32', build_dir='build_2'),
         ]
 
-        build_apps(deepcopy(apps), dry_run=True, junitxml_filepath=str(tmpdir / 'test.xml'))
+        build_apps(deepcopy(apps), dry_run=True, junitxml=str(tmpdir / 'test.xml'))
 
         with open(tmpdir / 'test.xml') as f:
             xml = ET.fromstring(f.read())
@@ -127,7 +127,7 @@ class TestBuild:
             assert testcase.find('skipped') is not None
             assert testcase.find('skipped').attrib['message'] == 'dry run'
 
-        build_apps(deepcopy(apps), junitxml_filepath=str(tmpdir / 'test.xml'))
+        build_apps(deepcopy(apps), junitxml=str(tmpdir / 'test.xml'))
 
         with open(tmpdir / 'test.xml') as f:
             xml = ET.fromstring(f.read())

@@ -170,6 +170,10 @@ class Manifest:
 
         rules = []  # type: list[FolderRule]
         for folder, folder_rule in manifest_dict.items():
+            # not a folder, but a anchor
+            if folder.startswith('.'):
+                continue
+
             if os.path.isabs(folder):
                 folder = Path(folder)
             else:

@@ -18,6 +18,7 @@ from pathlib import (
 from packaging.version import (
     Version,
 )
+from pydantic import BaseModel as _BaseModel
 
 from . import (
     LOGGER,
@@ -258,3 +259,40 @@ def files_matches_patterns(
             return True
 
     return False
+
+
+class BaseModel(_BaseModel):
+    """
+    BaseModel that is hashable
+    """
+
+    def __lt__(self, other: t.Any) -> bool:
+        if isinstance(other, self.__class__):
+            for k in self.model_dump():
+                if getattr(self, k) != getattr(other, k):
+                    return getattr(self, k) < getattr(other, k)
+                else:
+                    continue
+
+        return NotImplemented
+
+    def __eq__(self, other: t.Any) -> bool:
+        if isinstance(other, self.__class__):
+            self_dict = self.model_dump()
+            other_dict = other.model_dump()
+
+            return self_dict == other_dict
+
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        hash_list = []
+        for v in self.__dict__.values():
+            if isinstance(v, list):
+                hash_list.append(tuple(v))
+            elif isinstance(v, dict):
+                hash_list.append(tuple(v.items()))
+            else:
+                hash_list.append(v)
+
+        return hash((type(self),) + tuple(hash_list))
