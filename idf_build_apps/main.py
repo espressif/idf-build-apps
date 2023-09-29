@@ -19,6 +19,9 @@ from . import (
 from .app import (
     App,
 )
+from .build_job import (
+    BuildJob,
+)
 from .config import (
     get_valid_config,
 )
@@ -195,12 +198,8 @@ def build_apps(
     apps: t.Union[t.List[App], App],
     *,
     build_verbose: bool = False,
-    parallel_count: int = 1,
-    parallel_index: int = 1,
     dry_run: bool = False,
     keep_going: bool = False,
-    collect_size_info: t.Optional[t.Union[str, t.TextIO]] = None,
-    collect_app_info: t.Optional[t.Union[str, t.TextIO]] = None,
     ignore_warning_strs: t.Optional[t.List[str]] = None,
     ignore_warning_file: t.Optional[t.TextIO] = None,
     copy_sdkconfig: bool = False,
@@ -208,19 +207,20 @@ def build_apps(
     modified_components: t.Optional[t.Union[t.List[str], str]] = None,
     modified_files: t.Optional[t.Union[t.List[str], str]] = None,
     ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
-    junitxml_filepath: t.Optional[str] = None,
+    # BuildJob
+    parallel_count: int = 1,
+    parallel_index: int = 1,
+    collect_size_info: t.Optional[t.Union[str, t.TextIO]] = None,
+    collect_app_info: t.Optional[t.Union[str, t.TextIO]] = None,
+    junitxml: t.Optional[str] = None,
 ) -> int:
     """
     Build all the specified apps
 
     :param apps: list of apps to be built
     :param build_verbose: call ``--verbose`` in ``idf.py build`` or not
-    :param parallel_count: number of parallel tasks to run
-    :param parallel_index: index of the parallel task to run
     :param dry_run: simulate this run or not
     :param keep_going: keep building or not if one app's build failed
-    :param collect_size_info: file path to record all generated size files' paths if specified
-    :param collect_app_info: file path to record all the built apps' info if specified
     :param ignore_warning_strs: ignore build warnings that matches any of the specified regex patterns
     :param ignore_warning_file: ignore build warnings that matches any of the lines of the regex patterns in the
         specified file
@@ -231,6 +231,11 @@ def build_apps(
     :param modified_files: modified files
     :param ignore_app_dependencies_filepatterns: file patterns that used for ignoring checking the component
         dependencies
+    :param parallel_count: number of parallel tasks to run
+    :param parallel_index: index of the parallel task to run
+    :param collect_size_info: file path to record all generated size files' paths if specified
+    :param collect_app_info: file path to record all the built apps' info if specified
+    :param junitxml: path of the junitxml file
     :return: exit code
     """
     apps = to_list(apps)
@@ -260,29 +265,22 @@ def build_apps(
     else:
         LOGGER.info('  parallel count is too large. build nothing...')
 
-    # cleanup collect files if exists at this early-stage
-    collect_files = []
+    build_job = BuildJob(
+        parallel_count=parallel_count,
+        parallel_index=parallel_index,
+        collect_size_info=collect_size_info,
+        collect_app_info=collect_app_info,
+        junitxml=junitxml,
+    )
     for app in apps[start - 1 : stop]:  # we use 1-based
-        app.parallel_index = parallel_index
-        app.parallel_count = parallel_count
+        app.build_job = build_job
 
-        if collect_app_info:
-            app._collect_app_info = collect_app_info
-
-            if app.collect_app_info not in collect_files:
-                collect_files.append(app.collect_app_info)
-
-        if collect_size_info:
-            app._collect_size_info = collect_size_info
-
-            if app.collect_size_info not in collect_files:
-                collect_files.append(app.collect_size_info)
-
-    for f in collect_files:
-        if os.path.isfile(f):
+    # cleanup collect files if exists at this early-stage
+    for f in (build_job.collect_app_info, build_job.collect_size_info, build_job.junitxml):
+        if f and os.path.isfile(f):
             os.remove(f)
             LOGGER.info('Remove existing collect file %s', f)
-        Path(f).touch()
+            Path(f).touch()
 
     for i, app in enumerate(apps):
         index = i + 1  # we use 1-based
@@ -311,10 +309,10 @@ def build_apps(
         else:
             LOGGER.info('%s', app.build_status.value)
 
-        if app.collect_app_info:
-            with open(app.collect_app_info, 'a') as fw:
+        if build_job.collect_app_info:
+            with open(build_job.collect_app_info, 'a') as fw:
                 fw.write(app.to_json() + '\n')
-            LOGGER.info('Recorded app info in %s', app.collect_app_info)
+            LOGGER.info('Recorded app info in %s', build_job.collect_app_info)
 
         if copy_sdkconfig:
             try:
@@ -333,9 +331,9 @@ def build_apps(
             else:
                 exit_code = 1
         elif app.build_status == BuildStatus.SUCCESS:
-            if app.collect_size_info and app.size_json_path:
+            if build_job.collect_size_info and app.size_json_path:
                 if os.path.isfile(app.size_json_path):
-                    with open(app.collect_size_info, 'a') as fw:
+                    with open(build_job.collect_size_info, 'a') as fw:
                         fw.write(
                             json.dumps(
                                 {
@@ -347,7 +345,7 @@ def build_apps(
                             )
                             + '\n'
                         )
-                    LOGGER.info('Recorded size info file path in %s', app.collect_size_info)
+                    LOGGER.info('Recorded size info file path in %s', build_job.collect_size_info)
 
         LOGGER.info('')  # add one empty line for separating different builds
 
@@ -369,8 +367,8 @@ def build_apps(
         for app in failed_apps:
             LOGGER.error('  %s', app)
 
-    if junitxml_filepath:
-        TestReport([test_suite], junitxml_filepath).create_test_report()
+    if build_job.junitxml:
+        TestReport([test_suite], build_job.junitxml).create_test_report()
 
     return exit_code
 
@@ -601,12 +599,12 @@ def get_parser() -> argparse.ArgumentParser:
     build_parser.add_argument(
         '--collect-size-info',
         help='write size info json file while building into the specified file. each line is a json object. '
-        'Can expand placeholders',
+        'Can expand placeholder @p',
     )
     build_parser.add_argument(
         '--collect-app-info',
         help='write app info json file while building into the specified file. each line is a json object. '
-        'Can expand placeholders',
+        'Can expand placeholder @p',
     )
     build_parser.add_argument(
         '--ignore-warning-str',
@@ -625,7 +623,7 @@ def get_parser() -> argparse.ArgumentParser:
     )
     build_parser.add_argument(
         '--junitxml',
-        help='Path to the junitxml file. If specified, the junitxml file will be generated',
+        help='Path to the junitxml file. If specified, the junitxml file will be generated. Can expand placeholder @p',
     )
 
     return parser
@@ -739,6 +737,6 @@ def main():
             modified_components=args.modified_components,
             modified_files=args.modified_files,
             ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
-            junitxml_filepath=args.junitxml,
+            junitxml=args.junitxml,
         )
     )

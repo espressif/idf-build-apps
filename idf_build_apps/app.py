@@ -33,6 +33,9 @@ from pydantic import (
 from . import (
     LOGGER,
 )
+from .build_job import (
+    BuildJob,
+)
 from .constants import (
     DEFAULT_SDKCONFIG,
     IDF_PY,
@@ -79,7 +82,6 @@ class App(BaseModel):
     NAME_PLACEHOLDER: t.ClassVar[str] = '@n'  # replace it with self.name
     FULL_NAME_PLACEHOLDER: t.ClassVar[str] = '@f'  # replace it with escaped self.app_dir
     INDEX_PLACEHOLDER: t.ClassVar[str] = '@i'  # replace it with the build index
-    PARALLEL_INDEX_PLACEHOLDER: t.ClassVar[str] = '@p'  # replace it with the parallel index
     IDF_VERSION_PLACEHOLDER: t.ClassVar[str] = '@v'  # replace it with the IDF version
 
     BUILD_SYSTEM: t.ClassVar[str] = 'unknown'
@@ -113,19 +115,16 @@ class App(BaseModel):
     _build_log_path: t.Optional[str] = None
     _size_json_path: t.Optional[str] = None
 
-    _collect_app_info: t.Optional[str] = None
-    _collect_size_info: t.Optional[str] = None
-
     # Build related
     dry_run: bool = False
     index: t.Union[int, None] = None
     verbose: bool = False
     check_warnings: bool = False
     preserve: bool = True
-    parallel_index: int = 1
-    parallel_count: int = 1
 
     # logging
+    build_job: t.Optional[BuildJob] = BuildJob()
+
     _build_stage: t.Optional[BuildStage] = None
     _build_duration: float = 0
     _build_timestamp: t.Optional[datetime] = None
@@ -168,9 +167,6 @@ class App(BaseModel):
         self._build_log_path = build_log_path
         self._size_json_path = size_json_path
 
-        self._collect_app_info = None
-        self._collect_size_info = None
-
         # should be built or not
         self._checked_should_build = False
 
@@ -212,7 +208,7 @@ class App(BaseModel):
 
         if self.index is not None:
             path = path.replace(self.INDEX_PLACEHOLDER, str(self.index))
-        path = path.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
+        path = self.build_job.expand(path)
         path = path.replace(
             self.IDF_VERSION_PLACEHOLDER, f'{IDF_VERSION_MAJOR}_{IDF_VERSION_MINOR}_{IDF_VERSION_PATCH}'
         )
@@ -274,22 +270,6 @@ class App(BaseModel):
     def size_json_path(self) -> t.Optional[str]:
         if self._size_json_path:
             return os.path.join(self.build_path, self._expand(self._size_json_path))
-
-        return None
-
-    @computed_field
-    @property
-    def collect_app_info(self) -> t.Optional[str]:
-        if self._collect_app_info:
-            return self._expand(self._collect_app_info)
-
-        return None
-
-    @computed_field
-    @property
-    def collect_size_info(self) -> t.Optional[str]:
-        if self._collect_size_info:
-            return self._expand(self._collect_size_info)
 
         return None
 
