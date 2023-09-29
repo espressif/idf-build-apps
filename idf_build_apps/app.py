@@ -134,6 +134,7 @@ class App(BaseModel):
         self,
         app_dir: str,
         target: str,
+        *,
         sdkconfig_path: t.Optional[str] = None,
         config_name: t.Optional[str] = None,
         work_dir: t.Optional[str] = None,
