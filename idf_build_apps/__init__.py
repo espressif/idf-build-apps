@@ -10,7 +10,7 @@ Tools for building ESP-IDF related apps.
 
 import logging
 
-__version__ = '1.1.2'
+__version__ = '2.0.0b0'
 
 LOGGER = logging.getLogger('idf_build_apps')
 

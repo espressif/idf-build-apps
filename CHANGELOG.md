@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.0b0 (2023-09-29)
+
+### Feat
+
+- check if the folders listed in the manifest rules exist or not
+- record build status in `App` instance
+- support build with `make`
+
+### Fix
+
+- prioritize special rules defined in manifest files
+
+### BREAKING CHANGES
+
+- make `find_apps`, `build_apps`, keyword-only for most of the params
+- migrate `App` class to pydantic model
+- update dependencies and do code upgrade to python 3.7
+
 ## v1.1.2 (2023-08-16)
 
 ### Feat
