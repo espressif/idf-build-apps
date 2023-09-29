@@ -38,6 +38,9 @@ from datetime import (
     datetime,
 )
 from xml.etree import ElementTree as ET
+from xml.sax.saxutils import (
+    escape,
+)
 
 from .. import (
     LOGGER,
@@ -118,11 +121,11 @@ class TestCase:
             },
         )
         if self.error_reason:
-            ET.SubElement(elem, 'error', {'message': self.error_reason})
+            ET.SubElement(elem, 'error', {'message': escape(self.error_reason)})
         elif self.failure_reason:
-            ET.SubElement(elem, 'failure', {'message': self.failure_reason})
+            ET.SubElement(elem, 'failure', {'message': escape(self.failure_reason)})
         elif self.skipped_reason:
-            ET.SubElement(elem, 'skipped', {'message': self.skipped_reason})
+            ET.SubElement(elem, 'skipped', {'message': escape(self.skipped_reason)})
 
         return elem
 
