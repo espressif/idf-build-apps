@@ -10,9 +10,6 @@ import shutil
 import sys
 import tempfile
 import typing as t
-from abc import (
-    abstractmethod,
-)
 from copy import (
     deepcopy,
 )
@@ -226,11 +223,11 @@ class App(BaseModel):
         return hash((type(self),) + tuple(hash_list))
 
     @staticmethod
-    def _get_sdkconfig_defaults(sdkconfig_defaults_str: str = None) -> t.List[str]:
+    def _get_sdkconfig_defaults(sdkconfig_defaults_str: t.Optional[str] = None) -> t.List[str]:
         if sdkconfig_defaults_str is not None:
             candidates = sdkconfig_defaults_str.split(';')
         elif os.getenv('SDKCONFIG_DEFAULTS', None) is not None:
-            candidates = os.getenv('SDKCONFIG_DEFAULTS', None).split(';')
+            candidates = os.getenv('SDKCONFIG_DEFAULTS', '').split(';')
         else:
             candidates = [DEFAULT_SDKCONFIG]
 
@@ -351,17 +348,18 @@ class App(BaseModel):
                         line = os.path.expandvars(line)
 
                         m = self.SDKCONFIG_LINE_REGEX.match(line)
-                        key = m.group(1) if m else None
-                        if key == 'CONFIG_IDF_TARGET':
-                            self._sdkconfig_files_defined_target = m.group(2)
+                        if m:
+                            key = m.group(1)
+                            if key == 'CONFIG_IDF_TARGET':
+                                self._sdkconfig_files_defined_target = m.group(2)
 
-                        if isinstance(self, CMakeApp):
-                            if key in self.SDKCONFIG_TEST_OPTS:
-                                self.cmake_vars[key] = m.group(2)
-                                continue
+                            if isinstance(self, CMakeApp):
+                                if key in self.SDKCONFIG_TEST_OPTS:
+                                    self.cmake_vars[key] = m.group(2)
+                                    continue
 
-                            if key in self.SDKCONFIG_IGNORE_OPTS:
-                                continue
+                                if key in self.SDKCONFIG_IGNORE_OPTS:
+                                    continue
 
                         fw.write(line)
 
@@ -576,7 +574,6 @@ class App(BaseModel):
         elif has_unignored_warning:
             self.build_comment = 'build succeeded with warnings'
 
-    @abstractmethod
     def _build(
         self,
         logfile: t.TextIO,

@@ -48,7 +48,7 @@ class ColoredFormatter(logging.Formatter):
             base_fmt = self.fmt
 
         if self.colored:
-            log_fmt = self.FORMATS.get(record.levelno).format(base_fmt)
+            log_fmt = self.FORMATS[record.levelno].format(base_fmt)
         else:
             log_fmt = base_fmt
 
