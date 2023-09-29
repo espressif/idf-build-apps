@@ -39,6 +39,9 @@ from datetime import (
 )
 from xml.etree import ElementTree as ET
 
+from .. import (
+    LOGGER,
+)
 from ..app import (
     App,
 )
@@ -188,3 +191,4 @@ class TestReport:
             xml.append(test_suite.to_xml_elem())
 
         ET.ElementTree(xml).write(self.filepath, encoding='utf-8')
+        LOGGER.info('Test report written to %s', self.filepath)
