@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.0b1 (2023-09-29)
+
+### Feat
+
+- record size_json into junitxml if exists
+- Support placeholder `@p` in junitxml
+- make `App` init function keyword-only for most of the params
+
+### Fix
+
+- escape string in junitxml
+- manifest folder rule starts with a `.` will be skipped checking existence
+- log format more visible, from `BUILD_STAGE|` to `[BUILD_STAGE]`
+
+### Refactor
+
+- move common magic methods into a new BaseModel class
+
 ## v2.0.0b0 (2023-09-29)
 
 ### Feat
