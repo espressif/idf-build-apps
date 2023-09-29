@@ -33,6 +33,8 @@ The test report should look like something like this:
 </testsuites>
 """
 
+import json
+import os.path
 import typing as t
 from datetime import (
     datetime,
@@ -91,11 +93,17 @@ class TestCase:
             'name': app.build_path,
             'duration_sec': app._build_duration,
             'timestamp': app._build_timestamp,
+            'properties': {},
         }
         if app.build_status == BuildStatus.FAILED:
             kwargs['failure_reason'] = app.build_comment
         elif app.build_status == BuildStatus.SKIPPED:
             kwargs['skipped_reason'] = app.build_comment
+
+        if app.size_json_path and os.path.isfile(app.size_json_path):
+            with open(app.size_json_path) as f:
+                for k, v in json.load(f).items():
+                    kwargs['properties'][f'{k}'] = str(v)
 
         return cls(**kwargs)
 
@@ -126,6 +134,10 @@ class TestCase:
             ET.SubElement(elem, 'failure', {'message': escape(self.failure_reason)})
         elif self.skipped_reason:
             ET.SubElement(elem, 'skipped', {'message': escape(self.skipped_reason)})
+
+        if self.properties:
+            for k, v in self.properties.items():
+                elem.attrib[k] = escape(str(v))
 
         return elem
 
