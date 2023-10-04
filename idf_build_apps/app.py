@@ -273,6 +273,11 @@ class App(BaseModel):
 
         return None
 
+    @computed_field
+    @property
+    def config(self) -> t.Optional[str]:
+        return self.config_name
+
     def _process_sdkconfig_files(self):
         """
         Expand environment variables in default sdkconfig files and remove some CI related settings.
