@@ -15,6 +15,7 @@ Welcome to idf-build-apps's documentation!
    find_build
    manifest
    config_file
+   cli
    api
    CHANGELOG
    CONTRIBUTING

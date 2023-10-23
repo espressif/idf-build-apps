@@ -22,6 +22,7 @@ extensions = [
     'sphinx_copybutton',
     'myst_parser',
     'sphinxcontrib.mermaid',
+    'sphinxarg.ext',
 ]
 
 templates_path = ['_templates']
