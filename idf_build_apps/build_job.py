@@ -12,7 +12,7 @@ from .utils import (
 )
 
 
-class BuildJob(BaseModel):
+class BuildAppJob(BaseModel):
     PARALLEL_INDEX_PLACEHOLDER: t.ClassVar[str] = '@p'  # replace it with the parallel index
 
     parallel_index: int = 1

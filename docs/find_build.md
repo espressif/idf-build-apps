@@ -52,10 +52,11 @@ The default sdkconfig file for test-1 would be generated in this order:
 flowchart TB
     kconfig(Kconfig default values)
     sdkconfig_defaults(sdkconfig.defaults)
+    sdkconfig_override(sdkconfig.override)
     sdkconfig_defaults_target(sdkconfig.defaults.TARGET)
     sdkconfig_file(sdkconfig file)
 
-    sdkconfig_defaults -- be overriden by --> sdkconfig_defaults_target -- configure together with --> kconfig -- populates --> sdkconfig_file
+    sdkconfig_defaults -- be overriden by --> sdkconfig_defaults_target -- be overriden by--> sdkconfig_override -- configure together with --> kconfig -- populates --> sdkconfig_file
 
     subgraph "which would only be applied when building with the corresponding target"
     sdkconfig_defaults_target
@@ -127,6 +128,22 @@ Will output:
 For each `SDKCONFIG_FILEPATTERN`, only one wildcard is supported.
 ```
 
+There are options available to globally override sdkconfig:
+- `--override-sdkconfig-items`
+- `--override-sdkconfig-files`
+
+If you use multiple `config rules` options together, the priority is as follows:
+- `--override-sdkconfig-items` has the highest priority
+- `--override-sdkconfig-files` has the next priority
+- All other options have lower priority
+
+The files for `--override-sdkconfig-files` should be a comma-separated list of file paths. Each path is an abusolute path, or a relative path to the current work directory.
+
+For example,
+
+```shell
+idf-build-apps find -p test-1 --recursive --target esp32 --override-sdkconfig-files sdkconfig.o1,sdkconfig.o2 --override-sdkconfig-items CONFIG_A=4,CONFIG_B=5
+```
 ### Placeholders for Work Directory and Build Directory
 
 As native ESP-IDF does, `idf-build-apps` builds projects in-place, within the project directory, and generates the binaries under `build` directory. `idf-build-apps` also provides a way to customize the work directory and build directory.
