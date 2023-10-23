@@ -220,6 +220,22 @@ def to_set(s: t.Any) -> t.Optional[t.Set[t.Any]]:
     return set(to_list(s))
 
 
+def semicolon_separated_str_to_list(s: t.Optional[str]) -> t.Optional[t.List[str]]:
+    """
+    Split a string by semicolon and strip each part
+
+    Args:
+        s: string to split
+
+    Returns:
+        list of strings
+    """
+    if s is None or s.strip() == '':
+        return None
+
+    return [p.strip() for p in s.strip().split(';') if p.strip()]
+
+
 def to_absolute_path(s: str, rootpath: t.Optional[str] = None) -> Path:
     rp = Path(os.path.expanduser(rootpath or '.')).resolve()
 

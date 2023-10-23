@@ -48,6 +48,7 @@ from .utils import (
     InvalidCommand,
     files_matches_patterns,
     get_parallel_start_stop,
+    semicolon_separated_str_to_list,
     to_absolute_path,
     to_list,
 )
@@ -529,27 +530,33 @@ def get_parser() -> argparse.ArgumentParser:
 
     common_args.add_argument(
         '--modified-components',
-        nargs='*',
-        default=None,
-        help='space-separated list which specifies the modified components. app with `depends_components` set in the '
-        'corresponding manifest files would only be built if depends on any of the specified components.',
+        type=semicolon_separated_str_to_list,
+        help='semicolon-separated string which specifies the modified components. '
+        'app with `depends_components` set in the corresponding manifest files would only be built '
+        'if depends on any of the specified components. '
+        'If set to "", the value would be considered as None. '
+        'If set to ";", the value would be considered as an empty list',
     )
     common_args.add_argument(
         '--modified-files',
-        nargs='*',
-        default=None,
-        help='space-separated list which specifies the modified files. app with `depends_filepatterns` set in the '
-        'corresponding manifest files would only be built if any of the specified file pattern matches any of the '
-        'specified modified files.',
+        type=semicolon_separated_str_to_list,
+        help='semicolon-separated string which specifies the modified files. '
+        'app with `depends_filepatterns` set in the corresponding manifest files would only be built '
+        'if any of the specified file pattern matches any of the specified modified files. '
+        'If set to "", the value would be considered as None. '
+        'If set to ";", the value would be considered as an empty list',
     )
     common_args.add_argument(
         '-if',
         '--ignore-app-dependencies-filepatterns',
-        nargs='*',
-        default=None,
-        help='space-separated list which specifies the file patterns used for ignoring checking the app dependencies. '
+        type=semicolon_separated_str_to_list,
+        help='semicolon-separated string which specifies the file patterns used for '
+        'ignoring checking the app dependencies. '
         'The `depends_components` and `depends_filepatterns` set in the manifest files will be ignored when any of the '
-        'specified file patterns matches any of the modified files. Must be used together with --modified-files',
+        'specified file patterns matches any of the modified files. '
+        'Must be used together with --modified-files. '
+        'If set to "", the value would be considered as None. '
+        'If set to ";", the value would be considered as an empty list',
     )
 
     common_args.add_argument(
@@ -659,7 +666,7 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
                 default_build_targets.append(target)
     args.default_build_targets = default_build_targets
 
-    if args.ignore_app_dependencies_filepatterns:
+    if args.ignore_app_dependencies_filepatterns is not None:
         if args.modified_files is None:
             raise InvalidCommand(
                 'Must specify "--ignore-component-dependencies-file-patterns" with "--modified-files", '
