@@ -257,7 +257,7 @@ class App(BaseModel):
         if os.path.isabs(self.build_dir):
             return self.build_dir
 
-        return os.path.realpath(os.path.join(self.work_dir, self.build_dir))
+        return os.path.join(self.work_dir, self.build_dir)
 
     @computed_field
     @property
