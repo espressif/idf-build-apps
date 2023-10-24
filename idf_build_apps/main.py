@@ -208,6 +208,7 @@ def build_apps(
     modified_components: t.Optional[t.Union[t.List[str], str]] = None,
     modified_files: t.Optional[t.Union[t.List[str], str]] = None,
     ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
+    check_app_dependencies: t.Optional[bool] = None,
     # BuildJob
     parallel_count: int = 1,
     parallel_index: int = 1,
@@ -232,6 +233,8 @@ def build_apps(
     :param modified_files: modified files
     :param ignore_app_dependencies_filepatterns: file patterns that used for ignoring checking the component
         dependencies
+    :param check_app_dependencies: check app dependencies or not. if not set, will be calculated by modified_components,
+        modified_files, and ignore_app_dependencies_filepatterns
     :param parallel_count: number of parallel tasks to run
     :param parallel_index: index of the parallel task to run
     :param collect_size_info: file path to record all generated size files' paths if specified
@@ -301,7 +304,9 @@ def build_apps(
             modified_files=modified_files,
             check_app_dependencies=_check_app_dependency(
                 manifest_rootpath, modified_components, modified_files, ignore_app_dependencies_filepatterns
-            ),
+            )
+            if check_app_dependencies is None
+            else check_app_dependencies,
         )
         test_suite.add_test_case(TestCase.from_app(app))
 
