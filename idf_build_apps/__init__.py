@@ -17,6 +17,7 @@ LOGGER = logging.getLogger('idf_build_apps')
 from .app import (
     App,
     CMakeApp,
+    MakeApp,
 )
 from .log import (
     setup_logging,
@@ -29,6 +30,7 @@ from .main import (
 __all__ = [
     'App',
     'CMakeApp',
+    'MakeApp',
     'find_apps',
     'build_apps',
     'setup_logging',
