@@ -270,6 +270,10 @@ class App(BaseModel):
     @computed_field
     @property
     def size_json_path(self) -> t.Optional[str]:
+        if self.target == 'linux':
+            # esp-idf-size does not support linux target
+            return None
+
         if self._size_json_path:
             return os.path.join(self.build_path, self._expand(self._size_json_path))
 
