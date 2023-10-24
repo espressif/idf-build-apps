@@ -127,3 +127,6 @@ select = [
 ]
 line-length = 120
 target-version = "py37"
+typing-modules = [
+    "idf_build_apps.utils"
+]
