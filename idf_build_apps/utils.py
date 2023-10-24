@@ -24,6 +24,15 @@ from . import (
     LOGGER,
 )
 
+try:
+    from typing import (
+        Literal,
+    )
+except ImportError:
+    from typing_extensions import (  # isort: skip # noqa: F401
+        Literal,
+    )
+
 
 class ConfigRule:
     def __init__(self, file_name: str, config_name: t.Optional[str]) -> None:

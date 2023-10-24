@@ -27,6 +27,7 @@ from packaging.version import (
     Version,
 )
 from pydantic import (
+    Field,
     computed_field,
 )
 
@@ -55,6 +56,7 @@ from .manifest.manifest import (
 from .utils import (
     BaseModel,
     BuildError,
+    Literal,
     files_matches_patterns,
     find_first_match,
     rmdir,
@@ -84,8 +86,6 @@ class App(BaseModel):
     INDEX_PLACEHOLDER: t.ClassVar[str] = '@i'  # replace it with the build index
     IDF_VERSION_PLACEHOLDER: t.ClassVar[str] = '@v'  # replace it with the IDF version
 
-    BUILD_SYSTEM: t.ClassVar[str] = 'unknown'
-
     SDKCONFIG_LINE_REGEX: t.ClassVar[t.Pattern] = re.compile(r"^([^=]+)=\"?([^\"\n]*)\"?\n*$")
 
     # could be assigned later, used for filtering out apps by supported_targets
@@ -100,6 +100,8 @@ class App(BaseModel):
     # ------------------
     # Instance variables
     # ------------------
+    build_system: Literal['unknown'] = 'unknown'
+
     app_dir: str
     target: str
     sdkconfig_path: t.Optional[str] = None
@@ -179,7 +181,7 @@ class App(BaseModel):
 
     def __str__(self):
         return '({}) App {}, target {}, sdkconfig {}, build in {}, {} in {}s'.format(
-            self.BUILD_SYSTEM,
+            self.build_system,
             self.app_dir,
             self.target,
             self.sdkconfig_path or '(default)',
@@ -679,9 +681,9 @@ class App(BaseModel):
 
 
 class MakeApp(App):
-    BUILD_SYSTEM = 'make'
-
     MAKE_PROJECT_LINE: t.ClassVar[str] = r'include $(IDF_PATH)/make/project.mk'
+
+    build_system: Literal['make'] = 'make'
 
     @property
     def supported_targets(self) -> t.List[str]:
@@ -744,8 +746,6 @@ class MakeApp(App):
 
 
 class CMakeApp(App):
-    BUILD_SYSTEM = 'cmake'
-
     # If these keys are present in sdkconfig.defaults, they will be extracted and passed to CMake
     SDKCONFIG_TEST_OPTS: t.ClassVar[t.List[str]] = [
         'EXCLUDE_COMPONENTS',
@@ -759,6 +759,8 @@ class CMakeApp(App):
     # While ESP-IDF component CMakeLists files can be identified by the presence of 'idf_component_register' string,
     # there is no equivalent for the project CMakeLists files. This seems to be the best option...
     CMAKE_PROJECT_LINE: t.ClassVar[str] = r'include($ENV{IDF_PATH}/tools/cmake/project.cmake)'
+
+    build_system: Literal['cmake'] = 'cmake'
 
     cmake_vars: t.Dict[str, str] = {}
 
@@ -867,3 +869,12 @@ class CMakeApp(App):
             return False
 
         return True
+
+
+class AppDeserializer(BaseModel):
+    app: t.Union[App, CMakeApp, MakeApp] = Field(discriminator='build_system')
+
+    @classmethod
+    def from_json(cls, json_data: t.Union[str, bytes, bytearray]) -> App:
+        json_dict = json.loads(json_data.strip())
+        return cls.model_validate({'app': json_dict}).app

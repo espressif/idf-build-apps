@@ -16,6 +16,7 @@ LOGGER = logging.getLogger('idf_build_apps')
 
 from .app import (
     App,
+    AppDeserializer,
     CMakeApp,
     MakeApp,
 )
@@ -29,6 +30,7 @@ from .main import (
 
 __all__ = [
     'App',
+    'AppDeserializer',
     'CMakeApp',
     'MakeApp',
     'find_apps',

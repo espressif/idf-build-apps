@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from idf_build_apps import (
+    AppDeserializer,
     CMakeApp,
+    MakeApp,
 )
 
 
@@ -12,3 +14,21 @@ def test_serialization():
 
     b = CMakeApp.model_validate_json(a_s)
     assert a == b
+
+
+def test_deserialization(tmp_path):
+    a = CMakeApp('foo', 'bar')
+    b = MakeApp('foo', 'bar')
+
+    assert a != b
+
+    with open(tmp_path / 'test.txt', 'w') as fw:
+        fw.write(a.to_json() + '\n')
+        fw.write(b.to_json() + '\n')
+
+    with open(tmp_path / 'test.txt') as fr:
+        a_s = AppDeserializer.from_json(fr.readline())
+        b_s = AppDeserializer.from_json(fr.readline())
+
+    assert a == a_s
+    assert b == b_s
