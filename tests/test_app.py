@@ -17,8 +17,8 @@ def test_serialization():
 
 
 def test_deserialization(tmp_path):
-    a = CMakeApp('foo', 'bar')
-    b = MakeApp('foo', 'bar')
+    a = CMakeApp('foo', 'bar', size_json_filename='size.json')
+    b = MakeApp('foo', 'bar', build_log_filename='build.log')
 
     assert a != b
 
