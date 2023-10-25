@@ -90,8 +90,8 @@ def find_apps(
     work_dir: t.Optional[str] = None,
     build_dir: str = 'build',
     config_rules_str: t.Optional[t.Union[t.List[str], str]] = None,
-    build_log_path: t.Optional[str] = None,
-    size_json_path: t.Optional[str] = None,
+    build_log_filename: t.Optional[str] = None,
+    size_json_filename: t.Optional[str] = None,
     check_warnings: bool = False,
     preserve: bool = True,
     manifest_rootpath: t.Optional[str] = None,
@@ -115,10 +115,10 @@ def find_apps(
     :param work_dir: directory where the app should be copied before building. Support placeholders
     :param build_dir: directory where the build will be done. Support placeholders.
     :param config_rules_str: mapping of sdkconfig file name patterns to configuration names
-    :param build_log_path: path of the build log. Support placeholders.
-        The logs will go to stdout/stderr if not specified
-    :param size_json_path: path of the size.json file. Support placeholders.
-        Will not generate size file for each app if not specified
+    :param build_log_filename: filename of the build log. Will be placed under the app.build_path.
+        Support placeholders. The logs will go to stdout/stderr if not specified
+    :param size_json_filename: filename to collect the app's size information. Will be placed under the app.build_path.
+        Support placeholders. The app's size information won't be collected if not specified
     :param check_warnings: Check for warnings in the build log or not
     :param preserve: Preserve the built binaries or not
     :param manifest_rootpath: The root path of the manifest files. Usually the folders specified in the manifest files
@@ -173,8 +173,8 @@ def find_apps(
                     work_dir=work_dir,
                     build_dir=build_dir or 'build',
                     config_rules_str=config_rules_str,
-                    build_log_path=build_log_path,
-                    size_json_path=size_json_path,
+                    build_log_filename=build_log_filename,
+                    size_json_filename=size_json_filename,
                     check_warnings=check_warnings,
                     preserve=preserve,
                     manifest_rootpath=manifest_rootpath,
@@ -705,8 +705,8 @@ def main():
         work_dir=args.work_dir,
         build_dir=args.build_dir or 'build',
         config_rules_str=args.config,
-        build_log_path=args.build_log,
-        size_json_path=args.size_file,
+        build_log_filename=args.build_log,
+        size_json_filename=args.size_file,
         check_warnings=args.check_warnings,
         manifest_rootpath=args.manifest_rootpath,
         manifest_files=args.manifest_file,

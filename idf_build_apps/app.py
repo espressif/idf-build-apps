@@ -114,8 +114,8 @@ class App(BaseModel):
     _work_dir: t.Optional[str] = None
     _build_dir: t.Optional[str] = None
 
-    _build_log_path: t.Optional[str] = None
-    _size_json_path: t.Optional[str] = None
+    _build_log_filename: t.Optional[str] = None
+    _size_json_filename: t.Optional[str] = None
 
     # Build related
     dry_run: bool = False
@@ -140,8 +140,8 @@ class App(BaseModel):
         config_name: t.Optional[str] = None,
         work_dir: t.Optional[str] = None,
         build_dir: str = 'build',
-        build_log_path: t.Optional[str] = None,
-        size_json_path: t.Optional[str] = None,
+        build_log_filename: t.Optional[str] = None,
+        size_json_filename: t.Optional[str] = None,
         check_warnings: bool = False,
         preserve: bool = True,
         sdkconfig_defaults_str: t.Optional[str] = None,
@@ -166,8 +166,8 @@ class App(BaseModel):
         self._work_dir = work_dir or app_dir
         self._build_dir = build_dir or 'build'
 
-        self._build_log_path = build_log_path
-        self._size_json_path = size_json_path
+        self._build_log_filename = build_log_filename
+        self._size_json_filename = size_json_filename
 
         # should be built or not
         self._checked_should_build = False
@@ -257,25 +257,33 @@ class App(BaseModel):
         if os.path.isabs(self.build_dir):
             return self.build_dir
 
-        return os.path.realpath(os.path.join(self.work_dir, self.build_dir))
+        return os.path.join(self.work_dir, self.build_dir)
 
     @computed_field
     @property
+    def build_log_filename(self) -> t.Optional[str]:
+        return self._expand(self._build_log_filename)
+
+    @property
     def build_log_path(self) -> t.Optional[str]:
-        if self._build_log_path:
-            return os.path.join(self.build_path, self._expand(self._build_log_path))
+        if self.build_log_filename:
+            return os.path.join(self.build_path, self.build_log_filename)
 
         return None
 
     @computed_field
     @property
-    def size_json_path(self) -> t.Optional[str]:
+    def size_json_filename(self) -> t.Optional[str]:
         if self.target == 'linux':
             # esp-idf-size does not support linux target
             return None
 
-        if self._size_json_path:
-            return os.path.join(self.build_path, self._expand(self._size_json_path))
+        return self._expand(self._size_json_filename)
+
+    @property
+    def size_json_path(self) -> t.Optional[str]:
+        if self.size_json_filename:
+            return os.path.join(self.build_path, self.size_json_filename)
 
         return None
 
@@ -443,7 +451,7 @@ class App(BaseModel):
                 shutil.rmtree(self.build_path)
 
         if not self.dry_run:
-            os.makedirs(self.build_path)
+            os.makedirs(self.build_path, exist_ok=True)
 
         sdkconfig_file = os.path.join(self.work_dir, 'sdkconfig')
         if os.path.exists(sdkconfig_file):
