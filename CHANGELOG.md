@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.0b2 (2023-10-25)
+
+### Feat
+
+- add param `check_app_dependencies` in `build_apps` function
+- add `AppDeserializer` for differentiating `CMakeApp` and `MakeApp` while deserializing
+- import `MakeApp` easier
+
+### Fix
+
+- `app.build_path` return not only full path
+- `app.size_json_path` always returns None for linux target apps
+- keep attr `config` for class `App` for backward compatibility
+
+### BREAKING CHANGES
+
+- correct `find_apps`, `build_apps` function params. These files would be generated under the build directory.
+  - `build_log_path` -> `build_log_filename`
+  - `size_json_path` -> `size_json_filename`
+- differentiate `None` or empty list better while checking, now these params are accepting semicolon-separated list, instead of space-separated list.
+  - `--modified-components`
+  - `--modified-files`
+  - `--ignore-app-dependencies-filepatterns`
+
 ## v2.0.0b1 (2023-09-29)
 
 ### Feat
