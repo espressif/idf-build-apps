@@ -652,6 +652,12 @@ class App(BaseModel):
             self._checked_should_build = True
             return
 
+        if modified_components == []:  # noqa # it's different from `not modified_components`
+            self.build_status = BuildStatus.SKIPPED
+            self.build_comment = 'current build does not modify any components'
+            self._checked_should_build = True
+            return
+
         # if no special rules defined, we left it unknown and decide with idf.py reconfigure
         if not self.depends_components and not self.depends_filepatterns:
             self._checked_should_build = True
@@ -689,6 +695,7 @@ class App(BaseModel):
 
         # special rules defined, but not matched
         self.build_status = BuildStatus.SKIPPED
+        self.build_comment = 'current build does not modify any components or files required by this app'
         self._checked_should_build = True
 
 
@@ -813,11 +820,6 @@ class CMakeApp(App):
         ]
 
         if modified_components is not None and check_app_dependencies and self.build_status == BuildStatus.UNKNOWN:
-            if not modified_components:
-                self.build_status = BuildStatus.SKIPPED
-                self.build_comment = 'current build does not modify any components'
-                return
-
             subprocess_run(
                 common_args + ['reconfigure'],
                 log_terminal=False if self.build_log_path else True,
