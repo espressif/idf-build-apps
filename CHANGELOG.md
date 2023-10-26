@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.0b3 (2023-10-26)
+
+### Fix
+
+- skip build while `find_apps` if `modified_components` is an empty list
+
 ## v2.0.0b2 (2023-10-25)
 
 ### Feat
