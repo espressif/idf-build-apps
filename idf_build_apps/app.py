@@ -598,7 +598,16 @@ class CMakeApp(App):
                     shutil.rmtree(self.work_dir)
             LOGGER.debug('==> Copying app from %s to %s', self.app_dir, self.work_dir)
             if not self.dry_run:
-                shutil.copytree(self.app_dir, self.work_dir)
+                # if the new directory inside the original directory,
+                # make sure not to go into recursion.
+                ignore = shutil.ignore_patterns(
+                    os.path.basename(self.work_dir),
+                    # also ignore files which may be present in the work directory
+                    'build',
+                    'sdkconfig',
+                )
+
+                shutil.copytree(self.app_dir, self.work_dir, ignore=ignore, symlinks=True)
 
         if os.path.exists(self.build_path):
             LOGGER.debug('==> Build directory %s exists, removing', self.build_path)

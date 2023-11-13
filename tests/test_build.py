@@ -1,10 +1,16 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+
+import os
 import shutil
 
 import pytest
+from conftest import (
+    create_project,
+)
 
 from idf_build_apps import (
+    build_apps,
     find_apps,
 )
 from idf_build_apps.app import (
@@ -103,3 +109,19 @@ def test_idf_version_keywords_type():
     assert isinstance(IDF_VERSION_MAJOR, int)
     assert isinstance(IDF_VERSION_MINOR, int)
     assert isinstance(IDF_VERSION_PATCH, int)
+
+
+@pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')
+def test_work_dir_inside_relative_app_dir(tmp_path):
+    create_project('foo', tmp_path)
+
+    os.chdir(tmp_path / 'foo')
+    apps = find_apps(
+        '.',
+        'esp32',
+        work_dir=os.path.join('foo', 'bar'),
+    )
+    res = build_apps(apps)
+
+    assert len(apps) == 1
+    assert res == 0

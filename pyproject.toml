@@ -29,7 +29,8 @@ dependencies = [
     "pathlib; python_version < '3.4'",
     "glob2; python_version < '3.5'",
     "pyparsing",
-    "pyyaml",
+    "pyyaml>=5.3; python_version >= '3.5'",
+    "pyyaml<5.3; python_version < '3.5'",
     "packaging",
     "toml; python_version < '3.11'",
 ]
