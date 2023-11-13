@@ -61,6 +61,7 @@ jobs:
           pyenv global ${{ matrix.python-version }}
           rm $(which python3)
           echo "urllib3<1.25,>=1.21.1" >> $IDF_PATH/requirements.txt
+          echo "brotli<1.1" >> $IDF_PATH/requirements.txt
           sed -i 's/idf-component-manager~=1.0/idf-component-manager<1.3/g' $IDF_PATH/requirements.txt
           pip install -U pip
           bash $IDF_PATH/install.sh
