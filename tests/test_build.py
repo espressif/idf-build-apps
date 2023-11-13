@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import shutil
 import xml.etree.ElementTree as ET
 from copy import (
@@ -8,6 +9,9 @@ from copy import (
 )
 
 import pytest
+from conftest import (
+    create_project,
+)
 
 from idf_build_apps import (
     build_apps,
@@ -144,3 +148,17 @@ class TestBuild:
             assert testcase.find('skipped') is None
             assert testcase.find('error') is None
             assert testcase.find('failure') is None
+
+    def test_work_dir_inside_relative_app_dir(self, tmp_path):
+        create_project('foo', tmp_path)
+
+        os.chdir(tmp_path / 'foo')
+        apps = find_apps(
+            '.',
+            'esp32',
+            work_dir=os.path.join('foo', 'bar'),
+        )
+        build_apps(apps)
+
+        assert len(apps) == 1
+        assert apps[0].build_status == BuildStatus.SUCCESS
