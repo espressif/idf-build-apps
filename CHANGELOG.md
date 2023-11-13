@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.3 (2023-11-13)
+
+### Fix
+
+- pyyaml dependency for python version older than 3.5
+- stop recursively copy when work dir in app dir
+
 ## v1.1.2 (2023-08-16)
 
 ### Feat
