@@ -14,7 +14,6 @@ from . import (
 from .app import (
     App,
     CMakeApp,
-    MakeApp,
 )
 from .constants import (
     BuildStatus,
@@ -29,7 +28,7 @@ from .utils import (
 def _get_apps_from_path(
     path: str,
     target: str,
-    build_system: str = 'cmake',
+    app_cls: t.Type[App] = CMakeApp,
     work_dir: t.Optional[str] = None,
     build_dir: str = 'build',
     config_rules_str: t.Union[t.List[str], str, None] = None,
@@ -63,13 +62,6 @@ def _get_apps_from_path(
             return False
 
         return True
-
-    if build_system == 'cmake':
-        app_cls = CMakeApp
-    elif build_system == 'make':
-        app_cls = MakeApp
-    else:
-        raise ValueError('Only Support "make" and "cmake"')
 
     if not app_cls.is_app(path):
         LOGGER.debug('Skipping. %s is not an app', path)
@@ -154,21 +146,25 @@ def _get_apps_from_path(
 def _find_apps(
     path: str,
     target: str,
-    build_system: str = 'cmake',
+    app_cls: t.Type[App] = CMakeApp,
     recursive: bool = False,
     exclude_list: t.Optional[t.List[str]] = None,
     **kwargs,
 ) -> t.List[App]:
     exclude_list = exclude_list or []
     LOGGER.debug(
-        'Looking for %s apps in %s%s with target %s', build_system, path, ' recursively' if recursive else '', target
+        'Looking for %s apps in %s%s with target %s',
+        app_cls.__name__,
+        path,
+        ' recursively' if recursive else '',
+        target,
     )
 
     if not recursive:
         if exclude_list:
             LOGGER.warning('--exclude option is ignored when used without --recursive')
 
-        return _get_apps_from_path(path, target, build_system, **kwargs)
+        return _get_apps_from_path(path, target, app_cls, **kwargs)
 
     # The remaining part is for recursive == True
     apps = []
@@ -187,7 +183,7 @@ def _find_apps(
             del dirs[:]
             continue
 
-        _found_apps = _get_apps_from_path(root, target, build_system, **kwargs)
+        _found_apps = _get_apps_from_path(root, target, app_cls, **kwargs)
         if _found_apps:  # root has at least one app
             LOGGER.debug('=> Stop iteration sub dirs of %s since it has apps', root)
             del dirs[:]
