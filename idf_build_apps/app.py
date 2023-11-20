@@ -158,9 +158,6 @@ class App(BaseModel):
             }
         )
         super().__init__(**kwargs)
-        self._logger = LOGGER.getChild(str(hash(self)))
-        self._logger.addFilter(_AppBuildStageFilter(app=self))
-
         # These internal variables store the paths with environment variables and placeholders;
         # Public properties with similar names use the _expand method to get the actual paths.
         self._work_dir = work_dir or app_dir
@@ -177,7 +174,27 @@ class App(BaseModel):
         self._sdkconfig_files = None
         self._sdkconfig_files_defined_target = None
 
+        # pass all parameters to initialize hook method
+        kwargs.update(
+            {
+                'work_dir': work_dir,
+                'build_dir': build_dir,
+                'build_log_filename': build_log_filename,
+                'size_json_filename': size_json_filename,
+                'sdkconfig_defaults_str': sdkconfig_defaults_str,
+            }
+        )
+        self._initialize_hook(**kwargs)
+        # create logger and process sdkconfig files
+        self._logger = LOGGER.getChild(str(hash(self)))
+        self._logger.addFilter(_AppBuildStageFilter(app=self))
         self._process_sdkconfig_files()
+
+    def _initialize_hook(self, **kwargs):
+        """
+        Called after variables initialized, before actions such as creating logger.
+        """
+        pass
 
     def __str__(self):
         return '({}) App {}, target {}, sdkconfig {}, build in {}, {} in {}s'.format(

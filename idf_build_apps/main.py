@@ -18,6 +18,8 @@ from . import (
 )
 from .app import (
     App,
+    CMakeApp,
+    MakeApp,
 )
 from .build_job import (
     BuildJob,
@@ -84,7 +86,7 @@ def find_apps(
     paths: t.Union[t.List[str], str],
     target: str,
     *,
-    build_system: str = 'cmake',
+    build_system: t.Union[t.Type[App], str] = CMakeApp,
     recursive: bool = False,
     exclude_list: t.Optional[t.List[str]] = None,
     work_dir: t.Optional[str] = None,
@@ -109,7 +111,7 @@ def find_apps(
 
     :param paths: list of app directories (can be / usually will be a relative path)
     :param target: desired value of IDF_TARGET; apps incompatible with the given target are skipped.
-    :param build_system: name of the build system, now only support cmake
+    :param build_system: class of the build system, default CMakeApp
     :param recursive: Recursively search into the nested sub-folders if no app is found or not
     :param exclude_list: list of paths to be excluded from the recursive search
     :param work_dir: directory where the app should be copied before building. Support placeholders
@@ -139,6 +141,16 @@ def find_apps(
         LOGGER.info('Overriding DEFAULT_BUILD_TARGETS to %s', default_build_targets)
         FolderRule.DEFAULT_BUILD_TARGETS = default_build_targets
 
+    if isinstance(build_system, str):
+        # backwards compatible
+        if build_system == 'cmake':
+            build_system = CMakeApp
+        elif build_system == 'make':
+            build_system = MakeApp
+        else:
+            raise ValueError('Only Support "make" and "cmake"')
+    app_cls = build_system
+
     # always set the manifest rootpath at the very beginning of find_apps in case ESP-IDF switches the branch.
     Manifest.ROOTPATH = to_absolute_path(manifest_rootpath or os.curdir)
     Manifest.CHECK_MANIFEST_RULES = check_manifest_rules
@@ -167,7 +179,7 @@ def find_apps(
                 _find_apps(
                     path,
                     target,
-                    build_system,
+                    app_cls,
                     recursive,
                     exclude_list or [],
                     work_dir=work_dir,
