@@ -104,6 +104,7 @@ def find_apps(
     modified_files: t.Optional[t.Union[t.List[str], str]] = None,
     ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
     sdkconfig_defaults: t.Optional[str] = None,
+    include_skipped_apps: bool = False,
 ) -> t.List[App]:
     """
     Find app directories in paths (possibly recursively), which contain apps for the given build system, compatible
@@ -134,6 +135,7 @@ def find_apps(
         dependencies
     :param sdkconfig_defaults: semicolon-separated string, pass to idf.py -DSDKCONFIG_DEFAULTS if specified,
         also could be set via environment variables "SDKCONFIG_DEFAULTS"
+    :param include_skipped_apps: include skipped apps or not
     :return: list of found apps
     """
     if default_build_targets:
@@ -199,6 +201,7 @@ def find_apps(
                     modified_components=modified_components,
                     modified_files=modified_files,
                     sdkconfig_defaults_str=sdkconfig_defaults,
+                    include_skipped_apps=include_skipped_apps,
                 )
             )
     apps.sort()

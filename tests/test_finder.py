@@ -16,6 +16,7 @@ from conftest import (
 from idf_build_apps.constants import (
     DEFAULT_SDKCONFIG,
     IDF_PATH,
+    BuildStatus,
 )
 from idf_build_apps.main import (
     find_apps,
@@ -102,6 +103,8 @@ get-started:
         )
         assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file)) == apps
 
+
+class TestFindWithModifiedFilesComponents:
     @pytest.mark.parametrize(
         'modified_components, could_find_apps',
         [
@@ -285,6 +288,18 @@ get-started:
             assert {app.app_dir for app in filtered_apps} == {app.app_dir for app in apps}
         else:
             assert not filtered_apps
+
+    def test_with_skipped_but_included(self, tmp_path):
+        create_project('foo', tmp_path)
+
+        apps = find_apps(
+            str(tmp_path / 'foo'), 'esp32', modified_components=[], modified_files=[], include_skipped_apps=True
+        )
+        assert len(apps) == 1
+        assert apps[0].build_status == BuildStatus.SKIPPED
+
+        apps[0].build()
+        assert apps[0].build_status == BuildStatus.SKIPPED
 
 
 class TestFindWithSdkconfigFiles:
