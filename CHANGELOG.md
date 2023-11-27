@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.0b4 (2023-11-27)
+
+### Feat
+
+- add option `include_skipped_apps` in the `find_apps` process
+- `find_apps` support custom app class for param `build_system`
+
+### Fix
+
+- stop recursively copy when work dir in app dir
+
 ## v2.0.0b3 (2023-10-26)
 
 ### Fix
