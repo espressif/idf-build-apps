@@ -41,13 +41,14 @@ def _get_apps_from_path(
     modified_files: t.Union[t.List[str], str, None] = None,
     check_app_dependencies: bool = False,
     sdkconfig_defaults_str: t.Optional[str] = None,
+    include_skipped_apps: bool = False,
 ) -> t.List[App]:
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
 
     def _validate_app(_app: App) -> bool:
         if target not in _app.supported_targets:
-            LOGGER.debug('=> Skipping. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
+            LOGGER.debug('=> Ignored. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
             return False
 
         _app.check_should_build(
@@ -59,7 +60,7 @@ def _get_apps_from_path(
 
         # for unknown ones, we keep them to the build stage to judge
         if _app.build_status == BuildStatus.SKIPPED:
-            return False
+            return include_skipped_apps
 
         return True
 

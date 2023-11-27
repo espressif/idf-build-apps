@@ -452,6 +452,10 @@ class App(BaseModel):
         else:
             self._build_stage = BuildStage.PRE_BUILD
 
+        if self.build_status == BuildStatus.SKIPPED:
+            self._logger.debug('Build skipped. %s', self)
+            return
+
         if self.work_dir != self.app_dir:
             if os.path.exists(self.work_dir):
                 self._logger.debug('Removed existing work dir: %s', self.work_dir)
