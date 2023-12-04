@@ -15,6 +15,7 @@ from pathlib import (
 
 from . import (
     LOGGER,
+    SESSION_ARGS,
 )
 from .app import (
     App,
@@ -22,7 +23,7 @@ from .app import (
     MakeApp,
 )
 from .build_job import (
-    BuildJob,
+    BuildAppJob,
 )
 from .config import (
     get_valid_config,
@@ -224,7 +225,7 @@ def build_apps(
     modified_files: t.Optional[t.Union[t.List[str], str]] = None,
     ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
     check_app_dependencies: t.Optional[bool] = None,
-    # BuildJob
+    # BuildAppJob
     parallel_count: int = 1,
     parallel_index: int = 1,
     collect_size_info: t.Optional[t.Union[str, t.TextIO]] = None,
@@ -284,7 +285,7 @@ def build_apps(
     else:
         LOGGER.info('  parallel count is too large. build nothing...')
 
-    build_job = BuildJob(
+    build_job = BuildAppJob(
         parallel_count=parallel_count,
         parallel_index=parallel_index,
         collect_size_info=collect_size_info,
@@ -502,6 +503,26 @@ def get_parser() -> argparse.ArgumentParser:
         'the sdkconfig file, relative to the project directory, with at most one wildcard. '
         'The part captured by the wildcard is used as the name of the configuration',
     )
+
+    common_args.add_argument(
+        '--override-sdkconfig-items',
+        nargs='?',
+        type=str,
+        help='The --override-sdkconfig-items option is a comma-separated list '
+        'that permits the overriding of specific configuration items defined '
+        'in the SDK\'s sdkconfig file and Kconfig using a command-line argument. '
+        'The sdkconfig items specified here override the same sdkconfig '
+        'item defined in the --override-sdkconfig-files, if exists.',
+    )
+    common_args.add_argument(
+        '--override-sdkconfig-files',
+        nargs='?',
+        type=str,
+        help='"The --override-sdkconfig-files option is a comma-separated list, '
+        'which provides an alternative (alt: --override-sdkconfig-items) '
+        'approach for overriding SDK configuration items. '
+        'The filepath may be global or relative to the root.',
+    )
     common_args.add_argument(
         '--sdkconfig-defaults',
         help='semicolon-separated string, pass to idf.py -DSDKCONFIG_DEFAULTS if specified, also could be set via '
@@ -710,6 +731,7 @@ def main():
     apply_config_args(args)
     validate_args(parser, args)
 
+    SESSION_ARGS.set(args)
     # real call starts here
     apps = find_apps(
         args.paths,

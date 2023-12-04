@@ -31,11 +31,15 @@ from pydantic import (
     computed_field,
 )
 
+from idf_build_apps import (
+    SESSION_ARGS,
+)
+
 from . import (
     LOGGER,
 )
 from .build_job import (
-    BuildJob,
+    BuildAppJob,
 )
 from .constants import (
     DEFAULT_SDKCONFIG,
@@ -125,7 +129,7 @@ class App(BaseModel):
     preserve: bool = True
 
     # logging
-    build_job: t.Optional[BuildJob] = BuildJob()
+    build_job: t.Optional[BuildAppJob] = BuildAppJob()
 
     _build_stage: t.Optional[BuildStage] = None
     _build_duration: float = 0
@@ -188,6 +192,7 @@ class App(BaseModel):
         # create logger and process sdkconfig files
         self._logger = LOGGER.getChild(str(hash(self)))
         self._logger.addFilter(_AppBuildStageFilter(app=self))
+
         self._process_sdkconfig_files()
 
     def _initialize_hook(self, **kwargs):
@@ -378,6 +383,11 @@ class App(BaseModel):
             os.rmdir(os.path.join(self.work_dir, 'expanded_sdkconfig_files'))
         except OSError:
             pass
+
+        if SESSION_ARGS.override_sdkconfig_items:
+            res.append(SESSION_ARGS.override_sdkconfig_file_path)
+            if 'CONFIG_IDF_TARGET' in SESSION_ARGS.override_sdkconfig_items:
+                self._sdkconfig_files_defined_target = SESSION_ARGS.override_sdkconfig_items['CONFIG_IDF_TARGET']
 
         self._sdkconfig_files = res
 

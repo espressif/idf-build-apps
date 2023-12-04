@@ -4,6 +4,7 @@ import os
 
 import pytest
 
+import idf_build_apps
 from idf_build_apps import (
     App,
     setup_logging,
@@ -13,6 +14,7 @@ from idf_build_apps import (
 @pytest.fixture(autouse=True)
 def clean_cls_attr():
     App.MANIFEST = None
+    idf_build_apps.SESSION_ARGS.clean()
 
 
 @pytest.fixture(autouse=True)

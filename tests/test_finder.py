@@ -416,6 +416,55 @@ class TestFindWithSdkconfigFiles:
         apps = find_apps('test1', 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=')
         assert len(apps) == 0
 
+    def test_with_sdkconfig_override(self, tmp_path):
+        import idf_build_apps
+
+        create_project('test1', tmp_path)
+        (tmp_path / 'test1' / 'sdkconfig.defaults').write_text(
+            '''
+CONFIG_IDF_TARGET=esp32s2
+CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
+''',
+            encoding='utf8',
+        )
+        (tmp_path / 'sdkconfig.override1').write_text(
+            'CONFIG_IDF_TARGET=esp32\nCONFIG_A=5\nCONFIG_B=33', encoding='utf8'
+        )
+        from collections import (
+            namedtuple,
+        )
+
+        Args = namedtuple('Args', ['override_sdkconfig_items', 'override_sdkconfig_files'])
+        args = Args(
+            'CONFIG_IDF_TARGET=esp32c3,CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1522,CONFIG_A=10', 'sdkconfig.override1'
+        )
+        idf_build_apps.SESSION_ARGS.set(args, workdir=tmp_path)
+        session_args = idf_build_apps.SESSION_ARGS
+
+        assert str(tmp_path) in str(session_args.override_sdkconfig_file_path)
+        assert len(session_args.override_sdkconfig_items) == 4
+        assert len(set(session_args.override_sdkconfig_items)) == 4
+
+        apps = find_apps(str(tmp_path / 'test1'), 'esp32s2')
+        assert len(apps) == 0
+
+        apps = find_apps(str(tmp_path / 'test1'), 'esp32')
+        assert len(apps) == 0
+
+        apps = find_apps(str(tmp_path / 'test1'), 'esp32c3')
+        assert len(apps) == 1
+
+        with open(apps[0].sdkconfig_files[-1]) as fr:
+            lines = fr.readlines()
+            assert len(lines) == 4
+            for _l in lines:
+                assert _l in [
+                    'CONFIG_IDF_TARGET=esp32c3\n',
+                    'CONFIG_A=10\n',
+                    'CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1522\n',
+                    'CONFIG_B=33\n',
+                ]
+
     def test_config_name_in_manifest(self, tmp_path):
         create_project('test1', tmp_path)
 
