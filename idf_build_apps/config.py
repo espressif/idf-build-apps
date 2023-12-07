@@ -23,7 +23,7 @@ IDF_BUILD_APPS_TOML_FN = '.idf_build_apps.toml'
 
 def load_toml(filepath: t.Union[str, Path]) -> dict:
     try:
-        import tomllib  # python 3.11
+        import tomllib  # type: ignore # python 3.11
 
         try:
             with open(str(filepath), 'rb') as fr:

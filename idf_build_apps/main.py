@@ -60,10 +60,10 @@ LOGGER = logging.getLogger(__name__)
 
 
 def _check_app_dependency(
-    manifest_rootpath: str,
-    modified_components: t.Optional[t.List[str]],
-    modified_files: t.Optional[t.List[str]],
-    ignore_app_dependencies_filepatterns: t.Optional[t.List[str]],
+    manifest_rootpath: t.Optional[str] = None,
+    modified_components: t.Optional[t.List[str]] = None,
+    modified_files: t.Optional[t.List[str]] = None,
+    ignore_app_dependencies_filepatterns: t.Optional[t.List[str]] = None,
 ) -> bool:
     # not check since modified_components and modified_files are not passed
     if modified_components is None and modified_files is None:
@@ -173,6 +173,7 @@ def find_apps(
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
     ignore_app_dependencies_filepatterns = to_list(ignore_app_dependencies_filepatterns)
+    config_rules_str = to_list(config_rules_str)
 
     apps = []
     if target == 'all':
@@ -240,8 +241,8 @@ def build_apps(
     # BuildAppJob
     parallel_count: int = 1,
     parallel_index: int = 1,
-    collect_size_info: t.Optional[t.Union[str, t.TextIO]] = None,
-    collect_app_info: t.Optional[t.Union[str, t.TextIO]] = None,
+    collect_size_info: t.Optional[str] = None,
+    collect_app_info: t.Optional[str] = None,
     junitxml: t.Optional[str] = None,
 ) -> int:
     """

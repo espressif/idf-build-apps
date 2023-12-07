@@ -30,6 +30,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+dev = [
+    "typing-extensions; python_version < '3.8'",
+]
 test = [
     "pytest",
     "pytest-cov",
@@ -130,3 +133,6 @@ target-version = "py37"
 typing-modules = [
     "idf_build_apps.utils"
 ]
+
+[tool.mypy]
+python_version = "3.7"

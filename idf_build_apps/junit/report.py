@@ -34,6 +34,7 @@ The test report should look like something like this:
 """
 
 import json
+import logging
 import os.path
 import typing as t
 from datetime import (
@@ -44,9 +45,6 @@ from xml.sax.saxutils import (
     escape,
 )
 
-from .. import (
-    LOGGER,
-)
 from ..app import (
     App,
 )
@@ -56,6 +54,8 @@ from ..constants import (
 from .utils import (
     get_sys_info,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 class TestCase:
@@ -89,7 +89,7 @@ class TestCase:
         if app.build_status not in (BuildStatus.FAILED, BuildStatus.SUCCESS, BuildStatus.SKIPPED):
             raise ValueError(f'Cannot create test case from app with build status {app.build_status}')
 
-        kwargs = {
+        kwargs: t.Dict[str, t.Any] = {
             'name': app.build_path,
             'duration_sec': app._build_duration,
             'timestamp': app._build_timestamp,
@@ -105,7 +105,7 @@ class TestCase:
                 for k, v in json.load(f).items():
                     kwargs['properties'][f'{k}'] = str(v)
 
-        return cls(**kwargs)
+        return cls(**kwargs)  # type
 
     @property
     def is_failed(self) -> bool:

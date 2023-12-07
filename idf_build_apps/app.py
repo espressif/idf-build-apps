@@ -57,7 +57,6 @@ from .manifest.manifest import (
 from .utils import (
     BaseModel,
     BuildError,
-    Literal,
     files_matches_patterns,
     find_first_match,
     rmdir,
@@ -65,6 +64,15 @@ from .utils import (
     to_absolute_path,
     to_list,
 )
+
+if sys.version_info < (3, 8):
+    from typing_extensions import (
+        Literal,
+    )
+else:
+    from typing import (
+        Literal,
+    )
 
 
 class _AppBuildStageFilter(logging.Filter):
@@ -172,8 +180,8 @@ class App(BaseModel):
 
         # sdkconfig attrs, use properties instead
         self._sdkconfig_defaults = self._get_sdkconfig_defaults(sdkconfig_defaults_str)
-        self._sdkconfig_files = None
-        self._sdkconfig_files_defined_target = None
+        self._sdkconfig_files: t.List[str] = None  # type: ignore
+        self._sdkconfig_files_defined_target: str = None  # type: ignore
 
         # pass all parameters to initialize hook method
         kwargs.update(
@@ -229,7 +237,15 @@ class App(BaseModel):
 
         return candidates
 
+    @t.overload
+    def _expand(self, path: None) -> None:
+        ...
+
+    @t.overload
     def _expand(self, path: str) -> str:
+        ...
+
+    def _expand(self, path):
         """
         Internal method, expands any of the placeholders in {app,work,build} paths.
         """
@@ -264,21 +280,21 @@ class App(BaseModel):
     def name(self) -> str:
         return os.path.basename(os.path.realpath(self.app_dir))
 
-    @computed_field
+    @computed_field  # type: ignore
     @property
     def work_dir(self) -> str:
         """
         :return: directory where the app should be copied to, prior to the build.
         """
-        return self._expand(self._work_dir)
+        return self._expand(self._work_dir)  # type: ignore
 
-    @computed_field
+    @computed_field  # type: ignore
     @property
     def build_dir(self) -> str:
         """
         :return: build directory, either relative to the work directory (if relative path is used) or absolute path.
         """
-        return self._expand(self._build_dir)
+        return self._expand(self._build_dir)  # type: ignore
 
     @property
     def build_path(self) -> str:
@@ -287,7 +303,7 @@ class App(BaseModel):
 
         return os.path.join(self.work_dir, self.build_dir)
 
-    @computed_field
+    @computed_field  # type: ignore
     @property
     def build_log_filename(self) -> t.Optional[str]:
         return self._expand(self._build_log_filename)
@@ -299,7 +315,7 @@ class App(BaseModel):
 
         return None
 
-    @computed_field
+    @computed_field  # type: ignore
     @property
     def size_json_filename(self) -> t.Optional[str]:
         if self.target == 'linux':
@@ -315,7 +331,7 @@ class App(BaseModel):
 
         return None
 
-    @computed_field
+    @computed_field  # type: ignore
     @property
     def config(self) -> t.Optional[str]:
         return self.config_name
@@ -455,7 +471,7 @@ class App(BaseModel):
 
         return wrapper
 
-    @record_build_duration
+    @record_build_duration  # type: ignore
     def build(
         self,
         manifest_rootpath: t.Optional[str] = None,
@@ -514,7 +530,7 @@ class App(BaseModel):
             return
 
         if self.build_log_path:
-            logfile = open(self.build_log_path, 'w')
+            logfile: t.IO[str] = open(self.build_log_path, 'w')
             keep_logfile = True
         else:
             # delete manually later, used for tracking debugging info
@@ -565,7 +581,7 @@ class App(BaseModel):
             self._logger.debug('Removed temporary build log file: %s', logfile.name)
 
         # Generate Size Files
-        if self.build_status == BuildStatus.SUCCESS and self.size_json_path:
+        if self.build_status == BuildStatus.SUCCESS:
             self.write_size_json()
 
         # Cleanup build directory if not preserving
@@ -591,15 +607,18 @@ class App(BaseModel):
 
     def _build(
         self,
-        logfile: t.TextIO,
+        logfile: t.IO[str],
         manifest_rootpath: t.Optional[str] = None,
         modified_components: t.Optional[t.List[str]] = None,
         modified_files: t.Optional[t.List[str]] = None,
         check_app_dependencies: bool = False,
-    ) -> bool:
+    ) -> None:
         pass
 
     def _write_size_json(self) -> None:
+        if not self.size_json_path:
+            return
+
         map_file = find_first_match('*.map', self.build_path)
         if not map_file:
             self._logger.warning(
@@ -678,12 +697,12 @@ class App(BaseModel):
 
         return False
 
-    def check_should_build(
+    def _check_should_build(
         self,
-        manifest_rootpath: str,
-        check_app_dependencies: bool,
-        modified_components: t.Union[t.List[str], str, None],
-        modified_files: t.Union[t.List[str], str, None],
+        manifest_rootpath: t.Optional[str] = None,
+        check_app_dependencies: bool = False,
+        modified_components: t.Optional[t.List[str]] = None,
+        modified_files: t.Optional[t.List[str]] = None,
     ) -> None:
         if self.build_status != BuildStatus.UNKNOWN:
             return
@@ -748,7 +767,7 @@ class App(BaseModel):
 class MakeApp(App):
     MAKE_PROJECT_LINE: t.ClassVar[str] = r'include $(IDF_PATH)/make/project.mk'
 
-    build_system: Literal['make'] = 'make'
+    build_system: Literal['make'] = 'make'  # type: ignore
 
     @property
     def supported_targets(self) -> t.List[str]:
@@ -764,10 +783,10 @@ class MakeApp(App):
 
     def _build(
         self,
-        logfile: t.TextIO,
+        logfile: t.IO[str],
         manifest_rootpath: t.Optional[str] = None,
-        modified_components: t.Union[t.List[str], str, None] = None,
-        modified_files: t.Union[t.List[str], str, None] = None,
+        modified_components: t.Optional[t.List[str]] = None,
+        modified_files: t.Optional[t.List[str]] = None,
         check_app_dependencies: bool = False,
     ) -> None:
         # additional env variables
@@ -825,20 +844,20 @@ class CMakeApp(App):
     # there is no equivalent for the project CMakeLists files. This seems to be the best option...
     CMAKE_PROJECT_LINE: t.ClassVar[str] = r'include($ENV{IDF_PATH}/tools/cmake/project.cmake)'
 
-    build_system: Literal['cmake'] = 'cmake'
+    build_system: Literal['cmake'] = 'cmake'  # type: ignore
 
     cmake_vars: t.Dict[str, str] = {}
 
     def _build(
         self,
-        logfile: t.TextIO,
+        logfile: t.IO[str],
         manifest_rootpath: t.Optional[str] = None,
-        modified_components: t.Union[t.List[str], str, None] = None,
-        modified_files: t.Union[t.List[str], str, None] = None,
+        modified_components: t.Optional[t.List[str]] = None,
+        modified_files: t.Optional[t.List[str]] = None,
         check_app_dependencies: bool = False,
     ) -> None:
         if not self._checked_should_build:
-            self.check_should_build(
+            self._check_should_build(
                 manifest_rootpath=manifest_rootpath,
                 modified_components=modified_components,
                 modified_files=modified_files,

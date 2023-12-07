@@ -21,21 +21,11 @@ from packaging.version import (
 )
 from pydantic import BaseModel as _BaseModel
 
-try:
-    from typing import (  # type: ignore
-        Literal,
-    )
-except ImportError:
-    from typing_extensions import (  # isort: skip # noqa: F401
-        Literal,
-    )
-
-
 LOGGER = logging.getLogger(__name__)
 
 
 class ConfigRule:
-    def __init__(self, file_name: str, config_name: t.Optional[str]) -> None:
+    def __init__(self, file_name: str, config_name: str = '') -> None:
         """
         ConfigRule represents the sdkconfig file and the config name.
 
@@ -55,7 +45,7 @@ class ConfigRule:
         self.config_name = config_name
 
 
-def config_rules_from_str(rule_strings: t.Union[t.List[str], str]) -> t.List[ConfigRule]:
+def config_rules_from_str(rule_strings: t.Optional[t.List[str]]) -> t.List[ConfigRule]:
     """
     Helper function to convert strings like 'file_name=config_name' into `ConfigRule` objects
 
@@ -68,7 +58,7 @@ def config_rules_from_str(rule_strings: t.Union[t.List[str], str]) -> t.List[Con
     rules = []
     for rule_str in to_list(rule_strings):
         items = rule_str.split('=', 2)
-        rules.append(ConfigRule(items[0], items[1] if len(items) == 2 else None))
+        rules.append(ConfigRule(items[0], items[1] if len(items) == 2 else ''))
     # '' is the default config, sort this one to the front
     return sorted(rules, key=lambda x: x.file_name)
 
@@ -147,7 +137,7 @@ def find_first_match(pattern: str, path: str) -> t.Optional[str]:
 def subprocess_run(
     cmd: t.List[str],
     log_terminal: bool = True,
-    log_fs: t.Optional[t.TextIO] = None,
+    log_fs: t.Optional[t.IO[str]] = None,
     check: bool = False,
     additional_env_dict: t.Optional[t.Dict[str, str]] = None,
     **kwargs,
@@ -170,15 +160,16 @@ def subprocess_run(
         subprocess_env.update(additional_env_dict)
 
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=subprocess_env, **kwargs)
-    for line in p.stdout:
-        if isinstance(line, bytes):
-            line = line.decode('utf-8')
+    if p.stdout:
+        for line in p.stdout:
+            if isinstance(line, bytes):
+                line = line.decode('utf-8')
 
-        if log_terminal:
-            sys.stdout.write(line)
+            if log_terminal:
+                sys.stdout.write(line)
 
-        if log_fs:
-            log_fs.write(line)
+            if log_fs:
+                log_fs.write(line)
 
     returncode = p.wait()
     if check and returncode != 0:
@@ -187,7 +178,25 @@ def subprocess_run(
     return returncode
 
 
-def to_list(s: t.Any) -> t.Optional[t.List[t.Any]]:
+_T = t.TypeVar('_T')
+
+
+@t.overload
+def to_list(s: None) -> None:
+    ...
+
+
+@t.overload
+def to_list(s: t.Iterable[_T]) -> t.List[_T]:
+    ...
+
+
+@t.overload
+def to_list(s: _T) -> t.List[_T]:
+    ...
+
+
+def to_list(s):
     """
     Turn all objects to lists
 
@@ -211,7 +220,22 @@ def to_list(s: t.Any) -> t.Optional[t.List[t.Any]]:
     return [s]
 
 
-def to_set(s: t.Any) -> t.Optional[t.Set[t.Any]]:
+@t.overload
+def to_set(s: None) -> None:
+    ...
+
+
+@t.overload
+def to_set(s: t.Iterable[_T]) -> t.Set[_T]:
+    ...
+
+
+@t.overload
+def to_set(s: _T) -> t.Set[_T]:
+    ...
+
+
+def to_set(s):
     """
     Turn all objects to sets
 
@@ -273,14 +297,11 @@ def files_matches_patterns(
 ) -> bool:
     # can't match an absolute pattern with a relative path
     # change all to absolute paths
-    files = [to_absolute_path(f, rootpath) for f in to_list(files)]
-    patterns = [to_absolute_path(p, rootpath) for p in to_list(patterns)]
-
     matched_paths = set()
-    for pat in patterns:
+    for pat in [to_absolute_path(p, rootpath) for p in to_list(patterns)]:
         matched_paths.update(glob.glob(str(pat), recursive=True))
 
-    for f in files:
+    for f in [to_absolute_path(f, rootpath) for f in to_list(files)]:
         if str(f) in matched_paths:
             return True
 

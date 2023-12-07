@@ -77,7 +77,7 @@ def setup_logging(verbose: int = 0, log_file: t.Optional[str] = None, colored: b
     package_logger = logging.getLogger(__package__)
     package_logger.setLevel(level)
     if log_file:
-        handler = logging.FileHandler(log_file)
+        handler: logging.Handler = logging.FileHandler(log_file)
     else:
         handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(ColoredFormatter(colored))

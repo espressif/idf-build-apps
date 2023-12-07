@@ -31,7 +31,7 @@ def _get_apps_from_path(
     app_cls: t.Type[App] = CMakeApp,
     work_dir: t.Optional[str] = None,
     build_dir: str = 'build',
-    config_rules_str: t.Union[t.List[str], str, None] = None,
+    config_rules_str: t.Optional[t.List[str]] = None,
     build_log_filename: t.Optional[str] = None,
     size_json_filename: t.Optional[str] = None,
     check_warnings: bool = False,
@@ -51,7 +51,7 @@ def _get_apps_from_path(
             LOGGER.debug('=> Ignored. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
             return False
 
-        _app.check_should_build(
+        _app._check_should_build(
             manifest_rootpath=manifest_rootpath,
             modified_components=modified_components,
             modified_files=modified_files,
@@ -80,8 +80,7 @@ def _get_apps_from_path(
             default_config_name = rule.config_name
             continue
 
-        sdkconfig_paths = Path(path).glob(rule.file_name)
-        sdkconfig_paths = sorted([str(p.relative_to(path)) for p in sdkconfig_paths])
+        sdkconfig_paths = sorted([str(p.relative_to(path)) for p in Path(path).glob(rule.file_name)])
 
         if sdkconfig_paths:
             sdkconfig_paths_matched = True  # skip the next block for no wildcard config rules
@@ -170,11 +169,11 @@ def _find_apps(
     # The remaining part is for recursive == True
     apps = []
     # handle the exclude list, since the config file might use linux style, but run in windows
-    exclude_list = [to_absolute_path(p) for p in exclude_list]
+    exclude_paths_list = [to_absolute_path(p) for p in exclude_list]
     for root, dirs, _ in os.walk(path):
         LOGGER.debug('Entering %s', root)
         root_path = to_absolute_path(root)
-        if root_path in exclude_list:
+        if root_path in exclude_paths_list:
             LOGGER.debug('=> Skipping %s (excluded)', root)
             del dirs[:]
             continue

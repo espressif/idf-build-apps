@@ -45,7 +45,7 @@ _str_value = QuotedString('"')('str_value')
 _int_value = Word(nums)('int_value') + ~Char('.') + Optional(_literal_suffix)('literal_suffix')
 
 # Remove optional parenthesis around values
-_value = Optional('(').suppress() + MatchFirst(_hex_value | _str_value | _int_value)('value') + Optional(')').suppress()
+_value = Optional('(').suppress() + MatchFirst([_hex_value, _str_value, _int_value])('value') + Optional(')').suppress()
 
 _define_expr = '#define' + Optional(_name)('name') + Optional(_value)
 
