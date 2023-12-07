@@ -42,7 +42,10 @@ examples/get-started:
 
         # manifest folder invalid
         os.chdir(test_dir)
-        assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file))
+        with pytest.warns(
+            UserWarning, match=f'Folder "{IDF_PATH}/examples/get-started/examples/get-started" does not exist'
+        ):
+            assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file))
 
     def test_manifest_rootpath_specified(self):
         test_dir = IDF_PATH / 'examples' / 'get-started'
@@ -56,10 +59,10 @@ get-started:
 ''',
             encoding='utf8',
         )
-
-        assert find_apps(
-            str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file), manifest_rootpath=str(IDF_PATH)
-        )
+        with pytest.warns(UserWarning, match=f'Folder "{IDF_PATH}/get-started" does not exist.'):
+            assert find_apps(
+                str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file), manifest_rootpath=str(IDF_PATH)
+            )
 
         assert not find_apps(
             str(test_dir),
@@ -95,13 +98,16 @@ get-started:
         yaml_file = test_dir / 'test.yml'
         yaml_file.write_text(
             '''
-get-started:
+examples/get-started:
     enable:
         - if: IDF_VERSION_MAJOR > 0 and IDF_VERSION_MINOR < 999 and IDF_VERSION_PATCH in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 ''',
             encoding='utf8',
         )
-        assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file)) == apps
+        assert (
+            find_apps(str(test_dir), 'esp32', recursive=True, manifest_rootpath=IDF_PATH, manifest_files=str(yaml_file))
+            == apps
+        )
 
 
 class TestFindWithModifiedFilesComponents:
