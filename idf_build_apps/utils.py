@@ -3,6 +3,7 @@
 
 import fnmatch
 import glob
+import logging
 import os
 import shutil
 import subprocess
@@ -20,12 +21,8 @@ from packaging.version import (
 )
 from pydantic import BaseModel as _BaseModel
 
-from . import (
-    LOGGER,
-)
-
 try:
-    from typing import (
+    from typing import (  # type: ignore
         Literal,
     )
 except ImportError:
@@ -34,12 +31,16 @@ except ImportError:
     )
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 class ConfigRule:
     def __init__(self, file_name: str, config_name: t.Optional[str]) -> None:
         """
         ConfigRule represents the sdkconfig file and the config name.
 
         For example:
+
             - filename='', config_name='default' - represents the default app configuration, and gives it a name
                 'default'
             - filename='sdkconfig.*', config_name=None - represents the set of configurations, names match the wildcard

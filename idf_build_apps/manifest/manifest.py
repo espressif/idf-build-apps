@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-import os.path
+import logging
+import os
 import typing as t
 import warnings
 from pathlib import (
@@ -13,9 +14,6 @@ from pyparsing import (
     ParseException,
 )
 
-from .. import (
-    LOGGER,
-)
 from ..constants import (
     ALL_TARGETS,
     SUPPORTED_TARGETS,
@@ -28,6 +26,8 @@ from .if_parser import (
     BOOL_EXPR,
     BoolStmt,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 class IfClause:
@@ -120,7 +120,7 @@ class FolderRule:
 
         if default_sdkconfig_target:
             if default_sdkconfig_target not in res:
-                LOGGER.warning(
+                LOGGER.debug(
                     'sdkconfig defined `CONFIG_IDF_TARGET=%s` is not enabled for folder %s. Skip building this App...',
                     default_sdkconfig_target,
                     self.folder,

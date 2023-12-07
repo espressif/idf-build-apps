@@ -1,16 +1,14 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-import os.path
+import logging
+import os
 import re
 import typing as t
 from pathlib import (
     Path,
 )
 
-from . import (
-    LOGGER,
-)
 from .app import (
     App,
     CMakeApp,
@@ -23,6 +21,8 @@ from .utils import (
     to_absolute_path,
     to_list,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _get_apps_from_path(

@@ -5,9 +5,6 @@ import logging
 import sys
 import typing as t
 
-from . import (
-    LOGGER,
-)
 from .constants import (
     BuildStage,
 )
@@ -65,7 +62,7 @@ def setup_logging(verbose: int = 0, log_file: t.Optional[str] = None, colored: b
     """
     Setup logging stream handler
 
-    :param verbose: 0 - WARNING, 1 - INFO, 2+ - DEBUG
+    :param verbose: 0 - WARNING, 1 - INFO, 2 - DEBUG
     :param log_file: log file path
     :param colored: colored output or not
     :return: None
@@ -77,13 +74,13 @@ def setup_logging(verbose: int = 0, log_file: t.Optional[str] = None, colored: b
     else:
         level = logging.DEBUG
 
-    LOGGER.setLevel(level)
+    package_logger = logging.getLogger(__package__)
+    package_logger.setLevel(level)
     if log_file:
         handler = logging.FileHandler(log_file)
     else:
         handler = logging.StreamHandler(sys.stderr)
-
-    handler.setLevel(level)
     handler.setFormatter(ColoredFormatter(colored))
-    LOGGER.handlers = [handler]
-    LOGGER.propagate = False
+
+    package_logger.addHandler(handler)
+    package_logger.propagate = False  # don't propagate to root logger

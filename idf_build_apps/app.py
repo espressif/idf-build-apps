@@ -35,9 +35,6 @@ from idf_build_apps import (
     SESSION_ARGS,
 )
 
-from . import (
-    LOGGER,
-)
 from .build_job import (
     BuildAppJob,
 )
@@ -189,8 +186,8 @@ class App(BaseModel):
             }
         )
         self._initialize_hook(**kwargs)
-        # create logger and process sdkconfig files
-        self._logger = LOGGER.getChild(str(hash(self)))
+
+        self._logger = logging.getLogger(f'{__name__}.{hash(self)}')
         self._logger.addFilter(_AppBuildStageFilter(app=self))
 
         self._process_sdkconfig_files()
@@ -202,6 +199,15 @@ class App(BaseModel):
         pass
 
     def __str__(self):
+        if self.build_status in (BuildStatus.UNKNOWN, BuildStatus.SHOULD_BE_BUILT):
+            return '({}) App {}, target {}, sdkconfig {}, build in {}'.format(
+                self.build_system,
+                self.app_dir,
+                self.target,
+                self.sdkconfig_path or '(default)',
+                self.build_path,
+            )
+
         return '({}) App {}, target {}, sdkconfig {}, build in {}, {} in {}s'.format(
             self.build_system,
             self.app_dir,
@@ -632,7 +638,7 @@ class App(BaseModel):
                     check=True,
                 )
 
-        self._logger.info('Generated size info to %s', self.size_json_path)
+        self._logger.debug('Generated size info to %s', self.size_json_path)
 
     def write_size_json(self) -> None:
         try:

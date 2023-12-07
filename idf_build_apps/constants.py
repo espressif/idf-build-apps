@@ -3,6 +3,7 @@
 
 import enum
 import importlib
+import logging
 import os
 import re
 import sys
@@ -12,12 +13,11 @@ from pathlib import (
     Path,
 )
 
-from . import (
-    LOGGER,
-)
 from .utils import (
     to_version,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 _BUILDING_DOCS = bool(os.getenv('BUILDING_DOCS'))
 if _BUILDING_DOCS:
