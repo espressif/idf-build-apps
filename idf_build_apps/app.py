@@ -35,8 +35,8 @@ from idf_build_apps import (
     SESSION_ARGS,
 )
 
-from .build_job import (
-    BuildAppJob,
+from .build_apps_args import (
+    BuildAppsArgs,
 )
 from .constants import (
     DEFAULT_SDKCONFIG,
@@ -134,7 +134,7 @@ class App(BaseModel):
     preserve: bool = True
 
     # logging
-    build_job: t.Optional[BuildAppJob] = BuildAppJob()
+    build_apps_args: t.Optional[BuildAppsArgs] = BuildAppsArgs()
 
     _build_stage: t.Optional[BuildStage] = None
     _build_duration: float = 0
@@ -254,7 +254,7 @@ class App(BaseModel):
 
         if self.index is not None:
             path = path.replace(self.INDEX_PLACEHOLDER, str(self.index))
-        path = self.build_job.expand(path)
+        path = self.build_apps_args.expand(path)
         path = path.replace(
             self.IDF_VERSION_PLACEHOLDER, f'{IDF_VERSION_MAJOR}_{IDF_VERSION_MINOR}_{IDF_VERSION_PATCH}'
         )

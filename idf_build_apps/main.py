@@ -22,8 +22,8 @@ from .app import (
     CMakeApp,
     MakeApp,
 )
-from .build_job import (
-    BuildAppJob,
+from .build_apps_args import (
+    BuildAppsArgs,
 )
 from .config import (
     get_valid_config,
@@ -238,7 +238,7 @@ def build_apps(
     modified_files: t.Optional[t.Union[t.List[str], str]] = None,
     ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
     check_app_dependencies: t.Optional[bool] = None,
-    # BuildAppJob
+    # BuildAppsArgs
     parallel_count: int = 1,
     parallel_index: int = 1,
     collect_size_info: t.Optional[str] = None,
@@ -290,7 +290,7 @@ def build_apps(
     start, stop = get_parallel_start_stop(len(apps), parallel_count, parallel_index)
     LOGGER.info('Total %s apps. running build for app %s-%s', len(apps), start, stop)
 
-    build_job = BuildAppJob(
+    build_apps_args = BuildAppsArgs(
         parallel_count=parallel_count,
         parallel_index=parallel_index,
         collect_size_info=collect_size_info,
@@ -298,10 +298,10 @@ def build_apps(
         junitxml=junitxml,
     )
     for app in apps[start - 1 : stop]:  # we use 1-based
-        app.build_job = build_job
+        app.build_apps_args = build_apps_args
 
     # cleanup collect files if exists at this early-stage
-    for f in (build_job.collect_app_info, build_job.collect_size_info, build_job.junitxml):
+    for f in (build_apps_args.collect_app_info, build_apps_args.collect_size_info, build_apps_args.junitxml):
         if f and os.path.isfile(f):
             os.remove(f)
             LOGGER.debug('Remove existing collect file %s', f)
@@ -337,10 +337,10 @@ def build_apps(
         else:
             LOGGER.info('%s', app.build_status.value)
 
-        if build_job.collect_app_info:
-            with open(build_job.collect_app_info, 'a') as fw:
+        if build_apps_args.collect_app_info:
+            with open(build_apps_args.collect_app_info, 'a') as fw:
                 fw.write(app.to_json() + '\n')
-            LOGGER.debug('Recorded app info in %s', build_job.collect_app_info)
+            LOGGER.debug('Recorded app info in %s', build_apps_args.collect_app_info)
 
         if copy_sdkconfig:
             try:
@@ -359,9 +359,9 @@ def build_apps(
             else:
                 exit_code = 1
         elif app.build_status == BuildStatus.SUCCESS:
-            if build_job.collect_size_info and app.size_json_path:
+            if build_apps_args.collect_size_info and app.size_json_path:
                 if os.path.isfile(app.size_json_path):
-                    with open(build_job.collect_size_info, 'a') as fw:
+                    with open(build_apps_args.collect_size_info, 'a') as fw:
                         fw.write(
                             json.dumps(
                                 {
@@ -373,7 +373,7 @@ def build_apps(
                             )
                             + '\n'
                         )
-                    LOGGER.debug('Recorded size info file path in %s', build_job.collect_size_info)
+                    LOGGER.debug('Recorded size info file path in %s', build_apps_args.collect_size_info)
 
         LOGGER.info('')  # add one empty line for separating different builds
 
@@ -395,9 +395,9 @@ def build_apps(
         for app in failed_apps:
             print(f'  {app}')
 
-    if build_job.junitxml:
-        TestReport([test_suite], build_job.junitxml).create_test_report()
-        LOGGER.info('Generated junit report for build apps: %s', build_job.junitxml)
+    if build_apps_args.junitxml:
+        TestReport([test_suite], build_apps_args.junitxml).create_test_report()
+        LOGGER.info('Generated junit report for build apps: %s', build_apps_args.junitxml)
 
     return exit_code
 
