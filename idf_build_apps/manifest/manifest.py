@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-import os.path
+import logging
+import os
 import typing as t
 import warnings
 from pathlib import (
@@ -13,9 +14,6 @@ from pyparsing import (
     ParseException,
 )
 
-from .. import (
-    LOGGER,
-)
 from ..constants import (
     ALL_TARGETS,
     SUPPORTED_TARGETS,
@@ -28,6 +26,8 @@ from .if_parser import (
     BOOL_EXPR,
     BoolStmt,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 class IfClause:
@@ -53,9 +53,9 @@ class FolderRule:
     def __init__(
         self,
         folder: Path,
-        enable: t.Optional[t.List[t.Dict[str, str]]] = None,
-        disable: t.Optional[t.List[t.Dict[str, str]]] = None,
-        disable_test: t.Optional[t.List[t.Dict[str, str]]] = None,
+        enable: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
+        disable: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
+        disable_test: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
         depends_components: t.Optional[t.List[str]] = None,
         depends_filepatterns: t.Optional[t.List[str]] = None,
     ) -> None:
@@ -104,7 +104,7 @@ class FolderRule:
 
         if self.disable or self.disable_test:
             for clause in self.disable + self.disable_test:
-                if clause.get_value(target, config_name):
+                if clause.get_value(target, config_name or ''):
                     res = False
                     break
 
@@ -115,12 +115,12 @@ class FolderRule:
     ) -> t.List[str]:
         res = []
         for target in ALL_TARGETS:
-            if self._enable_build(target, config_name):
+            if self._enable_build(target, config_name or ''):
                 res.append(target)
 
         if default_sdkconfig_target:
             if default_sdkconfig_target not in res:
-                LOGGER.warning(
+                LOGGER.debug(
                     'sdkconfig defined `CONFIG_IDF_TARGET=%s` is not enabled for folder %s. Skip building this App...',
                     default_sdkconfig_target,
                     self.folder,
@@ -154,7 +154,7 @@ class DefaultRule(FolderRule):
 
 class Manifest:
     # could be reassigned later
-    ROOTPATH = os.curdir
+    ROOTPATH = Path(os.curdir)
     CHECK_MANIFEST_RULES = False
 
     def __init__(
@@ -168,7 +168,7 @@ class Manifest:
         with open(path) as f:
             manifest_dict = yaml.safe_load(f) or {}
 
-        rules = []  # type: list[FolderRule]
+        rules: t.List[FolderRule] = []
         for folder, folder_rule in manifest_dict.items():
             # not a folder, but a anchor
             if folder.startswith('.'):

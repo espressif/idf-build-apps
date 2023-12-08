@@ -199,6 +199,21 @@ The output would be:
 (cmake) App ./test-2, target esp32, sdkconfig (default), build in /tmp/build/test-2_esp32
 ```
 
+### Output in Text File
+
+For `find` command, you may use `--output <file>` to output the result to a text file. Each line of the text file represents an app.
+
+You may reuse the file with python code:
+
+```python
+from idf_build_apps import AppDeserializer
+
+with open("output.txt", "r") as f:
+    for line in f:
+        app = AppDeserializer.from_json(line)
+        print(app)
+```
+
 ## Build Apps
 
 Building apps is a process that build all the applications that are collected by the "find" process.

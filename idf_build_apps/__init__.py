@@ -11,7 +11,7 @@ Tools for building ESP-IDF related apps.
 import logging
 
 __version__ = '2.0.0b4'
-LOGGER = logging.getLogger('idf_build_apps')
+LOGGER = logging.getLogger(__package__)
 
 from .session_args import (
     SessionArgs,
@@ -41,4 +41,5 @@ __all__ = [
     'find_apps',
     'build_apps',
     'setup_logging',
+    'SESSION_ARGS',
 ]

@@ -36,7 +36,7 @@ class BuildAppJob(BaseModel):
         self._collect_app_info = collect_app_info
         self._collect_size_info = collect_size_info
 
-    @computed_field
+    @computed_field  # type: ignore
     @property
     def collect_app_info(self) -> t.Optional[str]:
         if self._collect_app_info:
@@ -44,7 +44,7 @@ class BuildAppJob(BaseModel):
 
         return None
 
-    @computed_field
+    @computed_field  # type: ignore
     @property
     def collect_size_info(self) -> t.Optional[str]:
         if self._collect_size_info:
@@ -52,7 +52,7 @@ class BuildAppJob(BaseModel):
 
         return None
 
-    @computed_field
+    @computed_field  # type: ignore
     @property
     def junitxml(self) -> t.Optional[str]:
         if self._junitxml:

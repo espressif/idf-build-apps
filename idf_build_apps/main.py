@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import logging
 import os
 import re
 import shutil
@@ -14,7 +15,6 @@ from pathlib import (
 )
 
 from . import (
-    LOGGER,
     SESSION_ARGS,
 )
 from .app import (
@@ -56,12 +56,14 @@ from .utils import (
     to_list,
 )
 
+LOGGER = logging.getLogger(__name__)
+
 
 def _check_app_dependency(
-    manifest_rootpath: str,
-    modified_components: t.Optional[t.List[str]],
-    modified_files: t.Optional[t.List[str]],
-    ignore_app_dependencies_filepatterns: t.Optional[t.List[str]],
+    manifest_rootpath: t.Optional[str] = None,
+    modified_components: t.Optional[t.List[str]] = None,
+    modified_files: t.Optional[t.List[str]] = None,
+    ignore_app_dependencies_filepatterns: t.Optional[t.List[str]] = None,
 ) -> bool:
     # not check since modified_components and modified_files are not passed
     if modified_components is None and modified_files is None:
@@ -73,8 +75,8 @@ def _check_app_dependency(
         and modified_files is not None
         and files_matches_patterns(modified_files, ignore_app_dependencies_filepatterns, manifest_rootpath)
     ):
-        LOGGER.debug(
-            'Skipping check component dependencies for apps since files %s matches patterns: %s',
+        LOGGER.info(
+            'Build all apps since patterns %s matches modified files %s',
             ', '.join(modified_files),
             ', '.join(ignore_app_dependencies_filepatterns),
         )
@@ -106,6 +108,7 @@ def find_apps(
     ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
     sdkconfig_defaults: t.Optional[str] = None,
     include_skipped_apps: bool = False,
+    output: t.Optional[str] = None,
 ) -> t.List[App]:
     """
     Find app directories in paths (possibly recursively), which contain apps for the given build system, compatible
@@ -137,11 +140,12 @@ def find_apps(
     :param sdkconfig_defaults: semicolon-separated string, pass to idf.py -DSDKCONFIG_DEFAULTS if specified,
         also could be set via environment variables "SDKCONFIG_DEFAULTS"
     :param include_skipped_apps: include skipped apps or not
+    :param output: write the found apps to the specified file instead of stdout
     :return: list of found apps
     """
     if default_build_targets:
         default_build_targets = to_list(default_build_targets)
-        LOGGER.info('Overriding DEFAULT_BUILD_TARGETS to %s', default_build_targets)
+        LOGGER.info('Overriding default build targets to %s', default_build_targets)
         FolderRule.DEFAULT_BUILD_TARGETS = default_build_targets
 
     if isinstance(build_system, str):
@@ -169,6 +173,7 @@ def find_apps(
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
     ignore_app_dependencies_filepatterns = to_list(ignore_app_dependencies_filepatterns)
+    config_rules_str = to_list(config_rules_str)
 
     apps = []
     if target == 'all':
@@ -205,10 +210,18 @@ def find_apps(
                     include_skipped_apps=include_skipped_apps,
                 )
             )
-    apps.sort()
 
-    LOGGER.info('Found %d apps in total', len(apps))
-    return apps
+    LOGGER.info(f'Found {len(apps)} apps in total')
+    if output:
+        os.makedirs(os.path.dirname(os.path.realpath(output)), exist_ok=True)
+        with open(output, 'w') as fw:
+            for app in apps:
+                fw.write(app.model_dump_json() + '\n')
+    else:
+        for app in apps:
+            print(app)
+
+    return sorted(apps)
 
 
 def build_apps(
@@ -228,8 +241,8 @@ def build_apps(
     # BuildAppJob
     parallel_count: int = 1,
     parallel_index: int = 1,
-    collect_size_info: t.Optional[t.Union[str, t.TextIO]] = None,
-    collect_app_info: t.Optional[t.Union[str, t.TextIO]] = None,
+    collect_size_info: t.Optional[str] = None,
+    collect_app_info: t.Optional[str] = None,
     junitxml: t.Optional[str] = None,
 ) -> int:
     """
@@ -277,14 +290,6 @@ def build_apps(
     start, stop = get_parallel_start_stop(len(apps), parallel_count, parallel_index)
     LOGGER.info('Total %s apps. running build for app %s-%s', len(apps), start, stop)
 
-    exit_code = 0
-    LOGGER.info('Building the following apps:')
-    if apps[start - 1 : stop]:
-        for app in apps[start - 1 : stop]:
-            LOGGER.info('  %s (preserve: %s)', app, app.preserve)
-    else:
-        LOGGER.info('  parallel count is too large. build nothing...')
-
     build_job = BuildAppJob(
         parallel_count=parallel_count,
         parallel_index=parallel_index,
@@ -299,9 +304,10 @@ def build_apps(
     for f in (build_job.collect_app_info, build_job.collect_size_info, build_job.junitxml):
         if f and os.path.isfile(f):
             os.remove(f)
-            LOGGER.info('Remove existing collect file %s', f)
+            LOGGER.debug('Remove existing collect file %s', f)
             Path(f).touch()
 
+    exit_code = 0
     for i, app in enumerate(apps):
         index = i + 1  # we use 1-based
         if index < start or index > stop:
@@ -334,7 +340,7 @@ def build_apps(
         if build_job.collect_app_info:
             with open(build_job.collect_app_info, 'a') as fw:
                 fw.write(app.to_json() + '\n')
-            LOGGER.info('Recorded app info in %s', build_job.collect_app_info)
+            LOGGER.debug('Recorded app info in %s', build_job.collect_app_info)
 
         if copy_sdkconfig:
             try:
@@ -345,7 +351,7 @@ def build_apps(
             except Exception as e:
                 LOGGER.warning('Copy sdkconfig file from failed: %s', e)
             else:
-                LOGGER.info('Copied sdkconfig file from %s to %s', app.work_dir, app.build_path)
+                LOGGER.debug('Copied sdkconfig file from %s to %s', app.work_dir, app.build_path)
 
         if app.build_status == BuildStatus.FAILED:
             if not keep_going:
@@ -367,30 +373,31 @@ def build_apps(
                             )
                             + '\n'
                         )
-                    LOGGER.info('Recorded size info file path in %s', build_job.collect_size_info)
+                    LOGGER.debug('Recorded size info file path in %s', build_job.collect_size_info)
 
         LOGGER.info('')  # add one empty line for separating different builds
 
     built_apps = [app for app in apps if app.build_status == BuildStatus.SUCCESS]
     if built_apps:
-        LOGGER.info('Built the following apps:')
+        print('Successfully built the following apps:')
         for app in built_apps:
-            LOGGER.info('  %s', app)
+            print(f'  {app}')
 
     skipped_apps = [app for app in apps if app.build_status == BuildStatus.SKIPPED]
     if skipped_apps:
-        LOGGER.info('Skipped the following apps:')
+        print('Skipped building the following apps:')
         for app in skipped_apps:
-            LOGGER.info('  %s', app)
+            print(f'  {app}')
 
     failed_apps = [app for app in apps if app.build_status == BuildStatus.FAILED]
     if failed_apps:
-        LOGGER.error('Build failed for the following apps:')
+        print('Failed building the following apps:')
         for app in failed_apps:
-            LOGGER.error('  %s', app)
+            print(f'  {app}')
 
     if build_job.junitxml:
         TestReport([test_suite], build_job.junitxml).create_test_report()
+        LOGGER.info('Generated junit report for build apps: %s', build_job.junitxml)
 
     return exit_code
 
@@ -732,6 +739,10 @@ def main():
     validate_args(parser, args)
 
     SESSION_ARGS.set(args)
+
+    if args.action == 'build':
+        args.output = None  # build action doesn't support output option
+
     # real call starts here
     apps = find_apps(
         args.paths,
@@ -753,16 +764,10 @@ def main():
         modified_files=args.modified_files,
         ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
         sdkconfig_defaults=args.sdkconfig_defaults,
+        output=args.output,
     )
 
     if args.action == 'find':
-        if args.output:
-            with open(args.output, 'w') as f:
-                for app in apps:
-                    f.write(str(app) + '\n')
-        else:
-            print('\n'.join([str(app) for app in apps]))
-
         sys.exit(0)
 
     if args.no_preserve:

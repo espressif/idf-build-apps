@@ -25,13 +25,12 @@ from pyparsing import (
     nums,
 )
 
-from .. import (
-    LOGGER,
-)
 from ..constants import (
     ALL_TARGETS,
     IDF_PATH,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 # Group for parsing literal suffix of a numbers, e.g. 100UL
 _literal_symbol = Group(CaselessLiteral('L') | CaselessLiteral('U'))
@@ -46,14 +45,14 @@ _str_value = QuotedString('"')('str_value')
 _int_value = Word(nums)('int_value') + ~Char('.') + Optional(_literal_suffix)('literal_suffix')
 
 # Remove optional parenthesis around values
-_value = Optional('(').suppress() + MatchFirst(_hex_value | _str_value | _int_value)('value') + Optional(')').suppress()
+_value = Optional('(').suppress() + MatchFirst([_hex_value, _str_value, _int_value])('value') + Optional(')').suppress()
 
 _define_expr = '#define' + Optional(_name)('name') + Optional(_value)
 
 
 def get_defines(header_path: Path) -> t.List[str]:
     defines = []
-    logging.debug('Reading macros from %s...', header_path)
+    LOGGER.debug('Reading macros from %s...', header_path)
     with open(str(header_path)) as f:
         output = f.read()
 
@@ -86,7 +85,7 @@ class SocHeader(dict):
     def _get_dir_from_candidates(candidates: t.List[Path]) -> t.Optional[Path]:
         for d in candidates:
             if not d.is_dir():
-                logging.debug('folder "%s" not found. Skipping...', d.absolute())
+                LOGGER.debug('folder "%s" not found. Skipping...', d.absolute())
             else:
                 return d
 
