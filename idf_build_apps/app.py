@@ -207,24 +207,29 @@ class App(BaseModel):
         pass
 
     def __str__(self):
-        if self.build_status in (BuildStatus.UNKNOWN, BuildStatus.SHOULD_BE_BUILT):
-            return '({}) App {}, target {}, sdkconfig {}, build in {}'.format(
-                self.build_system,
-                self.app_dir,
-                self.target,
-                self.sdkconfig_path or '(default)',
-                self.build_path,
-            )
-
-        return '({}) App {}, target {}, sdkconfig {}, build in {}, {} in {}s'.format(
+        default_fmt = '({}) App {}, target {}, sdkconfig {}, build in {}'
+        default_args = [
             self.build_system,
             self.app_dir,
             self.target,
             self.sdkconfig_path or '(default)',
             self.build_path,
+        ]
+
+        if self.build_status in (BuildStatus.UNKNOWN, BuildStatus.SHOULD_BE_BUILT):
+            return default_fmt.format(*default_args)
+
+        default_fmt += ', {} in {}s'
+        default_args += [
             self.build_status.value,
             self._build_duration,
-        )
+        ]
+
+        if self.build_comment:
+            default_fmt += ': {}'
+            default_args.append(self.build_comment)
+
+        return default_fmt.format(*default_args)
 
     @staticmethod
     def _get_sdkconfig_defaults(sdkconfig_defaults_str: t.Optional[str] = None) -> t.List[str]:
