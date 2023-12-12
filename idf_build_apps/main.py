@@ -108,7 +108,6 @@ def find_apps(
     ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
     sdkconfig_defaults: t.Optional[str] = None,
     include_skipped_apps: bool = False,
-    output: t.Optional[str] = None,
 ) -> t.List[App]:
     """
     Find app directories in paths (possibly recursively), which contain apps for the given build system, compatible
@@ -140,7 +139,6 @@ def find_apps(
     :param sdkconfig_defaults: semicolon-separated string, pass to idf.py -DSDKCONFIG_DEFAULTS if specified,
         also could be set via environment variables "SDKCONFIG_DEFAULTS"
     :param include_skipped_apps: include skipped apps or not
-    :param output: write the found apps to the specified file instead of stdout
     :return: list of found apps
     """
     if default_build_targets:
@@ -212,14 +210,6 @@ def find_apps(
             )
 
     LOGGER.info(f'Found {len(apps)} apps in total')
-    if output:
-        os.makedirs(os.path.dirname(os.path.realpath(output)), exist_ok=True)
-        with open(output, 'w') as fw:
-            for app in apps:
-                fw.write(app.model_dump_json() + '\n')
-    else:
-        for app in apps:
-            print(app)
 
     return sorted(apps)
 
@@ -376,24 +366,6 @@ def build_apps(
                     LOGGER.debug('Recorded size info file path in %s', build_apps_args.collect_size_info)
 
         LOGGER.info('')  # add one empty line for separating different builds
-
-    built_apps = [app for app in apps if app.build_status == BuildStatus.SUCCESS]
-    if built_apps:
-        print('Successfully built the following apps:')
-        for app in built_apps:
-            print(f'  {app}')
-
-    skipped_apps = [app for app in apps if app.build_status == BuildStatus.SKIPPED]
-    if skipped_apps:
-        print('Skipped building the following apps:')
-        for app in skipped_apps:
-            print(f'  {app}')
-
-    failed_apps = [app for app in apps if app.build_status == BuildStatus.FAILED]
-    if failed_apps:
-        print('Failed building the following apps:')
-        for app in failed_apps:
-            print(f'  {app}')
 
     if build_apps_args.junitxml:
         TestReport([test_suite], build_apps_args.junitxml).create_test_report()
@@ -764,33 +736,59 @@ def main():
         modified_files=args.modified_files,
         ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
         sdkconfig_defaults=args.sdkconfig_defaults,
-        output=args.output,
     )
 
     if args.action == 'find':
+        if args.output:
+            os.makedirs(os.path.dirname(os.path.realpath(args.output)), exist_ok=True)
+            with open(args.output, 'w') as fw:
+                for app in apps:
+                    fw.write(app.model_dump_json() + '\n')
+        else:
+            for app in apps:
+                print(app)
+
         sys.exit(0)
 
     if args.no_preserve:
         for app in apps:
             app.preserve = False
 
-    sys.exit(
-        build_apps(
-            apps,
-            build_verbose=args.build_verbose,
-            parallel_count=args.parallel_count,
-            parallel_index=args.parallel_index,
-            dry_run=args.dry_run,
-            keep_going=args.keep_going,
-            collect_size_info=args.collect_size_info,
-            collect_app_info=args.collect_app_info,
-            ignore_warning_strs=args.ignore_warning_str,
-            ignore_warning_file=args.ignore_warning_file,
-            copy_sdkconfig=args.copy_sdkconfig,
-            manifest_rootpath=args.manifest_rootpath,
-            modified_components=args.modified_components,
-            modified_files=args.modified_files,
-            ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
-            junitxml=args.junitxml,
-        )
+    res = build_apps(
+        apps,
+        build_verbose=args.build_verbose,
+        parallel_count=args.parallel_count,
+        parallel_index=args.parallel_index,
+        dry_run=args.dry_run,
+        keep_going=args.keep_going,
+        collect_size_info=args.collect_size_info,
+        collect_app_info=args.collect_app_info,
+        ignore_warning_strs=args.ignore_warning_str,
+        ignore_warning_file=args.ignore_warning_file,
+        copy_sdkconfig=args.copy_sdkconfig,
+        manifest_rootpath=args.manifest_rootpath,
+        modified_components=args.modified_components,
+        modified_files=args.modified_files,
+        ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
+        junitxml=args.junitxml,
     )
+
+    built_apps = [app for app in apps if app.build_status == BuildStatus.SUCCESS]
+    if built_apps:
+        print('Successfully built the following apps:')
+        for app in built_apps:
+            print(f'  {app}')
+
+    skipped_apps = [app for app in apps if app.build_status == BuildStatus.SKIPPED]
+    if skipped_apps:
+        print('Skipped building the following apps:')
+        for app in skipped_apps:
+            print(f'  {app}')
+
+    failed_apps = [app for app in apps if app.build_status == BuildStatus.FAILED]
+    if failed_apps:
+        print('Failed building the following apps:')
+        for app in failed_apps:
+            print(f'  {app}')
+
+    sys.exit(res)
