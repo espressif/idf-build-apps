@@ -8,10 +8,7 @@ Tools for building ESP-IDF related apps.
 # ruff: noqa: E402
 # avoid circular imports
 
-import logging
-
 __version__ = '2.0.0b4'
-LOGGER = logging.getLogger(__package__)
 
 from .session_args import (
     SessionArgs,
