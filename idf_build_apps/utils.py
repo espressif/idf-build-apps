@@ -325,10 +325,8 @@ class BaseModel(_BaseModel):
 
     def __eq__(self, other: t.Any) -> bool:
         if isinstance(other, self.__class__):
-            self_dict = self.model_dump()
-            other_dict = other.model_dump()
-
-            return self_dict == other_dict
+            # we only care the public attributes
+            return self.__dict__ == other.__dict__
 
         return NotImplemented
 
