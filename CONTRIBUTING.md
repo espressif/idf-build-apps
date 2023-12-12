@@ -10,7 +10,8 @@ Please use python 3.7+ for developing, but keep in mind that we need to support 
 | 4.4             | 2.7, 3.4+                 |
 | 5.0             | 3.7+                      |
 | 5.1             | 3.7+                      |
-| master          | 3.7+                      |
+| 5.2             | 3.7+                      |
+| master          | 3.8+                      |
 
 ## Setup the Dev Environment
 

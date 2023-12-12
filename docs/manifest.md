@@ -162,7 +162,7 @@ This app will be built with the following CLI options:
 
 - `--modified-files examples/foo/main/foo.c`
 - `--modified-components comp1`
-- `--modified-components comp2 comp4 --modified-files /tmp/foo.h`
+- `--modified-components comp2;comp4 --modified-files /tmp/foo.h`
 - `--modified-files common_header_files/foo.h`
 - `--modified-components comp4 --modified-files common_header_files/foo.h`
 
