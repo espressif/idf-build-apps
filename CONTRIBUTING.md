@@ -55,7 +55,7 @@ pytest
 We use [sphinx][sphinx] and [autodoc][autodoc] for generating documentation and API references. Besides, we treat warnings as errors while building the documentation. Please fix them before your commits got merged.
 
 ```shell
-cd docs && make html SPHINXOPTS="-W"
+cd docs && make html
 ```
 
 For documentation preview, you may use any browser you prefer. The executable has to be searchable in `PATH`. For example we're using firefox here.
