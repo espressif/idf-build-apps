@@ -35,8 +35,8 @@ from idf_build_apps import (
     SESSION_ARGS,
 )
 
-from .build_job import (
-    BuildAppJob,
+from .build_apps_args import (
+    BuildAppsArgs,
 )
 from .constants import (
     DEFAULT_SDKCONFIG,
@@ -117,7 +117,6 @@ class App(BaseModel):
     config_name: t.Optional[str] = None
 
     build_status: BuildStatus = BuildStatus.UNKNOWN
-    build_comment: t.Optional[str] = None
 
     # Attrs that support placeholders
     _work_dir: t.Optional[str] = None
@@ -134,8 +133,9 @@ class App(BaseModel):
     preserve: bool = True
 
     # logging
-    build_job: t.Optional[BuildAppJob] = BuildAppJob()
+    build_apps_args: t.Optional[BuildAppsArgs] = BuildAppsArgs()
 
+    _build_comment: t.Optional[str] = None
     _build_stage: t.Optional[BuildStage] = None
     _build_duration: float = 0
     _build_timestamp: t.Optional[datetime] = None
@@ -207,24 +207,29 @@ class App(BaseModel):
         pass
 
     def __str__(self):
-        if self.build_status in (BuildStatus.UNKNOWN, BuildStatus.SHOULD_BE_BUILT):
-            return '({}) App {}, target {}, sdkconfig {}, build in {}'.format(
-                self.build_system,
-                self.app_dir,
-                self.target,
-                self.sdkconfig_path or '(default)',
-                self.build_path,
-            )
-
-        return '({}) App {}, target {}, sdkconfig {}, build in {}, {} in {}s'.format(
+        default_fmt = '({}) App {}, target {}, sdkconfig {}, build in {}'
+        default_args = [
             self.build_system,
             self.app_dir,
             self.target,
             self.sdkconfig_path or '(default)',
             self.build_path,
+        ]
+
+        if self.build_status in (BuildStatus.UNKNOWN, BuildStatus.SHOULD_BE_BUILT):
+            return default_fmt.format(*default_args)
+
+        default_fmt += ', {} in {}s'
+        default_args += [
             self.build_status.value,
             self._build_duration,
-        )
+        ]
+
+        if self.build_comment:
+            default_fmt += ': {}'
+            default_args.append(self.build_comment)
+
+        return default_fmt.format(*default_args)
 
     @staticmethod
     def _get_sdkconfig_defaults(sdkconfig_defaults_str: t.Optional[str] = None) -> t.List[str]:
@@ -254,7 +259,7 @@ class App(BaseModel):
 
         if self.index is not None:
             path = path.replace(self.INDEX_PLACEHOLDER, str(self.index))
-        path = self.build_job.expand(path)
+        path = self.build_apps_args.expand(path)
         path = path.replace(
             self.IDF_VERSION_PLACEHOLDER, f'{IDF_VERSION_MAJOR}_{IDF_VERSION_MINOR}_{IDF_VERSION_PATCH}'
         )
@@ -302,6 +307,14 @@ class App(BaseModel):
             return self.build_dir
 
         return os.path.join(self.work_dir, self.build_dir)
+
+    @property
+    def build_comment(self) -> str:
+        return self._build_comment or ''
+
+    @build_comment.setter
+    def build_comment(self, value: str) -> None:
+        self._build_comment = value
 
     @computed_field  # type: ignore
     @property
@@ -485,7 +498,6 @@ class App(BaseModel):
             self._build_stage = BuildStage.PRE_BUILD
 
         if self.build_status == BuildStatus.SKIPPED:
-            self._logger.debug('Build skipped. %s', self)
             return
 
         if self.work_dir != self.app_dir:
@@ -714,6 +726,7 @@ class App(BaseModel):
 
         if self.is_modified(modified_files):
             self.build_status = BuildStatus.SHOULD_BE_BUILT
+            self.build_comment = 'current build modifies this app'
             self._checked_should_build = True
             return
 
@@ -725,7 +738,9 @@ class App(BaseModel):
 
         # if no special rules defined, we left it unknown and decide with idf.py reconfigure
         if not self.depends_components and not self.depends_filepatterns:
+            # keep unknown
             self._checked_should_build = True
+            self.build_comment = 'no special rules defined, run idf.py reconfigure to decide'
             return
 
         # check app dependencies
@@ -735,27 +750,23 @@ class App(BaseModel):
         # depends components?
         if self.depends_components and modified_components is not None:
             if set(self.depends_components).intersection(set(modified_components)):
-                self._logger.debug(
-                    'Should be built. %s requires components: %s, modified components %s',
-                    self,
-                    ', '.join(self.depends_components),
-                    ', '.join(modified_components),
-                )
                 self._checked_should_build = True
                 self.build_status = BuildStatus.SHOULD_BE_BUILT
+                self.build_comment = (
+                    f'Requires components: {", ".join(self.depends_components)}. '
+                    f'Modified components: {", ".join(modified_components)}'
+                )
                 return
 
         # or depends file patterns?
         if self.depends_filepatterns and modified_files is not None:
             if files_matches_patterns(modified_files, self.depends_filepatterns, manifest_rootpath):
-                self._logger.debug(
-                    'Should be built. %s depends on file patterns: %s, modified files %s',
-                    self,
-                    ', '.join(self.depends_filepatterns),
-                    ', '.join(modified_files),
-                )
                 self._checked_should_build = True
                 self.build_status = BuildStatus.SHOULD_BE_BUILT
+                self.build_comment = (
+                    f'Requires file patterns: {", ".join(self.depends_filepatterns)}. '
+                    f'Modified files: {", ".join(modified_files)}'
+                )
                 return
 
         # special rules defined, but not matched

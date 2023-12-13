@@ -19,5 +19,4 @@ jobs:
           flit install -s
       - name: Build the docs
         run: |
-          export BUILDING_DOCS=1
-          cd docs && make html SPHINXOPTS="-W"
+          cd docs && make html

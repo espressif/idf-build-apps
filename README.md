@@ -4,16 +4,16 @@
 [![pypi_package_version](https://img.shields.io/pypi/v/idf-build-apps)](https://pypi.org/project/idf_build_apps/)
 [![supported_python_versions](https://img.shields.io/pypi/pyversions/idf-build-apps)](https://pypi.org/project/idf_build_apps/)
 
-`idf-build-apps` is a tool that helps users find and build [ESP-IDF][esp-idf] projects faster.
+`idf-build-apps` is a tool that helps users find and build [ESP-IDF][esp-idf], and [ESP8266 RTOS][esp8266-rtos] projects in a large scale.
 
 ## What is an `app`?
 
-An [ESP-IDF][esp-idf] project would typically contain:
+A project using [ESP-IDF][esp-idf] SDK, or [ESP8266 RTOS][esp8266-rtos] SDK typically contains:
 
 - Build recipe in CMake or Make and the main component with app sources
 - (Optional) One or more [sdkconfig][sdkconfig] files
 
-`app` is the abbreviation for application. An application is the binary that is being built with the specified [sdkconfig][sdkconfig] and the target chip. `idf-build-apps` could build one project into a number of applications.
+`app` is the abbreviation for application. An application is a set of binary files that is being built with the specified [sdkconfig][sdkconfig] and the target chip. `idf-build-apps` could build one project into a number of applications according to the matrix of these two parameters.
 
 ## Installation
 
@@ -29,7 +29,9 @@ pipx install idf-build-apps
 
 ## Basic Usage
 
-`idf-build-apps` is a callable python package, and an executable script with the same name would also be installed. It contains two sub-commands.
+`idf-build-apps` is a python package that could be used as a library or a CLI tool.
+
+As a CLI tool, it contains two sub-commands.
 
 - `find` to find the buildable applications
 - `build` to build the found applications
@@ -42,28 +44,22 @@ idf-build-apps find -h
 idf-build-apps build -h
 ```
 
-## Quick Example
+As a library, you may check the [API documentation][api-doc] for more information. Overall it provides
 
-To build the applications for all targets of the [ESP-IDF hello world example project][hello-world] under ESP-IDF v5.0:
+- Two functions, `find_apps` and `build_apps`
+- Two classes, `CMakeApp` and `MakeApp`
+
+## Quick CLI Example
+
+To build [ESP-IDF hello world example project][hello-world] with ESP32:
 
 ```shell
-idf-build-apps build -p $IDF_PATH/examples/get-started/hello_world/ --target all --build-dir build_@t
+idf-build-apps build -p $IDF_PATH/examples/get-started/hello_world/ --target esp32
 ```
 
-It would get the default [supported targets][supported-targets] from your IDF version, build the [hello world project][hello-world] with all targets and the default `sdkconfig` file.
+The binary files will be generated under `$IDF_PATH/examples/get-started/hello_world/build` directory.
 
-Partial build log:
-
-```text
-2023-02-22 12:14:58 INFO Found 5 apps in total
-2023-02-22 12:14:58 INFO Total 5 apps. running build for app 1-5
-2023-02-22 12:14:58 INFO Building the following apps:
-2023-02-22 12:14:58 INFO   (cmake) App /tmp/test/esp/esp-idf/examples/get-started/hello_world/, target esp32, sdkconfig (default), build in /tmp/test/esp/esp-idf/examples/get-started/hello_world/build_esp32 (preserve: True)
-2023-02-22 12:14:58 INFO   (cmake) App /tmp/test/esp/esp-idf/examples/get-started/hello_world/, target esp32c2, sdkconfig (default), build in /tmp/test/esp/esp-idf/examples/get-started/hello_world/build_esp32c2 (preserve: True)
-2023-02-22 12:14:58 INFO   (cmake) App /tmp/test/esp/esp-idf/examples/get-started/hello_world/, target esp32c3, sdkconfig (default), build in /tmp/test/esp/esp-idf/examples/get-started/hello_world/build_esp32c3 (preserve: True)
-2023-02-22 12:14:58 INFO   (cmake) App /tmp/test/esp/esp-idf/examples/get-started/hello_world/, target esp32s2, sdkconfig (default), build in /tmp/test/esp/esp-idf/examples/get-started/hello_world/build_esp32s2 (preserve: True)
-2023-02-22 12:14:58 INFO   (cmake) App /tmp/test/esp/esp-idf/examples/get-started/hello_world/, target esp32s3, sdkconfig (default), build in /tmp/test/esp/esp-idf/examples/get-started/hello_world/build_esp32s3 (preserve: True)
-```
+## Documentation
 
 For detailed information, please refer to [our documentation site][doc]!
 
@@ -72,7 +68,9 @@ For detailed information, please refer to [our documentation site][doc]!
 Thanks for your contribution! Please refer to our [Contributing Guide](CONTRIBUTING.md)
 
 [esp-idf]: https://github.com/espressif/esp-idf
+[esp8266-rtos]: https://github.com/espressif/ESP8266_RTOS_SDK
 [sdkconfig]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/kconfig.html
 [hello-world]: https://github.com/espressif/esp-idf/tree/master/examples/get-started/hello_world
 [supported-targets]: https://github.com/espressif/esp-idf/tree/v5.0#esp-idf-release-and-soc-compatibility
 [doc]: https://docs.espressif.com/projects/idf-build-apps/en/latest/
+[api-doc]: https://docs.espressif.com/projects/idf-build-apps/en/latest/api.html

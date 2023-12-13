@@ -4,33 +4,32 @@
 """
 The test report should look like something like this:
 
-<testsuites>
-    <testsuite
-            errors="0"
-            failures="1"
-            skipped="0"
-            tests="29"
-            name="Build target esp32 in example folder"
-            hostname="GARM-C2-WX-1-R5S4N264"
-            ... # more machine specs
-            time="1051.215"
-            timestamp="2022-12-15T13:25:17.689181">
-        <testcase
-                file="examples/get_started/hello_world"
-                name="esp32.default.examples/get-started/hello_world"
-                time="60.2454">
-            <failure message="build warnings or error message">
-            </failure>
-        </testcase>
-        <testcase
-                file="examples/get_started/hello_world"
-                name="esp32.default.examples/get-started/hello_world"
-                time="60.2454">
-            <skipped message="skipped reason">
-            </skipped>
-        </testcase>
-    </testsuite>
-</testsuites>
+.. code-block:: xml
+
+    <testsuites>
+        <testsuite
+                errors="0"
+                failures="1"
+                skipped="0"
+                tests="29"
+                name="Build target esp32 in example folder"
+                hostname="GARM-C2-WX-1-R5S4N264"
+                time="1051.215"
+                timestamp="2022-12-15T13:25:17.689181">
+            <testcase
+                    file="examples/get_started/hello_world"
+                    name="esp32.default.examples/get-started/hello_world"
+                    time="60.2454">
+                <failure message="build warnings or error message"></failure>
+            </testcase>
+            <testcase
+                    file="examples/get_started/hello_world"
+                    name="esp32.default.examples/get-started/hello_world"
+                    time="60.2454">
+                <skipped message="skipped reason"></skipped>
+            </testcase>
+        </testsuite>
+    </testsuites>
 """
 
 import json

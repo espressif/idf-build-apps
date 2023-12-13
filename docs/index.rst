@@ -16,6 +16,6 @@ Welcome to idf-build-apps's documentation!
    manifest
    config_file
    cli
-   api
+   api/modules
    CHANGELOG
    CONTRIBUTING
