@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.0b5 (2023-12-13)
+
+### Feat
+
+- record should_be_built reason when checking app dependencies
+- support override sdkconfig CLI Options
+
+### Fix
+
+- print in the main.py instead of the functions
+- improve logging output. Differentiate print and logging.info
+
+### BREAKING CHANGES
+
+- remove LOGGER from idf_build_apps, use logging.getLogger('idf_build_apps') instead
+- rename build_job.py to build_apps_args, BuildAppJob to BuildAppsArgs
+
 ## v2.0.0b4 (2023-11-27)
 
 ### Feat
