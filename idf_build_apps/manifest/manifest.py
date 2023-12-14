@@ -5,9 +5,6 @@ import logging
 import os
 import typing as t
 import warnings
-from pathlib import (
-    Path,
-)
 
 import yaml
 from pyparsing import (
@@ -52,14 +49,14 @@ class FolderRule:
 
     def __init__(
         self,
-        folder: Path,
+        folder: str,
         enable: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
         disable: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
         disable_test: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
         depends_components: t.Optional[t.List[str]] = None,
         depends_filepatterns: t.Optional[t.List[str]] = None,
     ) -> None:
-        self.folder = folder.resolve()
+        self.folder = os.path.realpath(folder)
 
         for group in [enable, disable, disable_test]:
             if group:
@@ -148,13 +145,13 @@ class FolderRule:
 
 
 class DefaultRule(FolderRule):
-    def __init__(self, folder: Path) -> None:
+    def __init__(self, folder: str) -> None:
         super().__init__(folder)
 
 
 class Manifest:
     # could be reassigned later
-    ROOTPATH = Path(os.curdir)
+    ROOTPATH = os.curdir
     CHECK_MANIFEST_RULES = False
 
     def __init__(
@@ -174,12 +171,10 @@ class Manifest:
             if folder.startswith('.'):
                 continue
 
-            if os.path.isabs(folder):
-                folder = Path(folder)
-            else:
-                folder = Path(cls.ROOTPATH, folder)
+            if not os.path.isabs(folder):
+                folder = os.path.join(cls.ROOTPATH, folder)
 
-            if not folder.exists():
+            if not os.path.exists(folder):
                 msg = f'Folder "{folder}" does not exist. Please check your manifest file {path}'
                 if cls.CHECK_MANIFEST_RULES:
                     raise InvalidManifest(msg)
@@ -194,9 +189,9 @@ class Manifest:
         return Manifest(rules)
 
     def _most_suitable_rule(self, _folder: str) -> FolderRule:
-        folder = Path(_folder).resolve()
+        folder = os.path.realpath(_folder)
         for rule in self.rules[::-1]:
-            if rule.folder == folder or rule.folder in folder.parents:
+            if rule.folder == folder or folder.startswith(rule.folder):
                 return rule
 
         return DefaultRule(folder)

@@ -39,10 +39,10 @@ def load_toml(filepath: t.Union[str, Path]) -> dict:
             raise InvalidTomlError(filepath, str(e))
 
 
-def _get_config_from_file(filepath: Path) -> t.Tuple[t.Optional[dict], Path]:
+def _get_config_from_file(filepath: str) -> t.Tuple[t.Optional[dict], str]:
     config = None
-    if filepath.is_file():
-        if filepath.parts[-1] == PYPROJECT_TOML_FN:
+    if os.path.isfile(filepath):
+        if os.path.basename(filepath) == PYPROJECT_TOML_FN:
             tool = load_toml(filepath).get('tool', None)
             if tool:
                 config = tool.get('idf-build-apps', None)
@@ -52,14 +52,14 @@ def _get_config_from_file(filepath: Path) -> t.Tuple[t.Optional[dict], Path]:
     return config, filepath
 
 
-def _get_config_from_path(dirpath: Path) -> t.Tuple[t.Optional[dict], Path]:
+def _get_config_from_path(dirpath: str) -> t.Tuple[t.Optional[dict], str]:
     config = None
     filepath = dirpath
-    if (dirpath / PYPROJECT_TOML_FN).is_file():
-        config, filepath = _get_config_from_file(dirpath / PYPROJECT_TOML_FN)
+    if os.path.isfile(os.path.join(dirpath, PYPROJECT_TOML_FN)):
+        config, filepath = _get_config_from_file(os.path.join(dirpath, PYPROJECT_TOML_FN))
 
-    if config is None and (dirpath / IDF_BUILD_APPS_TOML_FN).is_file():
-        config, filepath = _get_config_from_file(dirpath / IDF_BUILD_APPS_TOML_FN)
+    if config is None and os.path.isfile(os.path.join(dirpath, IDF_BUILD_APPS_TOML_FN)):
+        config, filepath = _get_config_from_file(os.path.join(dirpath, IDF_BUILD_APPS_TOML_FN))
 
     return config, filepath
 
@@ -83,9 +83,9 @@ def get_valid_config(starts_from: str = os.getcwd(), custom_path: t.Optional[str
             print(f'Using config file: {filepath}')
             return config
 
-        if (cur_dir / '.git').exists():
+        if os.path.exists(os.path.join(cur_dir, '.git')):
             break
 
-        cur_dir = cur_dir.parent
+        cur_dir = os.path.realpath(os.path.join(cur_dir, '..'))
 
     return None
