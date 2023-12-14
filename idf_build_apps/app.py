@@ -285,7 +285,7 @@ class App(BaseModel):
     def name(self) -> str:
         base_name = os.path.basename(self.app_dir)
         if base_name == '.':
-            return os.path.basename(os.path.realpath(self.app_dir))
+            return os.path.basename(os.path.abspath(self.app_dir))
         return base_name
 
     @computed_field  # type: ignore
@@ -405,7 +405,7 @@ class App(BaseModel):
                         self._logger.debug('Expand sdkconfig file %s to %s', f, expanded_fp)
                         res.append(expanded_fp)
                         # copy the related target-specific sdkconfig files
-                        par_dir = os.path.realpath(os.path.join(f, '..'))
+                        par_dir = os.path.abspath(os.path.join(f, '..'))
                         for target_specific_file in (
                             os.path.join(par_dir, str(p))
                             for p in Path(par_dir).glob(os.path.basename(f) + f'.{self.target}')

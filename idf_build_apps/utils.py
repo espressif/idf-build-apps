@@ -268,13 +268,13 @@ def semicolon_separated_str_to_list(s: t.Optional[str]) -> t.Optional[t.List[str
 
 
 def to_absolute_path(s: str, rootpath: t.Optional[str] = None) -> str:
-    rp = os.path.realpath(os.path.expanduser(rootpath or '.'))
+    rp = os.path.abspath(os.path.expanduser(rootpath or '.'))
 
     sp = os.path.expanduser(s)
     if os.path.isabs(sp):
-        return os.path.realpath(sp)
+        return sp
     else:
-        return os.path.realpath(os.path.join(rp, sp))
+        return os.path.abspath(os.path.join(rp, sp))
 
 
 def to_version(s: t.Any) -> Version:

@@ -56,7 +56,7 @@ class FolderRule:
         depends_components: t.Optional[t.List[str]] = None,
         depends_filepatterns: t.Optional[t.List[str]] = None,
     ) -> None:
-        self.folder = os.path.realpath(folder)
+        self.folder = os.path.abspath(folder)
 
         for group in [enable, disable, disable_test]:
             if group:
@@ -189,7 +189,7 @@ class Manifest:
         return Manifest(rules)
 
     def _most_suitable_rule(self, _folder: str) -> FolderRule:
-        folder = os.path.realpath(_folder)
+        folder = os.path.abspath(_folder)
         for rule in self.rules[::-1]:
             if rule.folder == folder or folder.startswith(rule.folder):
                 return rule

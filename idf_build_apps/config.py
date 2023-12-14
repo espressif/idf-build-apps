@@ -86,6 +86,6 @@ def get_valid_config(starts_from: str = os.getcwd(), custom_path: t.Optional[str
         if os.path.exists(os.path.join(cur_dir, '.git')):
             break
 
-        cur_dir = os.path.realpath(os.path.join(cur_dir, '..'))
+        cur_dir = os.path.abspath(os.path.join(cur_dir, '..'))
 
     return None

@@ -29,7 +29,7 @@ if not os.path.isdir(_idf_env):
     raise ValueError(f'Invalid value for IDF_PATH: {_idf_env}')
 
 
-IDF_PATH = os.path.realpath(_idf_env)
+IDF_PATH = os.path.abspath(_idf_env)
 IDF_PY = os.path.join(IDF_PATH, 'tools', 'idf.py')
 IDF_SIZE_PY = os.path.join(IDF_PATH, 'tools', 'idf_size.py')
 PROJECT_DESCRIPTION_JSON = 'project_description.json'
