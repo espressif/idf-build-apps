@@ -112,8 +112,7 @@ class App(BaseModel):
     target: str
     sdkconfig_path: t.Optional[str] = None
     config_name: t.Optional[str] = None
-
-    build_status: BuildStatus = BuildStatus.UNKNOWN
+    sdkconfig_defaults_str: t.Optional[str] = None
 
     # Attrs that support placeholders
     _work_dir: t.Optional[str] = None
@@ -122,15 +121,17 @@ class App(BaseModel):
     _build_log_filename: t.Optional[str] = None
     _size_json_filename: t.Optional[str] = None
 
-    # Build related
     dry_run: bool = False
-    index: t.Union[int, None] = None
     verbose: bool = False
     check_warnings: bool = False
     preserve: bool = True
 
-    # logging
-    build_apps_args: t.Optional[BuildAppsArgs] = BuildAppsArgs()
+    # build_apps() related
+    build_apps_args: t.Optional[BuildAppsArgs] = None
+    index: t.Optional[int] = None
+
+    # build status related
+    build_status: BuildStatus = BuildStatus.UNKNOWN
 
     _build_comment: t.Optional[str] = None
     _build_stage: t.Optional[BuildStage] = None
@@ -142,28 +143,20 @@ class App(BaseModel):
         app_dir: str,
         target: str,
         *,
-        sdkconfig_path: t.Optional[str] = None,
-        config_name: t.Optional[str] = None,
         work_dir: t.Optional[str] = None,
         build_dir: str = 'build',
         build_log_filename: t.Optional[str] = None,
         size_json_filename: t.Optional[str] = None,
-        check_warnings: bool = False,
-        preserve: bool = True,
-        sdkconfig_defaults_str: t.Optional[str] = None,
         **kwargs: t.Any,
     ) -> None:
         kwargs.update(
             {
                 'app_dir': app_dir,
                 'target': target,
-                'sdkconfig_path': sdkconfig_path,
-                'config_name': config_name,
-                'check_warnings': check_warnings,
-                'preserve': preserve,
             }
         )
         super().__init__(**kwargs)
+
         # These internal variables store the paths with environment variables and placeholders;
         # Public properties with similar names use the _expand method to get the actual paths.
         self._work_dir = work_dir or app_dir
@@ -172,30 +165,24 @@ class App(BaseModel):
         self._build_log_filename = build_log_filename
         self._size_json_filename = size_json_filename
 
-        # should be built or not
-        self._checked_should_build = False
-
-        # sdkconfig attrs, use properties instead
-        self._sdkconfig_defaults = self._get_sdkconfig_defaults(sdkconfig_defaults_str)
-        self._sdkconfig_files: t.List[str] = None  # type: ignore
-        self._sdkconfig_files_defined_target: str = None  # type: ignore
-
         # pass all parameters to initialize hook method
         kwargs.update(
             {
-                'work_dir': work_dir,
-                'build_dir': build_dir,
+                'work_dir': self._work_dir,
+                'build_dir': self._build_dir,
                 'build_log_filename': build_log_filename,
                 'size_json_filename': size_json_filename,
-                'sdkconfig_defaults_str': sdkconfig_defaults_str,
             }
         )
         self._initialize_hook(**kwargs)
 
+        # private attrs, won't be dumped to json
+        self._checked_should_build = False
+
         self._logger = logging.getLogger(f'{__name__}.{hash(self)}')
         self._logger.addFilter(_AppBuildStageFilter(app=self))
 
-        self._process_sdkconfig_files()
+        self._sdkconfig_files, self._sdkconfig_files_defined_target = self._process_sdkconfig_files()
 
     def _initialize_hook(self, **kwargs):
         """
@@ -228,16 +215,15 @@ class App(BaseModel):
 
         return default_fmt.format(*default_args)
 
-    @staticmethod
-    def _get_sdkconfig_defaults(sdkconfig_defaults_str: t.Optional[str] = None) -> t.List[str]:
-        if sdkconfig_defaults_str is not None:
-            candidates = sdkconfig_defaults_str.split(';')
-        elif os.getenv('SDKCONFIG_DEFAULTS', None) is not None:
-            candidates = os.getenv('SDKCONFIG_DEFAULTS', '').split(';')
-        else:
-            candidates = [DEFAULT_SDKCONFIG]
+    @property
+    def sdkconfig_defaults_candidates(self) -> t.List[str]:
+        if self.sdkconfig_defaults_str is not None:
+            return self.sdkconfig_defaults_str.split(';')
 
-        return candidates
+        if os.getenv('SDKCONFIG_DEFAULTS', None) is not None:
+            return os.getenv('SDKCONFIG_DEFAULTS', '').split(';')
+
+        return [DEFAULT_SDKCONFIG]
 
     @t.overload
     def _expand(self, path: None) -> None:
@@ -256,7 +242,8 @@ class App(BaseModel):
 
         if self.index is not None:
             path = path.replace(self.INDEX_PLACEHOLDER, str(self.index))
-        path = self.build_apps_args.expand(path)
+        if self.build_apps_args:
+            path = self.build_apps_args.expand(path)
         path = path.replace(
             self.IDF_VERSION_PLACEHOLDER, f'{IDF_VERSION_MAJOR}_{IDF_VERSION_MINOR}_{IDF_VERSION_PATCH}'
         )
@@ -281,6 +268,8 @@ class App(BaseModel):
     @property
     def name(self) -> str:
         base_name = os.path.basename(self.app_dir)
+        # '.' for relative path like '.'
+        # '' for path endswith '/'
         if base_name in ['.', '']:
             return os.path.basename(os.path.abspath(self.app_dir))
         return base_name
@@ -344,22 +333,18 @@ class App(BaseModel):
 
         return None
 
-    @computed_field  # type: ignore
-    @property
-    def config(self) -> t.Optional[str]:
-        return self.config_name
-
-    def _process_sdkconfig_files(self):
+    def _process_sdkconfig_files(self) -> t.Tuple[t.List[str], t.Optional[str]]:
         """
         Expand environment variables in default sdkconfig files and remove some CI related settings.
         """
-        res = []
+        real_sdkconfig_files: t.List[str] = []
+        sdkconfig_files_defined_target: t.Optional[str] = None
 
         expanded_dir = os.path.join(self.work_dir, 'expanded_sdkconfig_files', os.path.basename(self.build_dir))
         if not os.path.isdir(expanded_dir):
             os.makedirs(expanded_dir)
 
-        for f in self._sdkconfig_defaults + ([self.sdkconfig_path] if self.sdkconfig_path else []):
+        for f in self.sdkconfig_defaults_candidates + ([self.sdkconfig_path] if self.sdkconfig_path else []):
             if not os.path.isabs(f):
                 f = os.path.join(self.work_dir, f)
 
@@ -377,7 +362,7 @@ class App(BaseModel):
                         if m:
                             key = m.group(1)
                             if key == 'CONFIG_IDF_TARGET':
-                                self._sdkconfig_files_defined_target = m.group(2)
+                                sdkconfig_files_defined_target = m.group(2)
 
                             if isinstance(self, CMakeApp):
                                 if key in self.SDKCONFIG_TEST_OPTS:
@@ -397,10 +382,10 @@ class App(BaseModel):
                             os.unlink(expanded_fp)
                         except OSError:
                             self._logger.debug('Failed to remove file %s', expanded_fp)
-                        res.append(f)
+                        real_sdkconfig_files.append(f)
                     else:
                         self._logger.debug('Expand sdkconfig file %s to %s', f, expanded_fp)
-                        res.append(expanded_fp)
+                        real_sdkconfig_files.append(expanded_fp)
                         # copy the related target-specific sdkconfig files
                         par_dir = os.path.abspath(os.path.join(f, '..'))
                         for target_specific_file in (
@@ -423,12 +408,12 @@ class App(BaseModel):
         except OSError:
             pass
 
-        if SESSION_ARGS.override_sdkconfig_items:
-            res.append(SESSION_ARGS.override_sdkconfig_file_path)
+        if SESSION_ARGS.override_sdkconfig_file_path:
+            real_sdkconfig_files.append(SESSION_ARGS.override_sdkconfig_file_path)
             if 'CONFIG_IDF_TARGET' in SESSION_ARGS.override_sdkconfig_items:
-                self._sdkconfig_files_defined_target = SESSION_ARGS.override_sdkconfig_items['CONFIG_IDF_TARGET']
+                sdkconfig_files_defined_target = SESSION_ARGS.override_sdkconfig_items['CONFIG_IDF_TARGET']
 
-        self._sdkconfig_files = res
+        return real_sdkconfig_files, sdkconfig_files_defined_target
 
     @property
     def sdkconfig_files_defined_idf_target(self) -> t.Optional[str]:
