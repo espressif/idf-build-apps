@@ -7,9 +7,6 @@ import xml.etree.ElementTree as ET
 from copy import (
     deepcopy,
 )
-from pathlib import (
-    Path,
-)
 
 import pytest
 from conftest import (
@@ -32,9 +29,9 @@ from idf_build_apps.constants import (
 @pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')
 class TestBuild:
     def test_build_hello_world(self, tmpdir, capsys):
-        path = Path(IDF_PATH) / 'examples' / 'get-started' / 'hello_world'
+        path = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
 
-        app = CMakeApp(str(path), 'esp32', work_dir=str(tmpdir / 'test'))
+        app = CMakeApp(path, 'esp32', work_dir=str(tmpdir / 'test'))
         app.build()
 
         captured = capsys.readouterr()
@@ -58,9 +55,9 @@ class TestBuild:
     def test_build_with_modified_components(
         self, tmpdir, capsys, modified_components, check_app_dependencies, build_status
     ):
-        path = Path(IDF_PATH) / 'examples' / 'get-started' / 'hello_world'
+        path = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
 
-        app = CMakeApp(str(path), 'esp32', work_dir=str(tmpdir / 'test'))
+        app = CMakeApp(path, 'esp32', work_dir=str(tmpdir / 'test'))
         app.build(
             modified_components=modified_components,
             check_app_dependencies=check_app_dependencies,
@@ -71,19 +68,19 @@ class TestBuild:
         'modified_files, build_status',
         [
             ('/foo', BuildStatus.SKIPPED),
-            (str(Path(IDF_PATH) / 'examples' / 'README.md'), BuildStatus.SKIPPED),
-            ([str(Path(IDF_PATH) / 'examples' / 'get-started' / 'hello_world' / 'README.md')], BuildStatus.SKIPPED),
+            (os.path.join(IDF_PATH, 'examples', 'README.md'), BuildStatus.SKIPPED),
+            ([os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world', 'README.md')], BuildStatus.SKIPPED),
             (
                 [
-                    str(Path(IDF_PATH) / 'examples' / 'get-started' / 'hello_world' / 'README.md'),
-                    str(Path(IDF_PATH) / 'examples' / 'get-started' / 'hello_world' / 'main' / 'hello_world_main.c'),
+                    os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world', 'README.md'),
+                    os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world', 'main', 'hello_world_main.c'),
                 ],
                 BuildStatus.SUCCESS,
             ),
         ],
     )
     def test_build_with_modified_files(self, modified_files, build_status):
-        test_dir = str(Path(IDF_PATH) / 'examples' / 'get-started' / 'hello_world')
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
 
         app = CMakeApp(test_dir, 'esp32')
         app.build(
@@ -95,7 +92,7 @@ class TestBuild:
         assert app.build_status == build_status
 
     def test_build_without_modified_components_but_ignored_app_dependency_check(self):
-        test_dir = str(Path(IDF_PATH) / 'examples' / 'get-started' / 'hello_world')
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
 
         apps = find_apps(
             test_dir,
@@ -110,7 +107,7 @@ class TestBuild:
             assert app.build_status == BuildStatus.SUCCESS
 
     def test_build_with_junit_output(self, tmpdir):
-        test_dir = str(Path(IDF_PATH) / 'examples' / 'get-started' / 'hello_world')
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
 
         apps = [
             CMakeApp(test_dir, 'esp32', build_dir='build_1'),
