@@ -25,7 +25,7 @@ from idf_build_apps.main import (
 
 class TestFindWithManifest:
     def test_manifest_rootpath_chdir(self):
-        test_dir = IDF_PATH / 'examples' / 'get-started'
+        test_dir = Path(IDF_PATH) / 'examples' / 'get-started'
 
         yaml_file = test_dir / 'test.yml'
         yaml_file.write_text(
@@ -48,7 +48,7 @@ examples/get-started:
             assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file))
 
     def test_manifest_rootpath_specified(self):
-        test_dir = IDF_PATH / 'examples' / 'get-started'
+        test_dir = Path(IDF_PATH) / 'examples' / 'get-started'
 
         yaml_file = test_dir / 'test.yml'
         yaml_file.write_text(
@@ -69,11 +69,11 @@ get-started:
             'esp32',
             recursive=True,
             manifest_files=str(yaml_file),
-            manifest_rootpath=str(IDF_PATH / 'examples'),
+            manifest_rootpath=os.path.join(IDF_PATH, 'examples'),
         )
 
     def test_keyword_idf_target(self, tmpdir):
-        test_dir = str(IDF_PATH / 'examples')
+        test_dir = os.path.join(IDF_PATH, 'examples')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
 
@@ -91,7 +91,7 @@ get-started:
         assert filtered_apps != apps
 
     def test_keyword_idf_version(self):
-        test_dir = IDF_PATH / 'examples' / 'get-started'
+        test_dir = Path(IDF_PATH) / 'examples' / 'get-started'
         apps = find_apps(str(test_dir), 'esp32', recursive=True)
         assert apps
 
@@ -122,7 +122,7 @@ class TestFindWithModifiedFilesComponents:
         ],
     )
     def test_with_depends_and_modified_components(self, tmpdir, modified_components, could_find_apps):
-        test_dir = str(IDF_PATH / 'examples')
+        test_dir = str(Path(IDF_PATH) / 'examples')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
 
@@ -153,19 +153,19 @@ class TestFindWithModifiedFilesComponents:
         'modified_files, could_find_apps',
         [
             ('/foo', False),
-            (str(IDF_PATH / 'examples' / 'README.md'), False),
-            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md')], False),
+            (os.path.join(IDF_PATH, 'examples', 'README.md'), False),
+            ([os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world', 'README.md')], False),
             (
                 [
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md'),
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'main' / 'hello_world_main.c'),
+                    os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world', 'README.md'),
+                    os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world', 'main', 'hello_world_main.c'),
                 ],
                 True,
             ),
         ],
     )
     def test_with_depends_components_but_modified(self, tmp_path, modified_files, could_find_apps):
-        test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
 
@@ -183,7 +183,7 @@ class TestFindWithModifiedFilesComponents:
             test_dir,
             'esp32',
             recursive=True,
-            manifest_files=yaml_file,
+            manifest_files=str(yaml_file),
             modified_components=[],
             modified_files=modified_files,
         )
@@ -192,16 +192,34 @@ class TestFindWithModifiedFilesComponents:
         else:
             assert not filtered_apps
 
+    @pytest.mark.parametrize('suffix', ['/', '/   '])
+    def test_app_name_is_not_null(self, tmp_path, suffix):
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world') + suffix
+        apps = find_apps(test_dir, 'esp32', recursive=True)
+        for app in apps:
+            assert app.name == 'hello_world'
+
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world') + suffix
+        apps = find_apps(test_dir, 'esp32', recursive=False)
+        for app in apps:
+            assert app.name == 'hello_world'
+
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started') + suffix
+
+        apps = find_apps(test_dir, 'esp32', recursive=True)
+        for app in apps:
+            assert len(app.name.strip()) != 0
+
     @pytest.mark.parametrize(
         'modified_components, modified_files, could_find_apps',
         [
-            ([], str(IDF_PATH / 'examples' / 'README.md'), (True, False)),
-            (None, [str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md')], (True, True)),
+            ([], os.path.join(IDF_PATH, 'examples', 'README.md'), (True, False)),
+            (None, [os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world', 'README.md')], (True, True)),
             (
                 [],
                 [
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md'),
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'main' / 'hello_world_main.c'),
+                    os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world', 'README.md'),
+                    os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world', 'main', 'hello_world_main.c'),
                 ],
                 (True, True),
             ),
@@ -210,7 +228,7 @@ class TestFindWithModifiedFilesComponents:
     def test_with_depends_components_and_filepatterns(
         self, tmp_path, modified_components, modified_files, could_find_apps
     ):
-        test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
 
@@ -229,7 +247,7 @@ class TestFindWithModifiedFilesComponents:
             test_dir,
             'esp32',
             recursive=True,
-            manifest_files=yaml_file,
+            manifest_files=str(yaml_file),
             modified_components=modified_components,
         )
         if could_find_apps[0]:
@@ -253,8 +271,8 @@ class TestFindWithModifiedFilesComponents:
             test_dir,
             'esp32',
             recursive=True,
-            manifest_rootpath=str(IDF_PATH),
-            manifest_files=yaml_file,
+            manifest_rootpath=IDF_PATH,
+            manifest_files=str(yaml_file),
             modified_components=modified_components,
             modified_files=modified_files,
         )
@@ -267,20 +285,20 @@ class TestFindWithModifiedFilesComponents:
         'modified_files, could_find_apps',
         [
             (None, True),
-            (str(IDF_PATH / 'examples' / 'README.md'), True),
-            ([str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md')], True),
+            (os.path.join(IDF_PATH, 'examples', 'README.md'), True),
+            ([os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world', 'README.md')], True),
             (
                 [
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'README.md'),
-                    str(IDF_PATH / 'examples' / 'get-started' / 'hello_world' / 'main' / 'hello_world_main.c'),
+                    os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world', 'README.md'),
+                    os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world', 'main', 'hello_world_main.c'),
                 ],
                 True,
             ),
-            ([str(IDF_PATH / 'examples' / 'a.c')], True),
+            ([os.path.join(IDF_PATH, 'examples', 'a.c')], True),
         ],
     )
     def test_with_filepattern_but_calculate_component_later(self, modified_files, could_find_apps):
-        test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
 
@@ -310,7 +328,7 @@ class TestFindWithModifiedFilesComponents:
 
 class TestFindWithSdkconfigFiles:
     def test_with_sdkconfig_defaults_idf_target(self):
-        test_dir = str(IDF_PATH / 'examples')
+        test_dir = os.path.join(IDF_PATH, 'examples')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
 
@@ -352,13 +370,13 @@ class TestFindWithSdkconfigFiles:
         sdkconfig_defaults = tmp_path / 'sdkconfig.defaults'
         sdkconfig_defaults.write_text('CONFIG_IDF_TARGET="esp32s2"')
 
-        test_dir = str(IDF_PATH / 'examples' / 'get-started' / 'hello_world')
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
         assert not find_apps(
             test_dir,
             'esp32s2',
             recursive=True,
             sdkconfig_defaults=str(sdkconfig_defaults),
-            manifest_files=[manifest_file],
+            manifest_files=[str(manifest_file)],
         )
 
     def test_with_config_rules(self, tmp_path, monkeypatch):
@@ -496,7 +514,7 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
             'esp32',
             recursive=True,
             config_rules_str=['sdkconfig.ci.*=', 'sdkconfig.ci=default'],
-            manifest_files=yaml_file,
+            manifest_files=str(yaml_file),
         )
         assert len(apps) == 1
         assert apps[0].sdkconfig_files == [
@@ -508,7 +526,7 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
             'esp32s2',
             recursive=True,
             config_rules_str=['sdkconfig.ci.*=', 'sdkconfig.ci=default'],
-            manifest_files=yaml_file,
+            manifest_files=str(yaml_file),
         )
         assert len(apps) == 1
         assert apps[0].sdkconfig_files == [
@@ -520,7 +538,7 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
             'esp32s3',
             recursive=True,
             config_rules_str=['sdkconfig.ci.*=', 'sdkconfig.ci=default'],
-            manifest_files=yaml_file,
+            manifest_files=str(yaml_file),
         )
         assert len(apps) == 1
         assert apps[0].sdkconfig_files == [
@@ -528,7 +546,11 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
             str(tmp_path / 'test1' / 'sdkconfig.ci'),
         ]
         apps = find_apps(
-            str(tmp_path / 'test1'), 'esp32s3', recursive=True, config_rules_str=['=default'], manifest_files=yaml_file
+            str(tmp_path / 'test1'),
+            'esp32s3',
+            recursive=True,
+            config_rules_str=['=default'],
+            manifest_files=str(yaml_file),
         )
         assert len(apps) == 1
         assert apps[0].sdkconfig_files == [
@@ -565,7 +587,7 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
             str(tmp_path / 'test1'),
             'esp32',
             config_rules_str=['sdkconfig.ci=default', 'sdkconfig.ci.*='],
-            manifest_files=yaml_file,
+            manifest_files=str(yaml_file),
         )
         assert len(apps) == 2
         assert apps[0].sdkconfig_files == [
@@ -582,7 +604,7 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
             str(tmp_path / 'test1'),
             'esp32',
             config_rules_str=['sdkconfig.ci=default', 'sdkconfig.ci.*='],
-            manifest_files=yaml_file,
+            manifest_files=str(yaml_file),
         )
         assert len(apps) == 3
         monkeypatch.delenv('TEST_ENV_VAR')

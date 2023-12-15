@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
 import logging
+import os.path
 import typing as t
 from pathlib import (
     Path,
@@ -50,10 +50,10 @@ _value = Optional('(').suppress() + MatchFirst([_hex_value, _str_value, _int_val
 _define_expr = '#define' + Optional(_name)('name') + Optional(_value)
 
 
-def get_defines(header_path: Path) -> t.List[str]:
+def get_defines(header_path: str) -> t.List[str]:
     defines = []
     LOGGER.debug('Reading macros from %s...', header_path)
-    with open(str(header_path)) as f:
+    with open(header_path) as f:
         output = f.read()
 
     for line in output.split('\n'):
@@ -82,10 +82,10 @@ class SocHeader(dict):
         super().__init__(**soc_header_dict)
 
     @staticmethod
-    def _get_dir_from_candidates(candidates: t.List[Path]) -> t.Optional[Path]:
+    def _get_dir_from_candidates(candidates: t.List[str]) -> t.Optional[str]:
         for d in candidates:
-            if not d.is_dir():
-                LOGGER.debug('folder "%s" not found. Skipping...', d.absolute())
+            if not os.path.isdir(d):
+                LOGGER.debug('folder "%s" not found. Skipping...', os.path.abspath(d))
             else:
                 return d
 
@@ -96,22 +96,22 @@ class SocHeader(dict):
         soc_headers_dir = cls._get_dir_from_candidates(
             [
                 # other branches
-                IDF_PATH / 'components' / 'soc' / target / 'include' / 'soc',
+                os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', target, 'include', 'soc')),
                 # release/v4.2
-                IDF_PATH / 'components' / 'soc' / 'soc' / target / 'include' / 'soc',
+                os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', 'soc', target, 'include', 'soc')),
             ]
         )
         esp_rom_headers_dir = cls._get_dir_from_candidates(
             [
-                IDF_PATH / 'components' / 'esp_rom' / target,
+                os.path.join(IDF_PATH, 'components', 'esp_rom', target),
             ]
         )
 
-        header_files = []
+        header_files: t.List[str] = []
         if soc_headers_dir:
-            header_files += list(soc_headers_dir.glob(cls.CAPS_HEADER_FILEPATTERN))
+            header_files += [str(p.resolve()) for p in Path(soc_headers_dir).glob(cls.CAPS_HEADER_FILEPATTERN)]
         if esp_rom_headers_dir:
-            header_files += list(esp_rom_headers_dir.glob(cls.CAPS_HEADER_FILEPATTERN))
+            header_files += [str(p.resolve()) for p in Path(esp_rom_headers_dir).glob(cls.CAPS_HEADER_FILEPATTERN)]
 
         output_dict = {}
         for f in header_files:

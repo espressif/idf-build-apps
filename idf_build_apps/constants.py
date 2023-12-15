@@ -9,9 +9,6 @@ import re
 import sys
 import tempfile
 import typing as t
-from pathlib import (
-    Path,
-)
 
 from .utils import (
     to_version,
@@ -32,14 +29,14 @@ if not os.path.isdir(_idf_env):
     raise ValueError(f'Invalid value for IDF_PATH: {_idf_env}')
 
 
-IDF_PATH = Path(_idf_env).resolve()
-IDF_PY = IDF_PATH / 'tools' / 'idf.py'
-IDF_SIZE_PY = IDF_PATH / 'tools' / 'idf_size.py'
+IDF_PATH = os.path.abspath(_idf_env)
+IDF_PY = os.path.join(IDF_PATH, 'tools', 'idf.py')
+IDF_SIZE_PY = os.path.join(IDF_PATH, 'tools', 'idf_size.py')
 PROJECT_DESCRIPTION_JSON = 'project_description.json'
 DEFAULT_SDKCONFIG = 'sdkconfig.defaults'
 
 
-sys.path.append(str(IDF_PATH / 'tools' / 'idf_py_actions'))
+sys.path.append(os.path.join(IDF_PATH, 'tools', 'idf_py_actions'))
 if _BUILDING_DOCS:
     _idf_py_constant_py = object()
 else:
@@ -54,7 +51,7 @@ ALL_TARGETS = SUPPORTED_TARGETS + PREVIEW_TARGETS
 
 
 def _idf_version_from_cmake() -> t.Tuple[int, int, int]:
-    version_path = str(IDF_PATH / 'tools' / 'cmake' / 'version.cmake')
+    version_path = os.path.join(IDF_PATH, 'tools', 'cmake', 'version.cmake')
     if not os.path.isfile(version_path):
         raise ValueError(f'File {version_path} does not exist')
 

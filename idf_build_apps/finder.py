@@ -3,6 +3,7 @@
 
 import logging
 import os
+import os.path
 import re
 import typing as t
 from pathlib import (
@@ -80,7 +81,7 @@ def _get_apps_from_path(
             default_config_name = rule.config_name
             continue
 
-        sdkconfig_paths = sorted([str(p.relative_to(path)) for p in Path(path).glob(rule.file_name)])
+        sdkconfig_paths = sorted([str(p.resolve()) for p in Path(path).glob(rule.file_name)])
 
         if sdkconfig_paths:
             sdkconfig_paths_matched = True  # skip the next block for no wildcard config rules
@@ -178,7 +179,7 @@ def _find_apps(
             del dirs[:]
             continue
 
-        if root_path.parts[-1] == 'managed_components':  # idf-component-manager
+        if os.path.basename(root_path) == 'managed_components':  # idf-component-manager
             LOGGER.debug('=> Skipping %s (managed components)', root_path)
             del dirs[:]
             continue

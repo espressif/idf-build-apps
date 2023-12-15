@@ -10,9 +10,6 @@ import shutil
 import sys
 import textwrap
 import typing as t
-from pathlib import (
-    Path,
-)
 
 from . import (
     SESSION_ARGS,
@@ -181,6 +178,7 @@ def find_apps(
 
     for target in targets:
         for path in to_list(paths):
+            path = path.strip()
             apps.extend(
                 _find_apps(
                     path,
@@ -295,7 +293,7 @@ def build_apps(
         if f and os.path.isfile(f):
             os.remove(f)
             LOGGER.debug('Remove existing collect file %s', f)
-            Path(f).touch()
+            os.mknod(f)
 
     exit_code = 0
     for i, app in enumerate(apps):

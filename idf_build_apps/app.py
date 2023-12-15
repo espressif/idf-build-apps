@@ -282,8 +282,12 @@ class App(BaseModel):
         return path
 
     @property
+    @lru_cache(1)
     def name(self) -> str:
-        return os.path.basename(os.path.realpath(self.app_dir))
+        base_name = os.path.basename(self.app_dir)
+        if base_name in ['.', '']:
+            return os.path.basename(os.path.abspath(self.app_dir))
+        return base_name
 
     @computed_field  # type: ignore
     @property
@@ -402,7 +406,11 @@ class App(BaseModel):
                         self._logger.debug('Expand sdkconfig file %s to %s', f, expanded_fp)
                         res.append(expanded_fp)
                         # copy the related target-specific sdkconfig files
-                        for target_specific_file in Path(f).parent.glob(os.path.basename(f) + f'.{self.target}'):
+                        par_dir = os.path.abspath(os.path.join(f, '..'))
+                        for target_specific_file in (
+                            os.path.join(par_dir, str(p))
+                            for p in Path(par_dir).glob(os.path.basename(f) + f'.{self.target}')
+                        ):
                             self._logger.debug(
                                 'Copy target-specific sdkconfig file %s to %s', target_specific_file, expanded_dir
                             )
@@ -436,7 +444,7 @@ class App(BaseModel):
     @lru_cache()
     # @cached_property requires python 3.8
     def sdkconfig_files(self) -> t.List[str]:
-        return [os.path.realpath(file) for file in self._sdkconfig_files]
+        return [os.path.abspath(file) for file in self._sdkconfig_files]
 
     @property
     def depends_components(self) -> t.List[str]:
@@ -701,10 +709,10 @@ class App(BaseModel):
         if modified_files:
             for f in modified_files:
                 _f_fullpath = to_absolute_path(f)
-                if _f_fullpath.parts[-1].endswith('.md'):
+                if os.path.basename(_f_fullpath).endswith('.md'):
                     continue
 
-                if _app_dir_fullpath in _f_fullpath.parents:
+                if _f_fullpath.startswith(_app_dir_fullpath):
                     return True
 
         return False

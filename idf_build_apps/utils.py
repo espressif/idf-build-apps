@@ -12,9 +12,6 @@ import typing as t
 from copy import (
     deepcopy,
 )
-from pathlib import (
-    Path,
-)
 
 from packaging.version import (
     Version,
@@ -270,14 +267,14 @@ def semicolon_separated_str_to_list(s: t.Optional[str]) -> t.Optional[t.List[str
     return [p.strip() for p in s.strip().split(';') if p.strip()]
 
 
-def to_absolute_path(s: str, rootpath: t.Optional[str] = None) -> Path:
-    rp = Path(os.path.expanduser(rootpath or '.')).resolve()
+def to_absolute_path(s: str, rootpath: t.Optional[str] = None) -> str:
+    rp = os.path.abspath(os.path.expanduser(rootpath or '.'))
 
-    sp = Path(os.path.expanduser(s))
-    if sp.is_absolute():
-        return sp.resolve()
+    sp = os.path.expanduser(s)
+    if os.path.isabs(sp):
+        return sp
     else:
-        return (rp / sp).resolve()
+        return os.path.abspath(os.path.join(rp, sp))
 
 
 def to_version(s: t.Any) -> Version:
