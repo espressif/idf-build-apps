@@ -16,9 +16,6 @@ from copy import (
 from datetime import (
     datetime,
 )
-from functools import (
-    lru_cache,
-)
 from pathlib import (
     Path,
 )
@@ -282,7 +279,6 @@ class App(BaseModel):
         return path
 
     @property
-    @lru_cache(1)
     def name(self) -> str:
         base_name = os.path.basename(self.app_dir)
         if base_name in ['.', '']:
@@ -435,14 +431,10 @@ class App(BaseModel):
         self._sdkconfig_files = res
 
     @property
-    @lru_cache()
-    # @cached_property requires python 3.8
     def sdkconfig_files_defined_idf_target(self) -> t.Optional[str]:
         return self._sdkconfig_files_defined_target
 
     @property
-    @lru_cache()
-    # @cached_property requires python 3.8
     def sdkconfig_files(self) -> t.List[str]:
         return [os.path.abspath(file) for file in self._sdkconfig_files]
 

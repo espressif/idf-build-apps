@@ -323,13 +323,13 @@ class BaseModel(_BaseModel):
     def __eq__(self, other: t.Any) -> bool:
         if isinstance(other, self.__class__):
             # we only care the public attributes
-            return self.__dict__ == other.__dict__
+            return self.model_dump() == other.model_dump()
 
         return NotImplemented
 
     def __hash__(self) -> int:
         hash_list = []
-        for v in self.__dict__.values():
+        for v in self.model_dump().values():
             if isinstance(v, list):
                 hash_list.append(tuple(v))
             elif isinstance(v, dict):
