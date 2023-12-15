@@ -426,8 +426,9 @@ def get_parser() -> argparse.ArgumentParser:
         '- @w: would be replaced by the wildcard, usually the sdkconfig\n'
         '- @n: would be replaced by the app name\n'
         '- @f: would be replaced by the escaped app path (replaced "/" to "_")\n'
-        '- @i: would be replaced by the build index\n'
-        '- @p: would be replaced by the parallel index',
+        '- @v: Would be replaced by the ESP-IDF version like `5_3_0`\n'
+        '- @i: would be replaced by the build index (only available in `build` command)\n'
+        '- @p: would be replaced by the parallel index (only available in `build` command)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     actions = parser.add_subparsers(dest='action')
