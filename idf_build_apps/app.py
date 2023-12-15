@@ -282,9 +282,10 @@ class App(BaseModel):
         return path
 
     @property
+    @lru_cache(1)
     def name(self) -> str:
         base_name = os.path.basename(self.app_dir)
-        if base_name == '.':
+        if base_name in ['.', '']:
             return os.path.basename(os.path.abspath(self.app_dir))
         return base_name
 

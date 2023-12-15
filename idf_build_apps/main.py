@@ -178,6 +178,7 @@ def find_apps(
 
     for target in targets:
         for path in to_list(paths):
+            path = path.strip()
             apps.extend(
                 _find_apps(
                     path,

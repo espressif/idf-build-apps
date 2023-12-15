@@ -192,6 +192,24 @@ class TestFindWithModifiedFilesComponents:
         else:
             assert not filtered_apps
 
+    @pytest.mark.parametrize('suffix', ['/', '/   '])
+    def test_app_name_is_not_null(self, tmp_path, suffix):
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world') + suffix
+        apps = find_apps(test_dir, 'esp32', recursive=True)
+        for app in apps:
+            assert app.name == 'hello_world'
+
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world') + suffix
+        apps = find_apps(test_dir, 'esp32', recursive=False)
+        for app in apps:
+            assert app.name == 'hello_world'
+
+        test_dir = os.path.join(IDF_PATH, 'examples', 'get-started') + suffix
+
+        apps = find_apps(test_dir, 'esp32', recursive=True)
+        for app in apps:
+            assert len(app.name.strip()) != 0
+
     @pytest.mark.parametrize(
         'modified_components, modified_files, could_find_apps',
         [
