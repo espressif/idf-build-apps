@@ -92,8 +92,8 @@ class App(BaseModel):
     WILDCARD_PLACEHOLDER: t.ClassVar[str] = '@w'  # replace it with the wildcard, usually the sdkconfig
     NAME_PLACEHOLDER: t.ClassVar[str] = '@n'  # replace it with self.name
     FULL_NAME_PLACEHOLDER: t.ClassVar[str] = '@f'  # replace it with escaped self.app_dir
-    INDEX_PLACEHOLDER: t.ClassVar[str] = '@i'  # replace it with the build index
     IDF_VERSION_PLACEHOLDER: t.ClassVar[str] = '@v'  # replace it with the IDF version
+    INDEX_PLACEHOLDER: t.ClassVar[str] = '@i'  # replace it with the build index (while build_apps)
 
     SDKCONFIG_LINE_REGEX: t.ClassVar[t.Pattern] = re.compile(r"^([^=]+)=\"?([^\"\n]*)\"?\n*$")
 

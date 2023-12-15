@@ -225,6 +225,7 @@ Placeholders are a set of symbols, which could be used when setting work directo
 - `@w`: Would be replaced by the wildcard if exists, otherwise would be replaced by the config name.
 - `@n`: Would be replaced by the project name.
 - `@f`: Would be replaced by the escaped project path (replaced "/" to "_").
+- `@v`: Would be replaced by the ESP-IDF version like `5_3_0`.
 - `@i`: Would be replaced by the build index. (only available in `build` command)
 - `@p`: Would be replaced by the parallel build index. (default to `1`, only available in `build` command)
 
