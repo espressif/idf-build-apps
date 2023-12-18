@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.0rc0 (2023-12-18)
+
+### Refactor
+
+- remove useless code
+
+### Perf
+
+- optimize pathlib and os call
+
 ## v2.0.0b5 (2023-12-13)
 
 ### Feat
