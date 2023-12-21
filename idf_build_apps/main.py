@@ -742,7 +742,7 @@ def main():
             os.makedirs(os.path.dirname(os.path.realpath(args.output)), exist_ok=True)
             with open(args.output, 'w') as fw:
                 for app in apps:
-                    fw.write(app.model_dump_json() + '\n')
+                    fw.write(app.to_json() + '\n')
         else:
             for app in apps:
                 print(app)

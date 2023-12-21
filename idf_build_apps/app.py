@@ -132,11 +132,15 @@ class App(BaseModel):
 
     # build status related
     build_status: BuildStatus = BuildStatus.UNKNOWN
+    build_comment: t.Optional[str] = None
 
-    _build_comment: t.Optional[str] = None
     _build_stage: t.Optional[BuildStage] = None
     _build_duration: float = 0
     _build_timestamp: t.Optional[datetime] = None
+
+    __EQ_IGNORE_FIELDS__ = [
+        'build_comment',
+    ]
 
     def __init__(
         self,
@@ -296,14 +300,6 @@ class App(BaseModel):
             return self.build_dir
 
         return os.path.join(self.work_dir, self.build_dir)
-
-    @property
-    def build_comment(self) -> str:
-        return self._build_comment or ''
-
-    @build_comment.setter
-    def build_comment(self, value: str) -> None:
-        self._build_comment = value
 
     @computed_field  # type: ignore
     @property

@@ -310,6 +310,8 @@ class BaseModel(_BaseModel):
     BaseModel that is hashable
     """
 
+    __EQ_IGNORE_FIELDS__: t.List[str] = []
+
     def __lt__(self, other: t.Any) -> bool:
         if isinstance(other, self.__class__):
             for k in self.model_dump():
@@ -323,7 +325,14 @@ class BaseModel(_BaseModel):
     def __eq__(self, other: t.Any) -> bool:
         if isinstance(other, self.__class__):
             # we only care the public attributes
-            return self.model_dump() == other.model_dump()
+            self_model_dump = self.model_dump()
+            other_model_dump = other.model_dump()
+
+            for _field in self.__EQ_IGNORE_FIELDS__:
+                self_model_dump.pop(_field, None)
+                other_model_dump.pop(_field, None)
+
+            return self_model_dump == other_model_dump
 
         return NotImplemented
 
