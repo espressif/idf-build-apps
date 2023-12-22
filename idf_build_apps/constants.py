@@ -24,9 +24,9 @@ if _BUILDING_DOCS:
 if _BUILDING_DOCS:
     _idf_env = tempfile.gettempdir()
 else:
-    _idf_env = os.getenv('IDF_PATH', '')
-if not os.path.isdir(_idf_env):
-    raise ValueError(f'Invalid value for IDF_PATH: {_idf_env}')
+    _idf_env = os.getenv('IDF_PATH') or ''
+    if not _idf_env:
+        raise SystemExit('environment variable IDF_PATH must be set')
 
 
 IDF_PATH = os.path.abspath(_idf_env)

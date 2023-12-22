@@ -132,11 +132,15 @@ class App(BaseModel):
 
     # build status related
     build_status: BuildStatus = BuildStatus.UNKNOWN
+    build_comment: t.Optional[str] = None
 
-    _build_comment: t.Optional[str] = None
     _build_stage: t.Optional[BuildStage] = None
     _build_duration: float = 0
     _build_timestamp: t.Optional[datetime] = None
+
+    __EQ_IGNORE_FIELDS__ = [
+        'build_comment',
+    ]
 
     def __init__(
         self,
@@ -297,14 +301,6 @@ class App(BaseModel):
 
         return os.path.join(self.work_dir, self.build_dir)
 
-    @property
-    def build_comment(self) -> str:
-        return self._build_comment or ''
-
-    @build_comment.setter
-    def build_comment(self, value: str) -> None:
-        self._build_comment = value
-
     @computed_field  # type: ignore
     @property
     def build_log_filename(self) -> t.Optional[str]:
@@ -340,17 +336,21 @@ class App(BaseModel):
         real_sdkconfig_files: t.List[str] = []
         sdkconfig_files_defined_target: t.Optional[str] = None
 
+        # put the expanded variable files in a temporary directory
+        # will remove if the content is the same as the original one
         expanded_dir = os.path.join(self.work_dir, 'expanded_sdkconfig_files', os.path.basename(self.build_dir))
         if not os.path.isdir(expanded_dir):
             os.makedirs(expanded_dir)
 
         for f in self.sdkconfig_defaults_candidates + ([self.sdkconfig_path] if self.sdkconfig_path else []):
-            if not os.path.isabs(f):
-                f = os.path.join(self.work_dir, f)
-
+            # use filepath if abs/rel already point to itself
             if not os.path.isfile(f):
-                self._logger.debug('sdkconfig file %s not exists, skipping...', f)
-                continue
+                # find it in the app_dir
+                self._logger.debug('sdkconfig file %s not found, checking under app_dir...', f)
+                f = os.path.join(self.app_dir, f)
+                if not os.path.isfile(f):
+                    self._logger.debug('sdkconfig file %s not found, skipping...', f)
+                    continue
 
             expanded_fp = os.path.join(expanded_dir, os.path.basename(f))
             with open(f) as fr:
