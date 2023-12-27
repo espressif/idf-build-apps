@@ -16,6 +16,20 @@ from .session_args import (
 
 SESSION_ARGS = SessionArgs()
 
+import pluggy
+
+from .plugin import (
+    IdfBuildAppsPlugin,
+    IdfBuildAppsSpec,
+    idf_build_apps_hookimpl,
+    idf_build_apps_hookspec,
+)
+
+IdfBuildApps = pluggy.PluginManager(__package__)
+IdfBuildApps.add_hookspecs(IdfBuildAppsSpec)
+IdfBuildApps.register(IdfBuildAppsPlugin())
+
+
 from .app import (
     App,
     AppDeserializer,
@@ -39,4 +53,7 @@ __all__ = [
     'build_apps',
     'setup_logging',
     'SESSION_ARGS',
+    'IdfBuildApps',
+    'idf_build_apps_hookspec',
+    'idf_build_apps_hookimpl',
 ]

@@ -47,3 +47,4 @@ repos:
           - types-PyYAML
           - types-toml
           - pytest
+          - pluggy
