@@ -21,7 +21,7 @@ from idf_build_apps.utils import (
 )
 
 
-def test_manifest(tmpdir, recwarn):
+def test_manifest(tmpdir, recwarn, monkeypatch):
     yaml_file = tmpdir / 'test.yml'
     yaml_file.write_text(
         """
@@ -54,9 +54,36 @@ test2:
     assert manifest.enable_build_targets('test2') == ['linux']
     assert manifest.enable_test_targets('test2') == ['linux']
 
-    Manifest.CHECK_MANIFEST_RULES = True
+    monkeypatch.setattr(idf_build_apps.manifest.manifest.Manifest, 'CHECK_MANIFEST_RULES', True)
     with pytest.raises(InvalidManifest, match=msg_fmt.format(os.path.join(tmpdir, 'test1'), yaml_file)):
         Manifest.from_file(yaml_file)
+
+
+def test_manifest_with_anchor(tmpdir, monkeypatch):
+    yaml_file = tmpdir / 'test.yml'
+    yaml_file.write_text(
+        """
+.base: &base
+  depends_components:
+    - a
+
+foo: &foo
+  <<: *base
+  disable:
+    - if: IDF_TARGET == "esp32"
+
+bar:
+  <<: *foo
+""",
+        encoding='utf8',
+    )
+
+    monkeypatch.setattr(idf_build_apps.manifest.manifest.FolderRule, 'DEFAULT_BUILD_TARGETS', ['esp32'])
+
+    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
+        manifest = Manifest.from_file(yaml_file)
+
+    assert manifest.enable_build_targets('bar') == []
 
 
 class TestIfParser:
