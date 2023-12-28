@@ -10,9 +10,6 @@ import shutil
 import sys
 import tempfile
 import typing as t
-from copy import (
-    deepcopy,
-)
 from datetime import (
     datetime,
 )
@@ -905,21 +902,20 @@ class CMakeApp(App):
             return
 
         # idf.py build
-        build_args = deepcopy(common_args)
         if self.cmake_vars:
             for key, val in self.cmake_vars.items():
-                build_args.append(f'-D{key}={val}')
+                common_args.append(f'-D{key}={val}')
             if 'TEST_EXCLUDE_COMPONENTS' in self.cmake_vars and 'TEST_COMPONENTS' not in self.cmake_vars:
-                build_args.append('-DTESTS_ALL=1')
+                common_args.append('-DTESTS_ALL=1')
             if 'CONFIG_APP_BUILD_BOOTLOADER' in self.cmake_vars:
                 # In case if secure_boot is enabled then for bootloader build need to add `bootloader` cmd
-                build_args.append('bootloader')
-        build_args.append('build')
+                common_args.append('bootloader')
+        common_args.append('build')
         if self.verbose:
-            build_args.append('-v')
+            common_args.append('-v')
 
         subprocess_run(
-            build_args,
+            common_args,
             log_terminal=False if self.build_log_path else True,
             log_fs=logfile,
             check=True,
