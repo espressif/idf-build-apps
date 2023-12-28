@@ -59,15 +59,17 @@ class FolderRule:
     ):  # type: (...) -> None
         self.folder = folder.resolve()
 
-        for group in [enable, disable, disable_test]:
-            if group:
-                for d in group:
-                    d['stmt'] = d['if']  # avoid keyword `if`
-                    del d['if']
+        def _clause_to_if_clause(clause):  # type: (dict[str, str]) -> IfClause
+            _kwargs = {'stmt': clause['if']}
+            if 'temporary' in clause:
+                _kwargs['temporary'] = clause['temporary']
+            if 'reason' in clause:
+                _kwargs['reason'] = clause['reason']
+            return IfClause(**_kwargs)
 
-        self.enable = [IfClause(**clause) for clause in enable] if enable else []
-        self.disable = [IfClause(**clause) for clause in disable] if disable else []
-        self.disable_test = [IfClause(**clause) for clause in disable_test] if disable_test else []
+        self.enable = [_clause_to_if_clause(clause) for clause in enable] if enable else []
+        self.disable = [_clause_to_if_clause(clause) for clause in disable] if disable else []
+        self.disable_test = [_clause_to_if_clause(clause) for clause in disable_test] if disable_test else []
         self.depends_components = depends_components or []
         self.depends_filepatterns = depends_filepatterns or []
 
