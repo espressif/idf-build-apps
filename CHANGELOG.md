@@ -106,6 +106,12 @@ All notable changes to this project will be documented in this file.
 - migrate `App` class to pydantic model
 - update dependencies and do code upgrade to python 3.7
 
+## v1.1.4 (2023-12-29)
+
+### Fix
+
+- stop modifying yaml dict shared by yaml anchors
+
 ## v1.1.3 (2023-11-13)
 
 ### Fix
