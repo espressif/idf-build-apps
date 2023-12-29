@@ -44,6 +44,30 @@ test2:
     assert manifest.enable_test_targets('test2') == ['linux']
 
 
+def test_manifest_with_anchor(tmpdir, monkeypatch):
+    yaml_file = tmpdir / 'test.yml'
+    yaml_file.write_text(
+        """
+.base: &base
+  depends_components:
+    - a
+
+foo: &foo
+  <<: *base
+  disable:
+    - if: IDF_TARGET == "esp32"
+
+bar:
+  <<: *foo
+""",
+        encoding='utf8',
+    )
+
+    monkeypatch.setattr(idf_build_apps.manifest.manifest.FolderRule, 'DEFAULT_BUILD_TARGETS', ['esp32'])
+    manifest = Manifest.from_file(yaml_file)
+    assert manifest.enable_build_targets('bar') == []
+
+
 class TestIfParser:
     def test_idf_version(self, monkeypatch):
         monkeypatch.setattr(idf_build_apps.manifest.if_parser, 'IDF_VERSION', Version('5.9.0'))
