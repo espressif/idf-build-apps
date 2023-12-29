@@ -296,17 +296,22 @@ class App(object):
         """
         res = []
 
+        # put the expanded variable files in a temporary directory
+        # will remove if the content is the same as the original one
         expanded_dir = os.path.join(self.work_dir, 'expanded_sdkconfig_files', os.path.basename(self.build_dir))
         if not os.path.isdir(expanded_dir):
             os.makedirs(expanded_dir)
 
         for f in self._sdkconfig_defaults + ([self.sdkconfig_path] if self.sdkconfig_path else []):
-            if not os.path.isabs(f):
-                f = os.path.join(self.work_dir, f)
-
+            # use filepath if abs/rel already point to itself
             if not os.path.isfile(f):
-                LOGGER.debug('=> sdkconfig file %s not exists, skipping...', f)
-                continue
+                # find it in the app_dir
+                LOGGER.debug('sdkconfig file %s not found, checking under app_dir...', f)
+                f = os.path.join(self.app_dir, f)
+
+                if not os.path.isfile(f):
+                    LOGGER.debug('=> sdkconfig file %s not exists, skipping...', f)
+                    continue
 
             expanded_fp = os.path.join(expanded_dir, os.path.basename(f))
             with open(f) as fr:
