@@ -1,5 +1,7 @@
-# SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+
+import pytest
 
 from idf_build_apps import (
     AppDeserializer,
@@ -32,3 +34,23 @@ def test_deserialization(tmp_path):
 
     assert a == a_s
     assert b == b_s
+
+
+def test_app_sorting():
+    a = CMakeApp('foo', 'esp32')
+    b = MakeApp('foo', 'esp32')
+
+    c = CMakeApp('foo', 'esp32', size_json_filename='size.json')
+    d = CMakeApp('foo', 'esp32s2')
+    e = CMakeApp('foo', 'esp32s2', build_comment='build_comment')
+
+    with pytest.raises(TypeError, match="'<' not supported between instances of 'CMakeApp' and 'MakeApp'"):
+        assert a < b
+
+    assert a < c < d
+    assert d > c > a
+
+    # __EQ_IGNORE_FIELDS__
+    assert d == e
+    assert not d < e
+    assert not d > e

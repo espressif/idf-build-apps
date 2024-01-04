@@ -1,7 +1,8 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import fnmatch
+import functools
 import glob
 import logging
 import os
@@ -305,6 +306,7 @@ def files_matches_patterns(
     return False
 
 
+@functools.total_ordering
 class BaseModel(_BaseModel):
     """
     BaseModel that is hashable
@@ -315,10 +317,18 @@ class BaseModel(_BaseModel):
     def __lt__(self, other: t.Any) -> bool:
         if isinstance(other, self.__class__):
             for k in self.model_dump():
-                if getattr(self, k) != getattr(other, k):
-                    return getattr(self, k) < getattr(other, k)
-                else:
+                if k in self.__EQ_IGNORE_FIELDS__:
                     continue
+
+                self_attr = getattr(self, k, '') or ''
+                other_attr = getattr(other, k, '') or ''
+
+                if self_attr != other_attr:
+                    return self_attr < other_attr
+
+                continue
+
+            return False
 
         return NotImplemented
 
