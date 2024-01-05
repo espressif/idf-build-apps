@@ -28,7 +28,7 @@ jobs:
           pip install flit
           flit build
       - name: Upload built python packages
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheel
           path: dist/idf_build_apps-*.whl
