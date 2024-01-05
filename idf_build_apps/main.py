@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -293,7 +293,6 @@ def build_apps(
         if f and os.path.isfile(f):
             os.remove(f)
             LOGGER.debug('Remove existing collect file %s', f)
-            os.mknod(f)
 
     exit_code = 0
     for i, app in enumerate(apps):
