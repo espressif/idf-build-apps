@@ -17,5 +17,6 @@ Welcome to idf-build-apps's documentation!
    config_file
    cli
    api/modules
+   migration/1.x_to_2.x
    CHANGELOG
    CONTRIBUTING
