@@ -135,7 +135,7 @@ def find_first_match(pattern: str, path: str) -> t.Optional[str]:
 def subprocess_run(
     cmd: t.List[str],
     log_terminal: bool = True,
-    log_fs: t.Optional[t.IO[str]] = None,
+    log_fs: t.Union[t.IO[str], str, None] = None,
     check: bool = False,
     additional_env_dict: t.Optional[t.Dict[str, str]] = None,
     **kwargs,
@@ -158,16 +158,26 @@ def subprocess_run(
         subprocess_env.update(additional_env_dict)
 
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=subprocess_env, **kwargs)
+
+    def _log_stdout(fs: t.Optional[t.IO[str]] = None):
+        if p.stdout:
+            for line in p.stdout:
+                if isinstance(line, bytes):
+                    line = line.decode('utf-8')
+
+                if log_terminal:
+                    sys.stdout.write(line)
+
+                if fs:
+                    fs.write(line)
+
     if p.stdout:
-        for line in p.stdout:
-            if isinstance(line, bytes):
-                line = line.decode('utf-8')
-
-            if log_terminal:
-                sys.stdout.write(line)
-
-            if log_fs:
-                log_fs.write(line)
+        if log_fs:
+            if isinstance(log_fs, str):
+                with open(log_fs, 'a') as fa:
+                    _log_stdout(fa)
+            else:
+                _log_stdout(log_fs)
 
     returncode = p.wait()
     if check and returncode != 0:

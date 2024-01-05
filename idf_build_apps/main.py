@@ -299,7 +299,6 @@ def build_apps(
         if f and os.path.isfile(f):
             os.remove(f)
             LOGGER.debug('Remove existing collect file %s', f)
-            os.mknod(f)
 
     exit_code = 0
     for i, app in enumerate(apps):
