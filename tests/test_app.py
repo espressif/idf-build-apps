@@ -1,13 +1,30 @@
 # SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 import pytest
+from pydantic import (
+    ValidationError,
+)
 
 from idf_build_apps import (
     AppDeserializer,
     CMakeApp,
     MakeApp,
 )
+from idf_build_apps.main import (
+    json_to_app,
+)
+
+if sys.version_info < (3, 8):
+    from typing_extensions import (
+        Literal,
+    )
+else:
+    from typing import (
+        Literal,
+    )
 
 
 def test_serialization():
@@ -54,3 +71,25 @@ def test_app_sorting():
     assert d == e
     assert not d < e
     assert not d > e
+
+
+def test_app_deserializer():
+    a = CMakeApp('foo', 'esp32')
+    b = MakeApp('foo', 'esp32')
+
+    class CustomApp(CMakeApp):
+        build_system: Literal['custom'] = 'custom'  # type: ignore
+
+    c = CustomApp('foo', 'esp32')
+
+    assert json_to_app(a.to_json()) == a
+    assert json_to_app(b.to_json()) == b
+
+    with pytest.raises(
+        ValidationError,
+        match="Input tag 'custom' found using 'build_system' does not match "
+        "any of the expected tags: 'unknown', 'cmake', 'make'",
+    ):
+        assert json_to_app(c.to_json()) == c
+
+    assert json_to_app(c.to_json(), extra_classes=[CustomApp]) == c

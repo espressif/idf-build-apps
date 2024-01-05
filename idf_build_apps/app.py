@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
@@ -25,10 +25,9 @@ from pydantic import (
     computed_field,
 )
 
-from idf_build_apps import (
+from . import (
     SESSION_ARGS,
 )
-
 from .build_apps_args import (
     BuildAppsArgs,
 )
