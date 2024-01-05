@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
@@ -8,7 +8,6 @@ import os
 import re
 import shutil
 import sys
-import tempfile
 import typing as t
 from datetime import (
     datetime,
@@ -165,6 +164,7 @@ class App(BaseModel):
 
         self._build_log_filename = build_log_filename
         self._size_json_filename = size_json_filename
+        self._is_build_log_path_temp = not bool(build_log_filename)
 
         # pass all parameters to initialize hook method
         kwargs.update(
@@ -304,11 +304,12 @@ class App(BaseModel):
         return self._expand(self._build_log_filename)
 
     @property
-    def build_log_path(self) -> t.Optional[str]:
+    def build_log_path(self) -> str:
         if self.build_log_filename:
             return os.path.join(self.build_path, self.build_log_filename)
 
-        return None
+        # use a temp file if build log path is not specified
+        return os.path.join(self.build_path, f'.temp.build.{hash(self)}.log')
 
     @computed_field  # type: ignore
     @property
@@ -466,14 +467,7 @@ class App(BaseModel):
 
         return wrapper
 
-    @record_build_duration  # type: ignore
-    def build(
-        self,
-        manifest_rootpath: t.Optional[str] = None,
-        modified_components: t.Union[t.List[str], str, None] = None,
-        modified_files: t.Union[t.List[str], str, None] = None,
-        check_app_dependencies: bool = False,
-    ) -> None:
+    def _pre_build(self) -> None:
         if self.dry_run:
             self._build_stage = BuildStage.DRY_RUN
         else:
@@ -515,26 +509,32 @@ class App(BaseModel):
             if not self.dry_run:
                 os.unlink(sdkconfig_file)
 
-        if self.build_log_path:
-            self._logger.info('Writing build log to %s', self.build_log_path)
+        if os.path.isfile(self.build_log_path):
+            self._logger.debug('Removed existing build log file: %s', self.build_log_path)
+            if not self.dry_run:
+                os.unlink(self.build_log_path)
+        elif not self.dry_run:
+            os.makedirs(os.path.dirname(self.build_log_path), exist_ok=True)
+        self._logger.info('Writing build log to %s', self.build_log_path)
 
         if self.dry_run:
             self.build_status = BuildStatus.SKIPPED
             self.build_comment = 'dry run'
             return
 
-        if self.build_log_path:
-            logfile: t.IO[str] = open(self.build_log_path, 'w')
-            keep_logfile = True
-        else:
-            # delete manually later, used for tracking debugging info
-            logfile = tempfile.NamedTemporaryFile('w', delete=False)
-            keep_logfile = False
+    @record_build_duration  # type: ignore
+    def build(
+        self,
+        *,
+        manifest_rootpath: t.Optional[str] = None,
+        modified_components: t.Union[t.List[str], str, None] = None,
+        modified_files: t.Union[t.List[str], str, None] = None,
+        check_app_dependencies: bool = False,
+    ) -> None:
+        self._pre_build()
 
-        self._build_stage = BuildStage.BUILD
         try:
             self._build(
-                logfile=logfile,
                 manifest_rootpath=manifest_rootpath,
                 modified_components=to_list(modified_components),
                 modified_files=to_list(modified_files),
@@ -543,12 +543,17 @@ class App(BaseModel):
         except BuildError as e:
             self.build_status = BuildStatus.FAILED
             self.build_comment = str(e)
-        finally:
-            logfile.close()
 
+        self._post_build()
+
+    def _post_build(self) -> None:
         self._build_stage = BuildStage.POST_BUILD
+
+        if not os.path.isfile(self.build_log_path):
+            return
+
         has_unignored_warning = False
-        with open(logfile.name) as fr:
+        with open(self.build_log_path) as fr:
             lines = [line.rstrip() for line in fr.readlines() if line.rstrip()]
             for line in lines:
                 is_error_or_warning, ignored = self.is_error_or_warning(line)
@@ -564,15 +569,14 @@ class App(BaseModel):
             self._logger.error(
                 'Last %s lines from the build log "%s":',
                 self.LOG_DEBUG_LINES,
-                logfile.name,
+                self.build_log_path,
             )
             for line in lines[-self.LOG_DEBUG_LINES :]:
                 self._logger.error('%s', line)
 
-        # remove the log file if not specified and build succeeded
-        if not keep_logfile and self.build_status == BuildStatus.SUCCESS:
-            os.unlink(logfile.name)
-            self._logger.debug('Removed temporary build log file: %s', logfile.name)
+        if self._is_build_log_path_temp and self.build_status == BuildStatus.SUCCESS:
+            os.unlink(self.build_log_path)
+            self._logger.debug('Removed success build temporary log file: %s', self.build_log_path)
 
         # Generate Size Files
         if self.build_status == BuildStatus.SUCCESS:
@@ -583,8 +587,7 @@ class App(BaseModel):
             exclude_list = []
             if self.size_json_path:
                 exclude_list.append(os.path.basename(self.size_json_path))
-            if self.build_log_path:
-                exclude_list.append(os.path.basename(self.build_log_path))
+            exclude_list.append(os.path.basename(self.build_log_path))
 
             rmdir(
                 self.build_path,
@@ -601,13 +604,13 @@ class App(BaseModel):
 
     def _build(
         self,
-        logfile: t.IO[str],
+        *,
         manifest_rootpath: t.Optional[str] = None,
         modified_components: t.Optional[t.List[str]] = None,
         modified_files: t.Optional[t.List[str]] = None,
         check_app_dependencies: bool = False,
     ) -> None:
-        pass
+        self._build_stage = BuildStage.BUILD
 
     def _write_size_json(self) -> None:
         if not self.size_json_path:
@@ -776,12 +779,19 @@ class MakeApp(App):
 
     def _build(
         self,
-        logfile: t.IO[str],
+        *,
         manifest_rootpath: t.Optional[str] = None,
         modified_components: t.Optional[t.List[str]] = None,
         modified_files: t.Optional[t.List[str]] = None,
         check_app_dependencies: bool = False,
     ) -> None:
+        super()._build(
+            manifest_rootpath=manifest_rootpath,
+            modified_components=modified_components,
+            modified_files=modified_files,
+            check_app_dependencies=check_app_dependencies,
+        )
+
         # additional env variables
         additional_env_dict = {
             'IDF_TARGET': self.target,
@@ -798,8 +808,8 @@ class MakeApp(App):
         for cmd in commands:
             subprocess_run(
                 cmd,
-                log_terminal=False if self.build_log_path else True,
-                log_fs=logfile,
+                log_terminal=self._is_build_log_path_temp,
+                log_fs=self.build_log_path,
                 check=True,
                 additional_env_dict=additional_env_dict,
                 cwd=self.work_dir,
@@ -843,12 +853,19 @@ class CMakeApp(App):
 
     def _build(
         self,
-        logfile: t.IO[str],
+        *,
         manifest_rootpath: t.Optional[str] = None,
         modified_components: t.Optional[t.List[str]] = None,
         modified_files: t.Optional[t.List[str]] = None,
         check_app_dependencies: bool = False,
     ) -> None:
+        super()._build(
+            manifest_rootpath=manifest_rootpath,
+            modified_components=modified_components,
+            modified_files=modified_files,
+            check_app_dependencies=check_app_dependencies,
+        )
+
         if not self._checked_should_build:
             self._check_should_build(
                 manifest_rootpath=manifest_rootpath,
@@ -880,8 +897,8 @@ class CMakeApp(App):
         if modified_components is not None and check_app_dependencies and self.build_status == BuildStatus.UNKNOWN:
             subprocess_run(
                 common_args + ['reconfigure'],
-                log_terminal=False if self.build_log_path else True,
-                log_fs=logfile,
+                log_terminal=self._is_build_log_path_temp,
+                log_fs=self.build_log_path,
                 check=True,
                 additional_env_dict=additional_env_dict,
             )
@@ -916,8 +933,8 @@ class CMakeApp(App):
 
         subprocess_run(
             common_args,
-            log_terminal=False if self.build_log_path else True,
-            log_fs=logfile,
+            log_terminal=self._is_build_log_path_temp,
+            log_fs=self.build_log_path,
             check=True,
             additional_env_dict=additional_env_dict,
         )
