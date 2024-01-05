@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -11,11 +11,17 @@ import sys
 import textwrap
 import typing as t
 
+from pydantic import (
+    Field,
+    create_model,
+)
+
 from . import (
     SESSION_ARGS,
 )
 from .app import (
     App,
+    AppDeserializer,
     CMakeApp,
     MakeApp,
 )
@@ -791,3 +797,37 @@ def main():
             print(f'  {app}')
 
     sys.exit(res)
+
+
+def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = None) -> App:
+    """
+    Deserialize json string to App object
+
+    .. note::
+
+        You can pass extra_cls to support custom App class. A custom App class must be a subclass of App, and have a
+        different value of `build_system`. For example, a custom CMake app
+
+        >>> class CustomApp(CMakeApp):
+        >>>    build_system: Literal['custom_cmake'] = 'custom_cmake'
+
+        Then you can pass the CustomApp class to the `extra_cls` argument
+
+        >>> json_str = CustomApp('.', 'esp32').to_json()
+        >>> json_to_app(json_str, extra_classes=[CustomApp])
+
+    :param json_str: json string
+    :param extra_classes: extra App class
+    :return: App object
+    """
+    types = [App, CMakeApp, MakeApp]
+    if extra_classes:
+        types.extend(extra_classes)
+
+    custom_deserializer = create_model(
+        '_CustomDeserializer',
+        app=(t.Union[tuple(types)], Field(discriminator='build_system')),
+        __base__=AppDeserializer,
+    )
+
+    return custom_deserializer.from_json(json_str)

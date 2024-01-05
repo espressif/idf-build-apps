@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -28,6 +28,7 @@ from .log import (
 from .main import (
     build_apps,
     find_apps,
+    json_to_app,
 )
 
 __all__ = [
@@ -37,6 +38,6 @@ __all__ = [
     'MakeApp',
     'find_apps',
     'build_apps',
+    'json_to_app',
     'setup_logging',
-    'SESSION_ARGS',
 ]
