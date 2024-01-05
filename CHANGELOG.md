@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.0rc1 (2024-01-05)
+
+### BREAKING CHANGE
+
+-  - Turn `app.build()` arguments to kwargs
+
+### Feat
+
+- support custom `_pre_build`, `_post_build` in App instances
+- add `json_to_app` method with support custom classes
+
+### Fix
+
+- remove os-specific `os.mknod`
+- sort App instance correctly
+- modify yaml dict shared by yaml anchors
+- make build_comment a `dump_only` field
+- improve error message when env var IDF_PATH not set
+- search sdkconfig path
+
 ## v2.0.0rc0 (2023-12-18)
 
 ### Refactor
