@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
+import copy
 import functools
 import json
 import logging
@@ -108,6 +109,8 @@ class App(BaseModel):
     sdkconfig_path: t.Optional[str] = None
     config_name: t.Optional[str] = None
     sdkconfig_defaults_str: t.Optional[str] = None
+    # all parameters
+    _kwargs: t.Dict[str, t.Any]
 
     # Attrs that support placeholders
     _work_dir: t.Optional[str] = None
@@ -174,6 +177,7 @@ class App(BaseModel):
                 'size_json_filename': size_json_filename,
             }
         )
+        self._kwargs = kwargs
         self._initialize_hook(**kwargs)
 
         # private attrs, won't be dumped to json
@@ -183,6 +187,16 @@ class App(BaseModel):
         self._logger.addFilter(_AppBuildStageFilter(app=self))
 
         self._sdkconfig_files, self._sdkconfig_files_defined_target = self._process_sdkconfig_files()
+
+    @classmethod
+    def from_another(cls, other: 'App', **kwargs) -> 'App':
+        """Init New App from another, with different parameters.
+
+        eg: new_app = [Cmake]App.from_another(app, config='debug')
+        """
+        new_kwargs = copy.deepcopy(other._kwargs)
+        new_kwargs.update(kwargs)
+        return cls(**new_kwargs)
 
     def _initialize_hook(self, **kwargs):
         """

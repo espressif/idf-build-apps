@@ -93,3 +93,14 @@ def test_app_deserializer():
         assert json_to_app(c.to_json()) == c
 
     assert json_to_app(c.to_json(), extra_classes=[CustomApp]) == c
+
+
+def test_app_init_from_another():
+    a = CMakeApp('foo', 'esp32', build_dir='build_@t_')
+    b = CMakeApp.from_another(a, target='esp32c3')
+
+    assert isinstance(b, CMakeApp)
+    assert a.target == 'esp32'
+    assert b.target == 'esp32c3'
+    assert 'build_esp32_' == a.build_dir
+    assert 'build_esp32c3_' == b.build_dir
