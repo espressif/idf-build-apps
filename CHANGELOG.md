@@ -2,86 +2,53 @@
 
 All notable changes to this project will be documented in this file.
 
-## v2.0.0rc1 (2024-01-05)
-
-### BREAKING CHANGE
-
--  - Turn `app.build()` arguments to kwargs
+## v2.0.0 (2024-01-11)
 
 ### Feat
 
+- check if the folders listed in the manifest rules exist or not
+- record build status in `App` instance
+- support build with `make`
+- support `--junitxml` option to generate junitxml report for `build`
+- add `AppDeserializer` for differentiating `CMakeApp` and `MakeApp` while deserializing
+- add param `check_app_dependencies` in `build_apps` function
+- add param `include_skipped_apps` in `find_apps` function
+- `find_apps` support custom app class for param `build_system`
+- record should_be_built reason when checking app dependencies
+- support override sdkconfig CLI Options `--override-sdkconfig-items` and `--override-sdkconfig-files`
 - support custom `_pre_build`, `_post_build` in App instances
 - add `json_to_app` method with support custom classes
+- support `init_from_another` function in App instances
 
 ### Fix
 
-- remove os-specific `os.mknod`
-- sort App instance correctly
-- modify yaml dict shared by yaml anchors
-- make build_comment a `dump_only` field
-- improve error message when env var IDF_PATH not set
-- search sdkconfig path
+- prioritize special rules defined in manifest files
+- manifest folder rule starts with a `.` will be skipped checking existence
+- log format more visible, from `BUILD_STAGE|` to `[BUILD_STAGE]`
+- `app.size_json_path` always returns None for linux target apps
+- `app.build_path` returns full path when `build_dir` is a full path, returns relative path otherwise. Before this change, it always returns full path.
+- skip build while `find_apps` if `modified_components` is an empty list
+- improve error message when env var `IDF_PATH` not set
+- correct the search sdkconfig path function
+- Turn `app.build()` arguments to kwargs
 
-## v2.0.0rc0 (2023-12-18)
+### Changes
 
-### Refactor
-
-- remove useless code
+- improve logging output. Differentiate print and logging better. print only when calling this tool via the CLI, not when using as a library
 
 ### Perf
 
-- optimize pathlib and os call
-
-## v2.0.0b5 (2023-12-13)
-
-### Feat
-
-- record should_be_built reason when checking app dependencies
-- support override sdkconfig CLI Options
-
-### Fix
-
-- print in the main.py instead of the functions
-- improve logging output. Differentiate print and logging.info
+- refactor `pathlib` calls to `os.path`, to speed up the function calls
 
 ### BREAKING CHANGES
 
-- remove LOGGER from idf_build_apps, use logging.getLogger('idf_build_apps') instead
-- rename build_job.py to build_apps_args, BuildAppJob to BuildAppsArgs
+2.x introduces a lot of breaking changes. For a detailed migration guide, please refer to our [Migration From 1.x to 2.x Guide](https://github.com/espressif/idf-build-apps/blob/main/docs/migration/1.x_to_2.x.md)
 
-## v2.0.0b4 (2023-11-27)
+Here are the breaking changes:
 
-### Feat
-
-- add option `include_skipped_apps` in the `find_apps` process
-- `find_apps` support custom app class for param `build_system`
-
-### Fix
-
-- stop recursively copy when work dir in app dir
-
-## v2.0.0b3 (2023-10-26)
-
-### Fix
-
-- skip build while `find_apps` if `modified_components` is an empty list
-
-## v2.0.0b2 (2023-10-25)
-
-### Feat
-
-- add param `check_app_dependencies` in `build_apps` function
-- add `AppDeserializer` for differentiating `CMakeApp` and `MakeApp` while deserializing
-- import `MakeApp` easier
-
-### Fix
-
-- `app.build_path` return not only full path
-- `app.size_json_path` always returns None for linux target apps
-- keep attr `config` for class `App` for backward compatibility
-
-### BREAKING CHANGES
-
+- make `find_apps`, `build_apps`, keyword-only for most of the params
+- migrate `App` class to pydantic model
+- update dependencies and do code upgrade to python 3.7
 - correct `find_apps`, `build_apps` function params. These files would be generated under the build directory.
   - `build_log_path` -> `build_log_filename`
   - `size_json_path` -> `size_json_filename`
@@ -89,42 +56,9 @@ All notable changes to this project will be documented in this file.
   - `--modified-components`
   - `--modified-files`
   - `--ignore-app-dependencies-filepatterns`
-
-## v2.0.0b1 (2023-09-29)
-
-### Feat
-
-- record size_json into junitxml if exists
-- Support placeholder `@p` in junitxml
 - make `App` init function keyword-only for most of the params
-
-### Fix
-
-- escape string in junitxml
-- manifest folder rule starts with a `.` will be skipped checking existence
-- log format more visible, from `BUILD_STAGE|` to `[BUILD_STAGE]`
-
-### Refactor
-
-- move common magic methods into a new BaseModel class
-
-## v2.0.0b0 (2023-09-29)
-
-### Feat
-
-- check if the folders listed in the manifest rules exist or not
-- record build status in `App` instance
-- support build with `make`
-
-### Fix
-
-- prioritize special rules defined in manifest files
-
-### BREAKING CHANGES
-
-- make `find_apps`, `build_apps`, keyword-only for most of the params
-- migrate `App` class to pydantic model
-- update dependencies and do code upgrade to python 3.7
+- remove `LOGGER` from `idf_build_apps`, use `logging.getLogger('idf_build_apps')` instead
+- rename `build_job.py` to `build_apps_args.py`, `BuildAppJob` to `BuildAppsArgs`
 
 ## v1.1.4 (2023-12-29)
 
