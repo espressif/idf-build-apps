@@ -728,7 +728,8 @@ class App(BaseModel):
             self._checked_should_build = True
             return
 
-        if modified_components == []:  # noqa # it's different from `not modified_components`
+        # if didn't modify any components, and no `depends_filepatterns` defined, skip
+        if modified_components == [] and not self.depends_filepatterns:
             self.build_status = BuildStatus.SKIPPED
             self.build_comment = 'current build does not modify any components'
             self._checked_should_build = True

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -280,6 +280,40 @@ class TestFindWithModifiedFilesComponents:
             assert {app.app_dir for app in filtered_apps}
         else:
             assert not filtered_apps
+
+    @pytest.mark.parametrize(
+        'modified_files',
+        [
+            'examples/wifi/getting_started/softAP/main/softap_example_main.c',
+            'examples/wifi/getting_started/station/main/station_example_main.c',
+        ],
+    )
+    def test_depends_filepatterns_only_on_parent_dir(self, tmp_path, modified_files):
+        test_dir = os.path.join(IDF_PATH, 'examples', 'wifi', 'getting_started')
+
+        apps = find_apps(test_dir, 'esp32', recursive=True)
+        assert apps
+
+        yaml_file = tmp_path / 'test.yml'
+        with open(yaml_file, 'w') as fw:
+            fw.write(
+                '''
+examples/wifi/getting_started:
+    depends_filepatterns:
+        - examples/wifi/getting_started/**/*
+''',
+            )
+
+        filtered_apps = find_apps(
+            test_dir,
+            'esp32',
+            recursive=True,
+            modified_components=[],
+            modified_files=[modified_files],
+            manifest_rootpath=IDF_PATH,
+            manifest_files=[yaml_file],
+        )
+        assert len(filtered_apps) == len(apps)
 
     @pytest.mark.parametrize(
         'modified_files, could_find_apps',
