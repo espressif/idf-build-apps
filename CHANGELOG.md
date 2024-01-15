@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.1 (2024-01-15)
+
+### Fix
+
+- wrongly skipped the build when `depends_filepatterns` matched but no component modified
+
 ## v2.0.0 (2024-01-11)
 
 ### Feat
