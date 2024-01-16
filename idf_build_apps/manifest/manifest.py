@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -161,6 +161,29 @@ class Manifest:
         rules: t.Iterable[FolderRule],
     ) -> None:
         self.rules = sorted(rules, key=lambda x: x.folder)
+
+    @classmethod
+    def from_files(cls, paths: t.List[str]) -> 'Manifest':
+        # folder, defined_at dict
+        _known_folders: t.Dict[str, str] = dict()
+
+        rules: t.List[FolderRule] = []
+        for path in paths:
+            _manifest = cls.from_file(path)
+
+            for rule in _manifest.rules:
+                if rule.folder in _known_folders:
+                    msg = f'Folder "{rule.folder}" is already defined in {_known_folders[rule.folder]}'
+                    if cls.CHECK_MANIFEST_RULES:
+                        raise InvalidManifest(msg)
+                    else:
+                        warnings.warn(msg)
+
+                _known_folders[rule.folder] = path
+
+            rules.extend(_manifest.rules)
+
+        return Manifest(rules)
 
     @classmethod
     def from_file(cls, path: str) -> 'Manifest':
