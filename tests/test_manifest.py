@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -84,6 +84,39 @@ bar:
         manifest = Manifest.from_file(yaml_file)
 
     assert manifest.enable_build_targets('bar') == []
+
+
+def test_from_files_duplicates(tmp_path, monkeypatch):
+    yaml_file_1 = tmp_path / 'test1.yml'
+    yaml_file_1.write_text(
+        """
+foo:
+  enable:
+    - if: IDF_TARGET == "esp32"
+""",
+        encoding='utf8',
+    )
+
+    yaml_file_2 = tmp_path / 'test2.yml'
+    yaml_file_2.write_text(
+        """
+foo:
+    enable:
+        - if: IDF_TARGET == "esp32"
+""",
+        encoding='utf8',
+    )
+
+    monkeypatch.setattr(idf_build_apps.manifest.manifest.Manifest, 'CHECK_MANIFEST_RULES', True)
+    folder_path = os.path.join(os.getcwd(), 'foo')
+    os.makedirs(folder_path)
+
+    with pytest.raises(InvalidManifest, match=f'Folder "{folder_path}" is already defined in {str(yaml_file_1)}'):
+        Manifest.from_files([str(yaml_file_1), str(yaml_file_2)])
+
+    monkeypatch.setattr(idf_build_apps.manifest.manifest.Manifest, 'CHECK_MANIFEST_RULES', False)
+    with pytest.warns(UserWarning, match=f'Folder "{folder_path}" is already defined in {str(yaml_file_1)}'):
+        Manifest.from_files([str(yaml_file_1), str(yaml_file_2)])
 
 
 class TestIfParser:

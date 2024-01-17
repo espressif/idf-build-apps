@@ -164,12 +164,7 @@ def find_apps(
     Manifest.CHECK_MANIFEST_RULES = check_manifest_rules
 
     if manifest_files:
-        rules = set()
-        for _manifest_file in to_list(manifest_files):
-            LOGGER.debug('Loading manifest file: %s', _manifest_file)
-            rules.update(Manifest.from_file(_manifest_file).rules)
-        manifest = Manifest(rules)
-        App.MANIFEST = manifest
+        App.MANIFEST = Manifest.from_files(to_list(manifest_files))
 
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
