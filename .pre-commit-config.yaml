@@ -46,4 +46,4 @@ repos:
           - pyparsing
           - types-PyYAML
           - types-toml
-          - pytest
+          - pytest<8  # 8.0.0 does not support python 3.7
