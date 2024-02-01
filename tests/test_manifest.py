@@ -98,6 +98,16 @@ bar:
 
 def test_manifest_with_anchor_and_postfix(tmpdir, monkeypatch):
     yaml_file = tmpdir / 'test.yml'
+
+    yaml_file.write_text(
+        """
+foo:
+""",
+        encoding='utf8',
+    )
+    manifest = Manifest.from_file(yaml_file)
+    assert manifest.enable_build_targets('foo') == sorted(SUPPORTED_TARGETS)
+
     yaml_file.write_text(
         """
 .base_depends_components: &base-depends-components
