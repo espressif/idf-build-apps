@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.1.0 (2024-02-01)
+
+### Feat
+
+- support postfixes to reuse arrays
+
+### Fix
+
+- wrongly applied to rules which is defined not in parent dir
+- same manifest folder rules shouldn't be declared multi times
+
 ## v2.0.1 (2024-01-15)
 
 ### Fix
