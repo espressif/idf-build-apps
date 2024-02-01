@@ -9,7 +9,10 @@ from packaging.version import (
     Version,
 )
 
-import idf_build_apps.constants
+import idf_build_apps
+from idf_build_apps.constants import (
+    SUPPORTED_TARGETS,
+)
 from idf_build_apps.manifest.if_parser import (
     BOOL_STMT,
 )
@@ -57,6 +60,9 @@ test2:
     monkeypatch.setattr(idf_build_apps.manifest.manifest.Manifest, 'CHECK_MANIFEST_RULES', True)
     with pytest.raises(InvalidManifest, match=msg_fmt.format(os.path.join(tmpdir, 'test1'), yaml_file)):
         Manifest.from_file(yaml_file)
+
+    # test with folder that has the same prefix as one of the folders in the manifest
+    assert manifest.enable_build_targets('test23') == sorted(SUPPORTED_TARGETS)
 
 
 def test_manifest_with_anchor(tmpdir, monkeypatch):
