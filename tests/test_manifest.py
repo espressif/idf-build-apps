@@ -5,6 +5,7 @@ import os
 import shutil
 
 import pytest
+import yaml
 from packaging.version import (
     Version,
 )
@@ -21,6 +22,9 @@ from idf_build_apps.manifest.manifest import (
 )
 from idf_build_apps.utils import (
     InvalidManifest,
+)
+from idf_build_apps.yaml import (
+    parse,
 )
 
 
@@ -90,6 +94,177 @@ bar:
         manifest = Manifest.from_file(yaml_file)
 
     assert manifest.enable_build_targets('bar') == []
+
+
+def test_manifest_with_anchor_and_postfix(tmpdir, monkeypatch):
+    yaml_file = tmpdir / 'test.yml'
+    yaml_file.write_text(
+        """
+.base_depends_components: &base-depends-components
+  depends_components:
+    - esp_hw_support
+    - esp_rom
+    - esp_wifi
+
+examples/wifi/coexist:
+  <<: *base-depends-components
+  depends_components+:
+    - esp_coex
+  depends_components-:
+    - esp_rom
+""",
+        encoding='utf8',
+    )
+
+    manifest = Manifest.from_file(yaml_file)
+    assert manifest.depends_components('examples/wifi/coexist') == ['esp_coex', 'esp_hw_support', 'esp_wifi']
+
+    yaml_file.write_text(
+        """
+.base: &base
+  enable:
+    - if: IDF_VERSION == "5.2.0"
+    - if: IDF_VERSION == "5.3.0"
+
+foo:
+  <<: *base
+  enable+:
+    - if: IDF_VERSION == "5.2.0"
+      temp: true
+    - if: IDF_VERSION == "5.4.0"
+      reason: bar
+""",
+        encoding='utf8',
+    )
+    s_manifest_dict = parse(yaml_file)
+
+    yaml_file.write_text(
+        """
+foo:
+    enable:
+        -   if: IDF_VERSION == "5.3.0"
+        -   if: IDF_VERSION == "5.2.0"
+            temp: true
+        -   if: IDF_VERSION == "5.4.0"
+            reason: bar
+""",
+        encoding='utf8',
+    )
+    with open(yaml_file) as f:
+        manifest_dict = yaml.safe_load(f) or {}
+
+    assert s_manifest_dict['foo'] == manifest_dict['foo']
+
+    yaml_file.write_text(
+        """
+.base: &base
+  enable:
+    - if: IDF_VERSION == "5.3.0"
+
+foo:
+  <<: *base
+  enable+:
+    - if: IDF_VERSION == "5.2.0"
+      temp: true
+    - if: IDF_VERSION == "5.4.0"
+      reason: bar
+""",
+        encoding='utf8',
+    )
+
+    s_manifest_dict = parse(yaml_file)
+
+    yaml_file.write_text(
+        """
+foo:
+    enable:
+        -   if: IDF_VERSION == "5.3.0"
+        -   if: IDF_VERSION == "5.2.0"
+            temp: true
+        -   if: IDF_VERSION == "5.4.0"
+            reason: bar
+""",
+        encoding='utf8',
+    )
+    with open(yaml_file) as f:
+        manifest_dict = yaml.safe_load(f) or {}
+
+    assert s_manifest_dict['foo'] == manifest_dict['foo']
+
+    yaml_file.write_text(
+        """
+.test: &test
+  depends_components:
+    - a
+    - b
+
+foo:
+  <<: *test
+  depends_components+:
+    - c
+
+bar:
+  <<: *test
+  depends_components+:
+    - d
+""",
+        encoding='utf8',
+    )
+    s_manifest_dict = parse(yaml_file)
+    foo = s_manifest_dict['foo']
+    bar = s_manifest_dict['bar']
+    assert foo['depends_components'] == ['a', 'b', 'c']
+    assert bar['depends_components'] == ['a', 'b', 'd']
+    assert id(foo['depends_components']) != id(bar['depends_components'])
+
+    yaml_file.write_text(
+        """
+.test: &test
+  depends_components:
+    - if: 1
+      value: 123
+
+foo:
+  <<: *test
+  depends_components+:
+    - if: 2
+      value: 234
+
+bar:
+  <<: *test
+  depends_components+:
+    - if: 2
+      value: 345
+""",
+        encoding='utf8',
+    )
+    s_manifest_dict = parse(yaml_file)
+    foo = s_manifest_dict['foo']
+    bar = s_manifest_dict['bar']
+    assert id(foo['depends_components']) != id(bar['depends_components'])
+    print(s_manifest_dict)
+
+
+def test_manifest_postfix_order(tmpdir, monkeypatch):
+    yaml_file = tmpdir / 'test.yml'
+    yaml_file.write_text(
+        """
+.base_depends_components: &base-depends-components
+  depends_components:
+    - esp_hw_support
+
+examples/wifi/coexist:
+  <<: *base-depends-components
+  depends_components+:
+    - esp_coex
+  depends_components-:
+    - esp_coex
+""",
+        encoding='utf8',
+    )
+
+    manifest = Manifest.from_file(yaml_file)
+    assert manifest.depends_components('examples/wifi/coexist') == ['esp_hw_support']
 
 
 def test_from_files_duplicates(tmp_path, monkeypatch):

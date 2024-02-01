@@ -6,7 +6,6 @@ import os
 import typing as t
 import warnings
 
-import yaml
 from pyparsing import (
     ParseException,
 )
@@ -18,6 +17,9 @@ from ..constants import (
 from ..utils import (
     InvalidIfClause,
     InvalidManifest,
+)
+from ..yaml import (
+    parse,
 )
 from .if_parser import (
     BOOL_EXPR,
@@ -187,8 +189,7 @@ class Manifest:
 
     @classmethod
     def from_file(cls, path: str) -> 'Manifest':
-        with open(path) as f:
-            manifest_dict = yaml.safe_load(f) or {}
+        manifest_dict = parse(path)
 
         rules: t.List[FolderRule] = []
         for folder, folder_rule in manifest_dict.items():
