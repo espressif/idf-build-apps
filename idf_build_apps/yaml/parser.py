@@ -10,6 +10,10 @@ def parse_postfixes(manifest_dict: t.Dict):
     for folder, folder_rule in manifest_dict.items():
         if folder.startswith('.'):
             continue
+
+        if not folder_rule:
+            continue
+
         updated_folder: t.Dict = {}
         sorted_keys = sorted(folder_rule)
         for key in sorted_keys:
