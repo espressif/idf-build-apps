@@ -1,17 +1,25 @@
 # Contributions Guide
 
-Please use python 3.7+ for developing, but keep in mind that we need to support all ESP-IDF release versions.
+Hi! We're glad that you're interested in contributing to `idf-build-apps`. This document would guide you through the process of setting up the development environment, running tests, and building documentation.
 
-| ESP-IDF Version | Supported Python Versions |
-|-----------------|---------------------------|
-| 4.1             | 2.7, 3.4+                 |
-| 4.2             | 2.7, 3.4+                 |
-| 4.3             | 2.7, 3.4+                 |
-| 4.4             | 2.7, 3.4+                 |
-| 5.0             | 3.7+                      |
-| 5.1             | 3.7+                      |
-| 5.2             | 3.7+                      |
-| master          | 3.8+                      |
+## Supported ESP-IDF Versions
+
+Here's a table shows the supported ESP-IDF versions and the corresponding Python versions.
+
+| ESP-IDF Version | ESP-IDF Supported Python Versions | idf-build-apps Releases |
+|-----------------|-----------------------------------|-------------------------|
+| 4.1             | 2.7, 3.4+                         | 1.x                     |
+| 4.2             | 2.7, 3.4+                         | 1.x                     |
+| 4.3             | 2.7, 3.4+                         | 1.x                     |
+| 4.4             | 2.7, 3.4+                         | 1.x                     |
+| 5.0             | 3.7+                              | main (2.x)              |
+| 5.1             | 3.7+                              | main (2.x)              |
+| 5.2             | 3.7+                              | main (2.x)              |
+| master (5.3)    | 3.8+                              | main (2.x)              |
+
+`idf-build-apps` is following the semantic versioning. The major version of `idf-build-apps` is the same as the ESP-IDF version it supports. For example, `idf-build-apps` 1.x supports ESP-IDF 4.x, and `idf-build-apps` 2.x supports ESP-IDF 5.x.
+
+In order to compatible to all 5.x ESP-IDF versions, please don't forget to keep the code compatible with python 3.7, even it's end of life on 2023-06-05.
 
 ## Setup the Dev Environment
 
