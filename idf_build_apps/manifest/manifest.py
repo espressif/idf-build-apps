@@ -216,7 +216,7 @@ class Manifest:
     def _most_suitable_rule(self, _folder: str) -> FolderRule:
         folder = os.path.abspath(_folder)
         for rule in self.rules[::-1]:
-            if rule.folder == folder or folder.startswith(rule.folder):
+            if os.path.commonpath([folder, rule.folder]) == rule.folder:
                 return rule
 
         return DefaultRule(folder)
