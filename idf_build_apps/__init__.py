@@ -36,8 +36,8 @@ __all__ = [
     'AppDeserializer',
     'CMakeApp',
     'MakeApp',
-    'find_apps',
     'build_apps',
+    'find_apps',
     'json_to_app',
     'setup_logging',
 ]

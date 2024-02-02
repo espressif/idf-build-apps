@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -39,7 +39,9 @@ import typing as t
 from datetime import (
     datetime,
 )
-from xml.etree import ElementTree as ET
+from xml.etree import (
+    ElementTree,
+)
 from xml.sax.saxutils import (
     escape,
 )
@@ -118,8 +120,8 @@ class TestCase:
     def is_error(self) -> bool:
         return self.error_reason is not None
 
-    def to_xml_elem(self) -> ET.Element:
-        elem = ET.Element(
+    def to_xml_elem(self) -> ElementTree.Element:
+        elem = ElementTree.Element(
             'testcase',
             {
                 'name': self.name,
@@ -128,11 +130,11 @@ class TestCase:
             },
         )
         if self.error_reason:
-            ET.SubElement(elem, 'error', {'message': escape(self.error_reason)})
+            ElementTree.SubElement(elem, 'error', {'message': escape(self.error_reason)})
         elif self.failure_reason:
-            ET.SubElement(elem, 'failure', {'message': escape(self.failure_reason)})
+            ElementTree.SubElement(elem, 'failure', {'message': escape(self.failure_reason)})
         elif self.skipped_reason:
-            ET.SubElement(elem, 'skipped', {'message': escape(self.skipped_reason)})
+            ElementTree.SubElement(elem, 'skipped', {'message': escape(self.skipped_reason)})
 
         if self.properties:
             for k, v in self.properties.items():
@@ -171,8 +173,8 @@ class TestSuite:
 
         self.duration_sec += test_case.duration_sec
 
-    def to_xml_elem(self) -> ET.Element:
-        elem = ET.Element(
+    def to_xml_elem(self) -> ElementTree.Element:
+        elem = ElementTree.Element(
             'testsuite',
             {
                 'name': self.name,
@@ -199,10 +201,10 @@ class TestReport:
         self.filepath = filepath
 
     def create_test_report(self) -> None:
-        xml = ET.Element('testsuites')
+        xml = ElementTree.Element('testsuites')
 
         for test_suite in self.test_suites:
             xml.append(test_suite.to_xml_elem())
 
-        ET.ElementTree(xml).write(self.filepath, encoding='utf-8')
+        ElementTree.ElementTree(xml).write(self.filepath, encoding='utf-8')
         LOGGER.info('Test report written to %s', self.filepath)

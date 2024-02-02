@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -15,7 +15,7 @@ import subprocess
 
 project = 'idf-build-apps'
 project_homepage = 'https://github.com/espressif/idf-build-apps'
-copyright = '2023, Espressif Systems (Shanghai) Co., Ltd.'
+copyright = '2023, Espressif Systems (Shanghai) Co., Ltd.'  # noqa: A001
 author = 'Fu Hanxi'
 
 # -- General configuration ---------------------------------------------------

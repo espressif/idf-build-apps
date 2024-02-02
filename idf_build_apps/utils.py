@@ -366,4 +366,4 @@ class BaseModel(_BaseModel):
             else:
                 hash_list.append(v)
 
-        return hash((type(self),) + tuple(hash_list))
+        return hash((type(self), *tuple(hash_list)))

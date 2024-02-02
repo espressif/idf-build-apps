@@ -96,7 +96,7 @@ bar:
     assert manifest.enable_build_targets('bar') == []
 
 
-def test_manifest_with_anchor_and_postfix(tmpdir, monkeypatch):
+def test_manifest_with_anchor_and_postfix(tmpdir):
     yaml_file = tmpdir / 'test.yml'
 
     yaml_file.write_text(
@@ -255,7 +255,7 @@ bar:
     print(s_manifest_dict)
 
 
-def test_manifest_postfix_order(tmpdir, monkeypatch):
+def test_manifest_postfix_order(tmpdir):
     yaml_file = tmpdir / 'test.yml'
     yaml_file.write_text(
         """
@@ -302,11 +302,11 @@ foo:
     folder_path = os.path.join(os.getcwd(), 'foo')
     os.makedirs(folder_path)
 
-    with pytest.raises(InvalidManifest, match=f'Folder "{folder_path}" is already defined in {str(yaml_file_1)}'):
+    with pytest.raises(InvalidManifest, match=f'Folder "{folder_path}" is already defined in {yaml_file_1!s}'):
         Manifest.from_files([str(yaml_file_1), str(yaml_file_2)])
 
     monkeypatch.setattr(idf_build_apps.manifest.manifest.Manifest, 'CHECK_MANIFEST_RULES', False)
-    with pytest.warns(UserWarning, match=f'Folder "{folder_path}" is already defined in {str(yaml_file_1)}'):
+    with pytest.warns(UserWarning, match=f'Folder "{folder_path}" is already defined in {yaml_file_1!s}'):
         Manifest.from_files([str(yaml_file_1), str(yaml_file_2)])
 
 
