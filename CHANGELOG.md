@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## v2.1.0 (2024-02-01)
+## v2.1.1 (2024-02-02)
+
+### Fix
+
+- parse the manifest when folder rule is empty
+
+## v2.1.0 (2024-02-01) (yanked)
 
 ### Feat
 
