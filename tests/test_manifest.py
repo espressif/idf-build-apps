@@ -148,6 +148,41 @@ test5:
     assert manifest.depends_components('test5', None, None) == ['some_1', 'some_2', 'some_3']
 
 
+def test_manifest_switch_clause_with_postfix(tmpdir, recwarn, monkeypatch):
+    yaml_file = tmpdir / 'test.yml'
+
+    yaml_file.write_text(
+        """
+.test: &test
+  depends_components+:
+    - if: CONFIG_NAME == "AAA"
+      content: ["NEW_AAA"]
+    - if: CONFIG_NAME == "BBB"
+      content: ["NEW_BBB"]
+  depends_components-:
+    - if: CONFIG_NAME == "CCC"
+
+test1:
+  <<: *test
+  depends_components:
+    - if: CONFIG_NAME == "AAA"
+      content: [ "AAA" ]
+    - if: CONFIG_NAME == "CCC"
+      content: [ "CCC" ]
+    - default: ["DF"]
+""",
+        encoding='utf8',
+    )
+    os.chdir(tmpdir)
+    Manifest.ROOTPATH = tmpdir
+    manifest = Manifest.from_file(yaml_file)
+
+    assert manifest.depends_components('test1', None, None) == ['DF']
+    assert manifest.depends_components('test1', None, 'CCC') == ['DF']
+    assert manifest.depends_components('test1', None, 'AAA') == ['NEW_AAA']
+    assert manifest.depends_components('test1', None, 'BBB') == ['NEW_BBB']
+
+
 def test_manifest_switch_clause_wrong_manifest_format(tmpdir, recwarn, monkeypatch):
     yaml_file = tmpdir / 'test.yml'
     from idf_build_apps.constants import (
