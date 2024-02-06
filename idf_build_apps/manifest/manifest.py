@@ -46,6 +46,21 @@ class IfClause:
         return self.stmt.get_value(target, config_name)
 
 
+class SwitchClause:
+    def __init__(
+        self, if_clauses: t.List[IfClause], contents: t.List[t.List[str]], default_clause: t.List[str]
+    ) -> None:
+        self.if_clauses = if_clauses
+        self.contents = contents
+        self.default_clause = default_clause
+
+    def get_value(self, target: str, config_name: str) -> t.Any:
+        for if_clause, content in zip(self.if_clauses, self.contents):
+            if if_clause.get_value(target, config_name):
+                return content
+        return self.default_clause
+
+
 class FolderRule:
     DEFAULT_BUILD_TARGETS = SUPPORTED_TARGETS
 
@@ -55,8 +70,8 @@ class FolderRule:
         enable: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
         disable: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
         disable_test: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
-        depends_components: t.Optional[t.List[str]] = None,
-        depends_filepatterns: t.Optional[t.List[str]] = None,
+        depends_components: t.Optional[t.List[t.Union[str, t.Dict[str, t.Any]]]] = None,
+        depends_filepatterns: t.Optional[t.List[t.Union[str, t.Dict[str, t.Any]]]] = None,
     ) -> None:
         self.folder = os.path.abspath(folder)
 
@@ -68,11 +83,48 @@ class FolderRule:
                 _kwargs['reason'] = clause['reason']
             return IfClause(**_kwargs)
 
+        def _clause_to_switch_or_list(
+            statements: t.Optional[t.List[t.Union[str, t.Dict[str, t.Any]]]]
+        ) -> t.Union[SwitchClause, t.List[str]]:
+            if not statements:
+                return []
+
+            switch_statements = []
+            str_statements = []
+            for statement in statements:
+                if isinstance(statement, t.Dict):
+                    switch_statements.append(statement)
+                else:
+                    str_statements.append(statement)
+
+            if switch_statements and str_statements:
+                raise InvalidManifest('Current manifest format has to fit either the switch format or the list format.')
+
+            if str_statements:
+                return str_statements
+
+            return _clause_to_switch_clause(switch_statements)
+
+        def _clause_to_switch_clause(switch_statements: t.List[t.Dict[str, t.Any]]) -> SwitchClause:
+            if_clauses = []
+            contents = []
+            default_clauses = []
+            for statement in switch_statements:
+                if 'if' in statement:
+                    if_clauses.append(IfClause(stmt=statement['if']))
+                    contents.append(statement['content'])
+                elif 'default' in statement:
+                    default_clauses.extend(statement['default'])
+                else:
+                    raise InvalidManifest("Only the 'if' and 'default' keywords are supported in switch clause.")
+
+            return SwitchClause(if_clauses, contents, default_clauses)
+
         self.enable = [_clause_to_if_clause(clause) for clause in enable] if enable else []
         self.disable = [_clause_to_if_clause(clause) for clause in disable] if disable else []
         self.disable_test = [_clause_to_if_clause(clause) for clause in disable_test] if disable_test else []
-        self.depends_components = depends_components or []
-        self.depends_filepatterns = depends_filepatterns or []
+        self.depends_components = _clause_to_switch_or_list(depends_components)
+        self.depends_filepatterns = _clause_to_switch_or_list(depends_filepatterns)
 
     def __hash__(self) -> int:
         return hash(self.folder)
@@ -232,8 +284,18 @@ class Manifest:
     ) -> t.List[str]:
         return self._most_suitable_rule(folder).enable_test_targets(default_sdkconfig_target, config_name)
 
-    def depends_components(self, folder: str) -> t.List[str]:
-        return self._most_suitable_rule(folder).depends_components
+    def depends_components(
+        self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
+    ) -> t.List[str]:
+        res = self._most_suitable_rule(folder).depends_components
+        if isinstance(res, list):
+            return res
+        return res.get_value(default_sdkconfig_target or '', config_name or '')
 
-    def depends_filepatterns(self, folder: str) -> t.List[str]:
-        return self._most_suitable_rule(folder).depends_filepatterns
+    def depends_filepatterns(
+        self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
+    ) -> t.List[str]:
+        res = self._most_suitable_rule(folder).depends_filepatterns
+        if isinstance(res, list):
+            return res
+        return res.get_value(default_sdkconfig_target or '', config_name or '')

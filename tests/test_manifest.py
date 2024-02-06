@@ -69,6 +69,161 @@ test2:
     assert manifest.enable_build_targets('test23') == sorted(SUPPORTED_TARGETS)
 
 
+def test_manifest_switch_clause(tmpdir, recwarn, monkeypatch):
+    yaml_file = tmpdir / 'test.yml'
+    from idf_build_apps.constants import (
+        IDF_VERSION,
+    )
+
+    yaml_file.write_text(
+        f"""
+test1:
+  depends_components:
+    - if: IDF_VERSION == "{IDF_VERSION}"
+      content: [ "VVV" ]
+    - if: CONFIG_NAME == "AAA"
+      content: [ "AAA" ]
+    - default: ["some_1", "some_2", "some_3"]
+
+test2:
+  depends_components:
+    - if: IDF_TARGET == "esp32"
+      content: [ "esp32" ]
+    - if: CONFIG_NAME == "AAA"
+      content: [ "AAA" ]
+    - if: IDF_VERSION == "{IDF_VERSION}"
+      content: [ "VVV" ]
+    - default: ["some_1", "some_2", "some_3"]
+
+test3:
+  depends_components:
+    - if: CONFIG_NAME == "AAA"
+      content: [ "AAA" ]
+    - if: CONFIG_NAME == "BBB"
+      content: [ "BBB" ]
+    - default: ["some_1", "some_2", "some_3"]
+
+test4:
+  depends_components:
+    - if: CONFIG_NAME == "BBB"
+      content: [ "BBB" ]
+    - if: CONFIG_NAME == "AAA"
+      content: [ "AAA" ]
+
+test5:
+  depends_components:
+    - "some_1"
+    - "some_2"
+    - "some_3"
+
+""",
+        encoding='utf8',
+    )
+
+    os.chdir(tmpdir)
+    Manifest.ROOTPATH = tmpdir
+    manifest = Manifest.from_file(yaml_file)
+
+    assert manifest.depends_components('test1', None, None) == ['VVV']
+    assert manifest.depends_components('test1', None, 'AAA') == ['VVV']
+
+    assert manifest.depends_components('test2', 'esp32', None) == ['esp32']
+    assert manifest.depends_components('test2', None, 'AAA') == ['AAA']
+    assert manifest.depends_components('test2', 'esp32', 'AAA') == ['esp32']
+    assert manifest.depends_components('test2', None, None) == ['VVV']
+
+    assert manifest.depends_components('test3', 'esp32', 'AAA') == ['AAA']
+    assert manifest.depends_components('test3', 'esp32', 'BBB') == ['BBB']
+    assert manifest.depends_components('test3', 'esp32', '123123') == ['some_1', 'some_2', 'some_3']
+    assert manifest.depends_components('test3', None, None) == ['some_1', 'some_2', 'some_3']
+
+    assert manifest.depends_components('test4', 'esp32', 'AAA') == ['AAA']
+    assert manifest.depends_components('test4', 'esp32', 'BBB') == ['BBB']
+    assert manifest.depends_components('test4', 'esp32', '123123') == []
+    assert manifest.depends_components('test4', None, None) == []
+
+    assert manifest.depends_components('test5', 'esp32', 'AAA') == ['some_1', 'some_2', 'some_3']
+    assert manifest.depends_components('test5', 'esp32', 'BBB') == ['some_1', 'some_2', 'some_3']
+    assert manifest.depends_components('test5', 'esp32', '123123') == ['some_1', 'some_2', 'some_3']
+    assert manifest.depends_components('test5', None, None) == ['some_1', 'some_2', 'some_3']
+
+
+def test_manifest_switch_clause_with_postfix(tmpdir, recwarn, monkeypatch):
+    yaml_file = tmpdir / 'test.yml'
+
+    yaml_file.write_text(
+        """
+.test: &test
+  depends_components+:
+    - if: CONFIG_NAME == "AAA"
+      content: ["NEW_AAA"]
+    - if: CONFIG_NAME == "BBB"
+      content: ["NEW_BBB"]
+  depends_components-:
+    - if: CONFIG_NAME == "CCC"
+
+test1:
+  <<: *test
+  depends_components:
+    - if: CONFIG_NAME == "AAA"
+      content: [ "AAA" ]
+    - if: CONFIG_NAME == "CCC"
+      content: [ "CCC" ]
+    - default: ["DF"]
+""",
+        encoding='utf8',
+    )
+    os.chdir(tmpdir)
+    Manifest.ROOTPATH = tmpdir
+    manifest = Manifest.from_file(yaml_file)
+
+    assert manifest.depends_components('test1', None, None) == ['DF']
+    assert manifest.depends_components('test1', None, 'CCC') == ['DF']
+    assert manifest.depends_components('test1', None, 'AAA') == ['NEW_AAA']
+    assert manifest.depends_components('test1', None, 'BBB') == ['NEW_BBB']
+
+
+def test_manifest_switch_clause_wrong_manifest_format(tmpdir, recwarn, monkeypatch):
+    yaml_file = tmpdir / 'test.yml'
+    from idf_build_apps.constants import (
+        IDF_VERSION,
+    )
+
+    yaml_file.write_text(
+        f"""
+    test1:
+      depends_components:
+        - if: IDF_VERSION == "{IDF_VERSION}"
+          content: [ "VVV" ]
+        - default: ["some_1", "some_2", "some_3"]
+        - hello: 123
+
+    """,
+        encoding='utf8',
+    )
+    try:
+        Manifest.from_file(yaml_file)
+    except InvalidManifest as e:
+        assert str(e) == "Only the 'if' and 'default' keywords are supported in switch clause."
+
+    yaml_file.write_text(
+        f"""
+        test1:
+          depends_components:
+            - if: IDF_VERSION == "{IDF_VERSION}"
+              content: [ "VVV" ]
+            - default: ["some_1", "some_2", "some_3"]
+            - 123
+            - 234
+        """,
+        encoding='utf8',
+    )
+    try:
+        Manifest.from_file(yaml_file)
+    except InvalidManifest as e:
+        assert str(e) == 'Current manifest format has to fit either the switch format or the list format.'
+
+
 def test_manifest_with_anchor(tmpdir, monkeypatch):
     yaml_file = tmpdir / 'test.yml'
     yaml_file.write_text(

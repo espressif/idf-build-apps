@@ -78,80 +78,6 @@ examples/foo/bar:
     - if: IDF_TARGET == "esp32s2"
 ```
 
-## Enhanced YAML Syntax
-
-### Reuse Lists
-
-To reuse the items defined in a list, you can use the `+` and `-` postfixes respectively. The order of calculation is always `+` first, followed by `-`.
-
-#### Array Elements as Strings
-
-The following YAML code demonstrates how to reuse the elements from a list of strings:
-
-```yaml
-.base_depends_components: &base-depends-components
-  depends_components:
-    - esp_hw_support
-    - esp_rom
-    - esp_wifi
-
-examples/wifi/coexist:
-  <<: *base-depends-components
-  depends_components+:
-    - esp_coex
-  depends_components-:
-    - esp_rom
-```
-
-After interpretation, the resulting YAML will be:
-
-```yaml
-examples/wifi/coexist:
-  depends_components:
-    - esp_hw_support
-    - esp_wifi
-    - esp_coex
-```
-
-This means that the `esp_rom` element is removed, and the `esp_coex` element is added to the `depends_components` list.
-
-#### Array Elements as Dictionaries
-
-In addition to reuse elements from a list of strings, you can also perform these operations on a list of dictionaries. The matching is done based on the `if` key. Here's an example:
-
-```yaml
-.base: &base
-  enable:
-    - if: IDF_VERSION == "5.2.0"
-    - if: IDF_VERSION == "5.3.0"
-
-foo:
-  <<: *base
-  enable+:
-    # this if statement dictionary will override the one defined in `&base`
-    - if: IDF_VERSION == "5.2.0"
-      temp: true
-    - if: IDF_VERSION == "5.4.0"
-      reason: bar
-```
-
-After interpretation, the resulting YAML will be:
-
-```yaml
-foo:
-  enable:
-  - if: IDF_VERSION == "5.3.0"
-  - if: IDF_VERSION == "5.2.0"
-    temp: true
-  - if: IDF_VERSION == "5.4.0"
-    reason: bar
-```
-
-In this case, the `enable` list is extended with the new `if` statement and `reason` dictionary.
-It's important to note that the `if` dictionary defined in the `+` postfix will override the earlier one when the `if` statement matches.
-
-This demonstrates how you can use the `+` and `-` postfixes to extend and remove elements from both string and dictionary lists in our YAML.
-
 ## Practical Example
 
 Here's a practical example:
@@ -250,3 +176,101 @@ This app will not be built with the following CLI options:
 Low-level dependencies, are components or files that are used by many others. For example, component `freertos` provides the operating system support for all apps, and ESP-IDF build system related cmake files are also used by all apps. When these items are modified, we definitely need to build and test all the apps.
 
 To disable the build-apps-only-on-related-changes feature, you can use the CLI option `--ignore-app-dependencies-filepatterns`. Once any of the modified files matches the specified patterns, the special rules will be disabled. All apps will be built, no exceptions.
+
+## `switch` Clauses
+
+The `switch` clauses are supported by two keywords in the YAML file: `depends_components` and `depends_filepatterns`.
+
+### Operands
+
+Switch cases have two main components: the `if` clause and the `default` clause. Just like a switch statement in c language, The first matched `if` clause will be applied. If no `if` clause matched, the `default` clause will be applied. Here's an example:
+
+```yaml
+test1:
+  depends_components:
+    - if: IDF_VERSION == "{IDF_VERSION}"
+      content: [ "component_1" ]
+    - if: CONFIG_NAME == "AWESOME_CONFIG"
+      content: [ "component_2" ]
+    - default: [ "component_3", "component_4" ]
+```
+
+`default` clause is optional. If you don't specify any `default` clause, it will return an empty array.
+
+### Limitations
+
+You cannot combine a list and a switch in one node.
+
+## Enhanced YAML Syntax
+
+### Reuse Lists
+
+To reuse the items defined in a list, you can use the `+` and `-` postfixes respectively. The order of calculation is always `+` first, followed by `-`.
+
+#### Array Elements as Strings
+
+The following YAML code demonstrates how to reuse the elements from a list of strings:
+
+```yaml
+.base_depends_components: &base-depends-components
+  depends_components:
+    - esp_hw_support
+    - esp_rom
+    - esp_wifi
+
+examples/wifi/coexist:
+  <<: *base-depends-components
+  depends_components+:
+    - esp_coex
+  depends_components-:
+    - esp_rom
+```
+
+After interpretation, the resulting YAML will be:
+
+```yaml
+examples/wifi/coexist:
+  depends_components:
+    - esp_hw_support
+    - esp_wifi
+    - esp_coex
+```
+
+This means that the `esp_rom` element is removed, and the `esp_coex` element is added to the `depends_components` list.
+
+#### Array Elements as Dictionaries
+
+In addition to reuse elements from a list of strings, you can also perform these operations on a list of dictionaries. The matching is done based on the `if` key. Here's an example:
+
+```yaml
+.base: &base
+  enable:
+    - if: IDF_VERSION == "5.2.0"
+    - if: IDF_VERSION == "5.3.0"
+
+foo:
+  <<: *base
+  enable+:
+    # this if statement dictionary will override the one defined in `&base`
+    - if: IDF_VERSION == "5.2.0"
+      temp: true
+    - if: IDF_VERSION == "5.4.0"
+      reason: bar
+```
+
+After interpretation, the resulting YAML will be:
+
+```yaml
+foo:
+  enable:
+  - if: IDF_VERSION == "5.3.0"
+  - if: IDF_VERSION == "5.2.0"
+    temp: true
+  - if: IDF_VERSION == "5.4.0"
+    reason: bar
+```
+
+In this case, the `enable` list is extended with the new `if` statement and `reason` dictionary.
+It's important to note that the `if` dictionary defined in the `+` postfix will override the earlier one when the `if` statement matches.
+
+This demonstrates how you can use the `+` and `-` postfixes to extend and remove elements from both string and dictionary lists in our YAML.

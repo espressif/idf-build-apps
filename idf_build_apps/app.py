@@ -437,14 +437,18 @@ class App(BaseModel):
     @property
     def depends_components(self) -> t.List[str]:
         if self.MANIFEST:
-            return self.MANIFEST.depends_components(self.app_dir)
+            return self.MANIFEST.depends_components(
+                self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
+            )
 
         return []
 
     @property
     def depends_filepatterns(self) -> t.List[str]:
         if self.MANIFEST:
-            return self.MANIFEST.depends_filepatterns(self.app_dir)
+            return self.MANIFEST.depends_filepatterns(
+                self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
+            )
 
         return []
 
