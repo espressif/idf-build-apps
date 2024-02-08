@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -51,7 +51,7 @@ class ColoredFormatter(logging.Formatter):
 
         if record.levelno in [logging.WARNING, logging.ERROR]:
             record.msg = '>>> ' + str(record.msg)
-        elif record.levelno in [logging.CRITICAL]:
+        elif record.levelno == logging.CRITICAL:
             record.msg = '!!! ' + str(record.msg)
 
         formatter = logging.Formatter(log_fmt, datefmt=self.datefmt)

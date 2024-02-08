@@ -1,11 +1,13 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import shutil
-import xml.etree.ElementTree as ET
 from copy import (
     deepcopy,
+)
+from xml.etree import (
+    ElementTree,
 )
 
 import pytest
@@ -52,9 +54,7 @@ class TestBuild:
             (['soc', 'fake'], True, BuildStatus.SUCCESS),
         ],
     )
-    def test_build_with_modified_components(
-        self, tmpdir, capsys, modified_components, check_app_dependencies, build_status
-    ):
+    def test_build_with_modified_components(self, tmpdir, modified_components, check_app_dependencies, build_status):
         path = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
 
         app = CMakeApp(path, 'esp32', work_dir=str(tmpdir / 'test'))
@@ -117,7 +117,7 @@ class TestBuild:
         build_apps(deepcopy(apps), dry_run=True, junitxml=str(tmpdir / 'test.xml'))
 
         with open(tmpdir / 'test.xml') as f:
-            xml = ET.fromstring(f.read())
+            xml = ElementTree.fromstring(f.read())
 
         test_suite = xml.findall('testsuite')[0]
         assert test_suite.attrib['tests'] == '0'
@@ -134,7 +134,7 @@ class TestBuild:
         build_apps(deepcopy(apps), junitxml=str(tmpdir / 'test.xml'))
 
         with open(tmpdir / 'test.xml') as f:
-            xml = ET.fromstring(f.read())
+            xml = ElementTree.fromstring(f.read())
 
         test_suite = xml.findall('testsuite')[0]
         assert test_suite.attrib['tests'] == '2'

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 from .report import (
@@ -7,4 +7,4 @@ from .report import (
     TestSuite,
 )
 
-__all__ = ['TestReport', 'TestCase', 'TestSuite']
+__all__ = ['TestCase', 'TestReport', 'TestSuite']

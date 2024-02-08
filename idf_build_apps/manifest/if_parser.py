@@ -1,6 +1,7 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
+import operator
 import os
 from ast import (
     literal_eval,
@@ -113,7 +114,7 @@ class Integer(Stmt):
     def __init__(self, t: ParseResults):
         self.expr: str = t[0]
 
-    def get_value(self, target: str, config_name: str) -> Any:
+    def get_value(self, target: str, config_name: str) -> Any:  # noqa: ARG002
         return literal_eval(self.expr)
 
 
@@ -121,7 +122,7 @@ class String(Stmt):
     def __init__(self, t: ParseResults):
         self.expr: str = t[0]
 
-    def get_value(self, target: str, config_name: str) -> Any:
+    def get_value(self, target: str, config_name: str) -> Any:  # noqa: ARG002
         return literal_eval(f'"{self.expr}"')  # double quotes is swallowed by QuotedString
 
 
@@ -135,12 +136,12 @@ class List_(Stmt):
 
 class BoolStmt(Stmt):
     _OP_DICT = {
-        '==': lambda x, y: x == y,
-        '!=': lambda x, y: x != y,
-        '>': lambda x, y: x > y,
-        '>=': lambda x, y: x >= y,
-        '<': lambda x, y: x < y,
-        '<=': lambda x, y: x <= y,
+        '==': operator.eq,
+        '!=': operator.ne,
+        '>': operator.gt,
+        '>=': operator.ge,
+        '<': operator.lt,
+        '<=': operator.le,
         'not in': lambda x, y: x not in y,
         'in': lambda x, y: x in y,
     }

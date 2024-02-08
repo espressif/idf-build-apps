@@ -488,7 +488,7 @@ def get_parser() -> argparse.ArgumentParser:
         type=str,
         help='The --override-sdkconfig-items option is a comma-separated list '
         'that permits the overriding of specific configuration items defined '
-        'in the SDK\'s sdkconfig file and Kconfig using a command-line argument. '
+        "in the SDK's sdkconfig file and Kconfig using a command-line argument. "
         'The sdkconfig items specified here override the same sdkconfig '
         'item defined in the --override-sdkconfig-files, if exists.',
     )
@@ -669,7 +669,7 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
     if not args.target:
         raise InvalidCommand(
             'Must specify current build target with CLI option "-t <target>" or "--target <target>". '
-            '(choices: [{}]'.format(','.join(ALL_TARGETS + ['all']))
+            '(choices: [{}]'.format(','.join([*ALL_TARGETS, 'all']))
         )
 
     default_build_targets = []
@@ -677,8 +677,8 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
         for target in args.default_build_targets:
             if target not in ALL_TARGETS:
                 raise InvalidCommand(
-                    'Unrecognizable target {} specified with "--default-build-targets". '
-                    'Current ESP-IDF available targets: {}'.format(target, ALL_TARGETS)
+                    f'Unrecognizable target {target} specified with "--default-build-targets". '
+                    f'Current ESP-IDF available targets: {ALL_TARGETS}'
                 )
 
             if target not in default_build_targets:

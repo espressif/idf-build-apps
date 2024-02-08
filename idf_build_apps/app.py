@@ -88,7 +88,7 @@ class App(BaseModel):
     IDF_VERSION_PLACEHOLDER: t.ClassVar[str] = '@v'  # replace it with the IDF version
     INDEX_PLACEHOLDER: t.ClassVar[str] = '@i'  # replace it with the build index (while build_apps)
 
-    SDKCONFIG_LINE_REGEX: t.ClassVar[t.Pattern] = re.compile(r"^([^=]+)=\"?([^\"\n]*)\"?\n*$")
+    SDKCONFIG_LINE_REGEX: t.ClassVar[t.Pattern] = re.compile(r'^([^=]+)=\"?([^\"\n]*)\"?\n*$')
 
     # could be assigned later, used for filtering out apps by supported_targets
     MANIFEST: t.ClassVar[t.Optional[Manifest]] = None
@@ -622,10 +622,10 @@ class App(BaseModel):
     def _build(
         self,
         *,
-        manifest_rootpath: t.Optional[str] = None,
-        modified_components: t.Optional[t.List[str]] = None,
-        modified_files: t.Optional[t.List[str]] = None,
-        check_app_dependencies: bool = False,
+        manifest_rootpath: t.Optional[str] = None,  # noqa: ARG002
+        modified_components: t.Optional[t.List[str]] = None,  # noqa: ARG002
+        modified_files: t.Optional[t.List[str]] = None,  # noqa: ARG002
+        check_app_dependencies: bool = False,  # noqa: ARG002
     ) -> None:
         self._build_stage = BuildStage.BUILD
 
@@ -793,7 +793,7 @@ class MakeApp(App):
         if self.sdkconfig_files_defined_idf_target:
             return [self.sdkconfig_files_defined_idf_target]
 
-        return ['esp8266'] + FolderRule.DEFAULT_BUILD_TARGETS
+        return ['esp8266', *FolderRule.DEFAULT_BUILD_TARGETS]
 
     def _build(
         self,
@@ -914,7 +914,7 @@ class CMakeApp(App):
 
         if modified_components is not None and check_app_dependencies and self.build_status == BuildStatus.UNKNOWN:
             subprocess_run(
-                common_args + ['reconfigure'],
+                [*common_args, 'reconfigure'],
                 log_terminal=self._is_build_log_path_temp,
                 log_fs=self.build_log_path,
                 check=True,

@@ -29,11 +29,11 @@ class TestFindWithManifest:
 
         yaml_file = test_dir / 'test.yml'
         yaml_file.write_text(
-            '''
+            """
 examples/get-started:
     enable:
         - if: IDF_TARGET != "esp32"
-''',
+""",
             encoding='utf8',
         )
 
@@ -52,11 +52,11 @@ examples/get-started:
 
         yaml_file = test_dir / 'test.yml'
         yaml_file.write_text(
-            '''
+            """
 get-started:
     enable:
         - if: IDF_TARGET != "esp32"
-''',
+""",
             encoding='utf8',
         )
         with pytest.warns(UserWarning, match=f'Folder "{IDF_PATH}/get-started" does not exist.'):
@@ -79,11 +79,11 @@ get-started:
 
         yaml_file = tmpdir / 'test.yml'
         yaml_file.write_text(
-            f'''
+            f"""
 {test_dir}:
     enable:
         - if: IDF_TARGET == "esp32s2"
-''',
+""",
             encoding='utf8',
         )
         filtered_apps = find_apps(test_dir, 'esp32', recursive=True, manifest_files=yaml_file)
@@ -97,11 +97,11 @@ get-started:
 
         yaml_file = test_dir / 'test.yml'
         yaml_file.write_text(
-            '''
+            """
 examples/get-started:
     enable:
         - if: IDF_VERSION_MAJOR > 0 and IDF_VERSION_MINOR < 999 and IDF_VERSION_PATCH in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-''',
+""",
             encoding='utf8',
         )
         assert (
@@ -128,12 +128,12 @@ class TestFindWithModifiedFilesComponents:
 
         yaml_file = tmpdir / 'test.yml'
         yaml_file.write_text(
-            f'''
+            f"""
 {test_dir}:
     depends_components:
         - freertos
         - soc
-''',
+""",
             encoding='utf8',
         )
 
@@ -171,11 +171,11 @@ class TestFindWithModifiedFilesComponents:
 
         yaml_file = tmp_path / 'test.yml'
         yaml_file.write_text(
-            f'''
+            f"""
 {test_dir}:
     depends_components:
         - soc
-''',
+""",
             encoding='utf8',
         )
 
@@ -193,7 +193,7 @@ class TestFindWithModifiedFilesComponents:
             assert not filtered_apps
 
     @pytest.mark.parametrize('suffix', ['/', '/   '])
-    def test_app_name_is_not_null(self, tmp_path, suffix):
+    def test_app_name_is_not_null(self, suffix):
         test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world') + suffix
         apps = find_apps(test_dir, 'esp32', recursive=True)
         for app in apps:
@@ -234,12 +234,12 @@ class TestFindWithModifiedFilesComponents:
 
         yaml_file = tmp_path / 'test.yml'
         yaml_file.write_text(
-            f'''
+            f"""
 {test_dir}:
     depends_filepatterns:
         - examples/get-started/hello_world/**
         - examples/foo/**
-''',
+""",
             encoding='utf8',
         )
 
@@ -256,14 +256,14 @@ class TestFindWithModifiedFilesComponents:
             assert not filtered_apps
 
         yaml_file.write_text(
-            f'''
+            f"""
 {test_dir}:
     depends_components:
         - foo
     depends_filepatterns:
         - examples/get-started/hello_world/**
         - examples/foo/**
-''',
+""",
             encoding='utf8',
         )
 
@@ -297,11 +297,11 @@ class TestFindWithModifiedFilesComponents:
         yaml_file = tmp_path / 'test.yml'
         with open(yaml_file, 'w') as fw:
             fw.write(
-                '''
+                """
 examples/wifi/getting_started:
     depends_filepatterns:
         - examples/wifi/getting_started/**/*
-''',
+""",
             )
 
         filtered_apps = find_apps(
@@ -394,11 +394,11 @@ class TestFindWithSdkconfigFiles:
     def test_with_sdkconfig_defaults_idf_target_but_disabled(self, tmp_path):
         manifest_file = tmp_path / 'manifest.yml'
         manifest_file.write_text(
-            f'''
+            f"""
 {IDF_PATH}/examples:
     disable:
        - if: IDF_TARGET == "esp32s2"
-'''
+"""
         )
 
         sdkconfig_defaults = tmp_path / 'sdkconfig.defaults'
@@ -479,10 +479,10 @@ class TestFindWithSdkconfigFiles:
 
         create_project('test1', tmp_path)
         (tmp_path / 'test1' / 'sdkconfig.defaults').write_text(
-            '''
+            """
 CONFIG_IDF_TARGET=esp32s2
 CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
-''',
+""",
             encoding='utf8',
         )
         (tmp_path / 'sdkconfig.override1').write_text(
@@ -533,13 +533,13 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
 
         yaml_file = tmp_path / 'test.yml'
         yaml_file.write_text(
-            f'''
+            f"""
 {tmp_path}:
     enable:
     - if: CONFIG_NAME == "foo" and IDF_TARGET == "esp32"
     - if: CONFIG_NAME == "bar" and IDF_TARGET == "esp32s2"
     - if: CONFIG_NAME == "default" and IDF_TARGET == "esp32s3"
-''',
+""",
             encoding='utf8',
         )
 
@@ -600,14 +600,14 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
 
         yaml_file = tmp_path / 'test.yml'
         yaml_file.write_text(
-            f'''
+            f"""
 {tmp_path}:
   enable:
     - if: CONFIG_NAME == "foo" and IDF_TARGET == "esp32"
     - if: CONFIG_NAME == "bar" and IDF_TARGET == "esp32s2"
     - if: TEST_ENV_VAR == "1"
     - if: CONFIG_NAME == "baz" and TEST_ENV_VAR == 0
-''',
+""",
             encoding='utf8',
         )
 
