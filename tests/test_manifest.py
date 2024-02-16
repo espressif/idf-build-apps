@@ -69,7 +69,7 @@ test2:
     assert manifest.enable_build_targets('test23') == sorted(SUPPORTED_TARGETS)
 
 
-def test_manifest_switch_clause(tmpdir, recwarn, monkeypatch):
+def test_manifest_switch_clause(tmpdir):
     yaml_file = tmpdir / 'test.yml'
     from idf_build_apps.constants import (
         IDF_VERSION,
@@ -148,7 +148,7 @@ test5:
     assert manifest.depends_components('test5', None, None) == ['some_1', 'some_2', 'some_3']
 
 
-def test_manifest_switch_clause_with_postfix(tmpdir, recwarn, monkeypatch):
+def test_manifest_switch_clause_with_postfix(tmpdir):
     yaml_file = tmpdir / 'test.yml'
 
     yaml_file.write_text(
@@ -183,7 +183,7 @@ test1:
     assert manifest.depends_components('test1', None, 'BBB') == ['NEW_BBB']
 
 
-def test_manifest_switch_clause_wrong_manifest_format(tmpdir, recwarn, monkeypatch):
+def test_manifest_switch_clause_wrong_manifest_format(tmpdir):
     yaml_file = tmpdir / 'test.yml'
     from idf_build_apps.constants import (
         IDF_VERSION,
