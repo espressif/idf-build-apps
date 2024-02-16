@@ -52,17 +52,15 @@ docs_dir = os.path.dirname(__file__)
 api_dir = os.path.join(docs_dir, 'api')
 if os.path.isdir(api_dir):
     shutil.rmtree(api_dir)
-subprocess.run(
-    [
-        'sphinx-apidoc',
-        os.path.join(docs_dir, '..', 'idf_build_apps'),
-        '-f',
-        '-H',
-        'API Reference',
-        '--no-headings',
-        '-t',
-        '_apidoc_templates',
-        '-o',
-        api_dir,
-    ]
-)
+subprocess.run([
+    'sphinx-apidoc',
+    os.path.join(docs_dir, '..', 'idf_build_apps'),
+    '-f',
+    '-H',
+    'API Reference',
+    '--no-headings',
+    '-t',
+    '_apidoc_templates',
+    '-o',
+    api_dir,
+])

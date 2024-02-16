@@ -84,7 +84,7 @@ class FolderRule:
             return IfClause(**_kwargs)
 
         def _clause_to_switch_or_list(
-            statements: t.Optional[t.List[t.Union[str, t.Dict[str, t.Any]]]]
+            statements: t.Optional[t.List[t.Union[str, t.Dict[str, t.Any]]]],
         ) -> t.Union[SwitchClause, t.List[str]]:
             if not statements:
                 return []
