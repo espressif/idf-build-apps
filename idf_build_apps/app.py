@@ -151,12 +151,10 @@ class App(BaseModel):
         size_json_filename: t.Optional[str] = None,
         **kwargs: t.Any,
     ) -> None:
-        kwargs.update(
-            {
-                'app_dir': app_dir,
-                'target': target,
-            }
-        )
+        kwargs.update({
+            'app_dir': app_dir,
+            'target': target,
+        })
         super().__init__(**kwargs)
 
         # These internal variables store the paths with environment variables and placeholders;
@@ -169,14 +167,12 @@ class App(BaseModel):
         self._is_build_log_path_temp = not bool(build_log_filename)
 
         # pass all parameters to initialize hook method
-        kwargs.update(
-            {
-                'work_dir': self._work_dir,
-                'build_dir': self._build_dir,
-                'build_log_filename': build_log_filename,
-                'size_json_filename': size_json_filename,
-            }
-        )
+        kwargs.update({
+            'work_dir': self._work_dir,
+            'build_dir': self._build_dir,
+            'build_log_filename': build_log_filename,
+            'size_json_filename': size_json_filename,
+        })
         self._kwargs = kwargs
         self._initialize_hook(**kwargs)
 
@@ -240,12 +236,10 @@ class App(BaseModel):
         return [DEFAULT_SDKCONFIG]
 
     @t.overload
-    def _expand(self, path: None) -> None:
-        ...
+    def _expand(self, path: None) -> None: ...
 
     @t.overload
-    def _expand(self, path: str) -> str:
-        ...
+    def _expand(self, path: str) -> str: ...
 
     def _expand(self, path):
         """
@@ -658,14 +652,12 @@ class App(BaseModel):
         else:
             with open(self.size_json_path, 'w') as fw:
                 subprocess_run(
-                    (
-                        [
-                            sys.executable,
-                            str(IDF_SIZE_PY),
-                            '--json',
-                            map_file,
-                        ]
-                    ),
+                    ([
+                        sys.executable,
+                        str(IDF_SIZE_PY),
+                        '--json',
+                        map_file,
+                    ]),
                     log_terminal=False,
                     log_fs=fw,
                     check=True,

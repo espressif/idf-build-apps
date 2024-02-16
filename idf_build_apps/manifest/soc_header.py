@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os.path
@@ -93,19 +93,15 @@ class SocHeader(dict):
 
     @classmethod
     def _parse_soc_header(cls, target: str) -> t.Dict[str, t.Any]:
-        soc_headers_dir = cls._get_dir_from_candidates(
-            [
-                # other branches
-                os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', target, 'include', 'soc')),
-                # release/v4.2
-                os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', 'soc', target, 'include', 'soc')),
-            ]
-        )
-        esp_rom_headers_dir = cls._get_dir_from_candidates(
-            [
-                os.path.join(IDF_PATH, 'components', 'esp_rom', target),
-            ]
-        )
+        soc_headers_dir = cls._get_dir_from_candidates([
+            # other branches
+            os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', target, 'include', 'soc')),
+            # release/v4.2
+            os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', 'soc', target, 'include', 'soc')),
+        ])
+        esp_rom_headers_dir = cls._get_dir_from_candidates([
+            os.path.join(IDF_PATH, 'components', 'esp_rom', target),
+        ])
 
         header_files: t.List[str] = []
         if soc_headers_dir:

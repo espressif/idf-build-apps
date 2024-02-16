@@ -190,18 +190,15 @@ _T = t.TypeVar('_T')
 
 
 @t.overload
-def to_list(s: None) -> None:
-    ...
+def to_list(s: None) -> None: ...
 
 
 @t.overload
-def to_list(s: t.Iterable[_T]) -> t.List[_T]:
-    ...
+def to_list(s: t.Iterable[_T]) -> t.List[_T]: ...
 
 
 @t.overload
-def to_list(s: _T) -> t.List[_T]:
-    ...
+def to_list(s: _T) -> t.List[_T]: ...
 
 
 def to_list(s):
@@ -229,18 +226,15 @@ def to_list(s):
 
 
 @t.overload
-def to_set(s: None) -> None:
-    ...
+def to_set(s: None) -> None: ...
 
 
 @t.overload
-def to_set(s: t.Iterable[_T]) -> t.Set[_T]:
-    ...
+def to_set(s: t.Iterable[_T]) -> t.Set[_T]: ...
 
 
 @t.overload
-def to_set(s: _T) -> t.Set[_T]:
-    ...
+def to_set(s: _T) -> t.Set[_T]: ...
 
 
 def to_set(s):
