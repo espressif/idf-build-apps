@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.2.0 (2024-02-22)
+
+### Feat
+
+- Support switch-like statements in `depends_components`, and `depends_filepatterns`
+
 ## v2.1.1 (2024-02-02)
 
 ### Fix
