@@ -177,11 +177,13 @@ Low-level dependencies, are components or files that are used by many others. Fo
 
 To disable the build-apps-only-on-related-changes feature, you can use the CLI option `--ignore-app-dependencies-filepatterns`. Once any of the modified files matches the specified patterns, the special rules will be disabled. All apps will be built, no exceptions.
 
-## `switch` Clauses
+## Enhanced YAML Syntax
 
-The `switch` clauses are supported by two keywords in the YAML file: `depends_components` and `depends_filepatterns`.
+### Switch-Like Clauses
 
-### Operands
+The Switch-Like clauses are supported by two keywords in the YAML file: `depends_components` and `depends_filepatterns`.
+
+#### Operands
 
 Switch cases have two main components: the `if` clause and the `default` clause. Just like a switch statement in c language, The first matched `if` clause will be applied. If no `if` clause matched, the `default` clause will be applied. Here's an example:
 
@@ -197,11 +199,9 @@ test1:
 
 `default` clause is optional. If you don't specify any `default` clause, it will return an empty array.
 
-### Limitations
+#### Limitations
 
 You cannot combine a list and a switch in one node.
-
-## Enhanced YAML Syntax
 
 ### Reuse Lists
 
