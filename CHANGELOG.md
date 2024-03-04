@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.2.1 (2024-03-04)
+
+### Fix
+
+- override sdkconfig item keep possible double quotes
+
 ## v2.2.0 (2024-02-22)
 
 ### Feat
