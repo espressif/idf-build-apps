@@ -494,14 +494,15 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
 
         Args = namedtuple('Args', ['override_sdkconfig_items', 'override_sdkconfig_files'])
         args = Args(
-            'CONFIG_IDF_TARGET=esp32c3,CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1522,CONFIG_A=10', 'sdkconfig.override1'
+            'CONFIG_IDF_TARGET=esp32c3,CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1522,CONFIG_A=10,CONFIG_C="test"',
+            'sdkconfig.override1',
         )
         idf_build_apps.SESSION_ARGS.set(args, workdir=tmp_path)
         session_args = idf_build_apps.SESSION_ARGS
 
         assert str(tmp_path) in str(session_args.override_sdkconfig_file_path)
-        assert len(session_args.override_sdkconfig_items) == 4
-        assert len(set(session_args.override_sdkconfig_items)) == 4
+        assert len(session_args.override_sdkconfig_items) == 5
+        assert len(set(session_args.override_sdkconfig_items)) == 5
 
         apps = find_apps(str(tmp_path / 'test1'), 'esp32s2')
         assert len(apps) == 0
@@ -514,13 +515,14 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
 
         with open(apps[0].sdkconfig_files[-1]) as fr:
             lines = fr.readlines()
-            assert len(lines) == 4
+            assert len(lines) == 5
             for _l in lines:
                 assert _l in [
                     'CONFIG_IDF_TARGET=esp32c3\n',
                     'CONFIG_A=10\n',
                     'CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1522\n',
                     'CONFIG_B=33\n',
+                    'CONFIG_C="test"\n',
                 ]
 
     def test_config_name_in_manifest(self, tmp_path):

@@ -51,7 +51,7 @@ class SessionArgs:
 
             with open(f) as fr:
                 for line in fr:
-                    m = re.compile(r'^([^=]+)=\"?([^\"\n]*)\"?\n*$').match(line)
+                    m = re.compile(r'^([^=]+)=([^\n]*)\n*$').match(line)
                     if not m:
                         continue
                     d[m.group(1)] = m.group(2)
@@ -60,7 +60,7 @@ class SessionArgs:
     def _get_override_sdkconfig_items(self, override_sdkconfig_items: t.Tuple[str]) -> t.Dict:
         d = {}
         for line in override_sdkconfig_items:
-            m = re.compile(r'^([^=]+)=\"?([^\"\n]*)\"?\n*$').match(line)
+            m = re.compile(r'^([^=]+)=([^\n]*)\n*$').match(line)
             if m:
                 d[m.group(1)] = m.group(2)
         return d
