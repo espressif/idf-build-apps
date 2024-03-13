@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import fnmatch
@@ -33,7 +33,7 @@ else:
     import glob
 
 
-class ConfigRule:
+class ConfigRule(object):
     def __init__(self, file_name, config_name):  # type: (str, str) -> None
         """
         ConfigRule represents the sdkconfig file and the config name.

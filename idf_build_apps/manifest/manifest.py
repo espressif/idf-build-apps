@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
@@ -28,7 +28,7 @@ from .if_parser import (
 )
 
 
-class IfClause:
+class IfClause(object):
     def __init__(self, stmt, temporary=False, reason=None):  # type: (str, bool, str | None) -> None
         try:
             self.stmt = BOOL_EXPR.parseString(stmt)[0]  # type: BoolExpr
@@ -45,7 +45,7 @@ class IfClause:
         return self.stmt.get_value(target, config_name)
 
 
-class FolderRule:
+class FolderRule(object):
     DEFAULT_BUILD_TARGETS = SUPPORTED_TARGETS
 
     def __init__(
@@ -152,7 +152,7 @@ class DefaultRule(FolderRule):
         super(DefaultRule, self).__init__(folder)
 
 
-class Manifest:
+class Manifest(object):
     # could be reassigned later
     ROOTPATH = os.curdir
 
