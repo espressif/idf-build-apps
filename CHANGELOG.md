@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.2.2 (2024-03-13)
+
+### Fix
+
+- skip size json generation for targets in preview
+
 ## v2.2.1 (2024-03-04)
 
 ### Fix
