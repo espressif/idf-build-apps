@@ -39,6 +39,7 @@ from .constants import (
     IDF_VERSION_MAJOR,
     IDF_VERSION_MINOR,
     IDF_VERSION_PATCH,
+    PREVIEW_TARGETS,
     PROJECT_DESCRIPTION_JSON,
     BuildStage,
     BuildStatus,
@@ -666,6 +667,11 @@ class App(BaseModel):
         self._logger.debug('Generated size info to %s', self.size_json_path)
 
     def write_size_json(self) -> None:
+        if self.target in PREVIEW_TARGETS:
+            # targets in preview may not yet have support in esp-idf-size
+            self._logger.info('Skipping generation of size json for target %s as it is in preview.', self.target)
+            return
+
         try:
             self._write_size_json()
         except Exception as e:
