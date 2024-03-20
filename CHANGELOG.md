@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.5 (2024-03-20)
+
+### Fix
+
+- python 2.7 old class
+- search sdkconfig path
+- improve error message when env var IDF_PATH not set
+
 ## v1.1.4 (2023-12-29)
 
 ### Fix
