@@ -66,10 +66,24 @@ def _check_app_dependency(
     manifest_rootpath: t.Optional[str] = None,
     modified_components: t.Optional[t.List[str]] = None,
     modified_files: t.Optional[t.List[str]] = None,
+    ignore_app_dependencies_components: t.Optional[t.List[str]] = None,
     ignore_app_dependencies_filepatterns: t.Optional[t.List[str]] = None,
 ) -> bool:
     # not check since modified_components and modified_files are not passed
     if modified_components is None and modified_files is None:
+        return False
+
+    # not check since ignore_app_dependencies_components is passed and matched
+    if (
+        ignore_app_dependencies_components
+        and modified_components is not None
+        and set(modified_components).intersection(ignore_app_dependencies_components)
+    ):
+        LOGGER.info(
+            'Build all apps since modified components %s matches ignored components %s',
+            ', '.join(modified_components),
+            ', '.join(ignore_app_dependencies_components),
+        )
         return False
 
     # not check since ignore_app_dependencies_filepatterns is passed and matched
@@ -79,7 +93,7 @@ def _check_app_dependency(
         and files_matches_patterns(modified_files, ignore_app_dependencies_filepatterns, manifest_rootpath)
     ):
         LOGGER.info(
-            'Build all apps since patterns %s matches modified files %s',
+            'Build all apps since modified files %s matches ignored file patterns %s',
             ', '.join(modified_files),
             ', '.join(ignore_app_dependencies_filepatterns),
         )
@@ -108,6 +122,7 @@ def find_apps(
     default_build_targets: t.Optional[t.Union[t.List[str], str]] = None,
     modified_components: t.Optional[t.Union[t.List[str], str]] = None,
     modified_files: t.Optional[t.Union[t.List[str], str]] = None,
+    ignore_app_dependencies_components: t.Optional[t.Union[t.List[str], str]] = None,
     ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
     sdkconfig_defaults: t.Optional[str] = None,
     include_skipped_apps: bool = False,
@@ -137,8 +152,8 @@ def find_apps(
     :param default_build_targets: default build targets used in manifest files
     :param modified_components: modified components
     :param modified_files: modified files
-    :param ignore_app_dependencies_filepatterns: file patterns that used for ignoring checking the component
-        dependencies
+    :param ignore_app_dependencies_components: components used for ignoring checking the app dependencies
+    :param ignore_app_dependencies_filepatterns: file patterns used for ignoring checking the app dependencies
     :param sdkconfig_defaults: semicolon-separated string, pass to idf.py -DSDKCONFIG_DEFAULTS if specified,
         also could be set via environment variables "SDKCONFIG_DEFAULTS"
     :param include_skipped_apps: include skipped apps or not
@@ -168,6 +183,7 @@ def find_apps(
 
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
+    ignore_app_dependencies_components = to_list(ignore_app_dependencies_components)
     ignore_app_dependencies_filepatterns = to_list(ignore_app_dependencies_filepatterns)
     config_rules_str = to_list(config_rules_str)
 
@@ -199,6 +215,7 @@ def find_apps(
                         manifest_rootpath=manifest_rootpath,
                         modified_components=modified_components,
                         modified_files=modified_files,
+                        ignore_app_dependencies_components=ignore_app_dependencies_components,
                         ignore_app_dependencies_filepatterns=ignore_app_dependencies_filepatterns,
                     ),
                     modified_components=modified_components,
@@ -225,6 +242,7 @@ def build_apps(
     manifest_rootpath: t.Optional[str] = None,
     modified_components: t.Optional[t.Union[t.List[str], str]] = None,
     modified_files: t.Optional[t.Union[t.List[str], str]] = None,
+    ignore_app_dependencies_components: t.Optional[t.Union[t.List[str], str]] = None,
     ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
     check_app_dependencies: t.Optional[bool] = None,
     # BuildAppsArgs
@@ -249,8 +267,8 @@ def build_apps(
         are relative paths. Use the current directory if not specified
     :param modified_components: modified components
     :param modified_files: modified files
-    :param ignore_app_dependencies_filepatterns: file patterns that used for ignoring checking the component
-        dependencies
+    :param ignore_app_dependencies_components: components used for ignoring checking the app dependencies
+    :param ignore_app_dependencies_filepatterns: file patterns used for ignoring checking the app dependencies
     :param check_app_dependencies: check app dependencies or not. if not set, will be calculated by modified_components,
         modified_files, and ignore_app_dependencies_filepatterns
     :param parallel_count: number of parallel tasks to run
@@ -263,6 +281,7 @@ def build_apps(
     apps = to_list(apps)
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
+    ignore_app_dependencies_components = to_list(ignore_app_dependencies_components)
     ignore_app_dependencies_filepatterns = to_list(ignore_app_dependencies_filepatterns)
 
     test_suite = TestSuite('build_apps')
@@ -313,7 +332,11 @@ def build_apps(
             modified_components=modified_components,
             modified_files=modified_files,
             check_app_dependencies=_check_app_dependency(
-                manifest_rootpath, modified_components, modified_files, ignore_app_dependencies_filepatterns
+                manifest_rootpath=manifest_rootpath,
+                modified_components=modified_components,
+                modified_files=modified_files,
+                ignore_app_dependencies_components=ignore_app_dependencies_components,
+                ignore_app_dependencies_filepatterns=ignore_app_dependencies_filepatterns,
             )
             if check_app_dependencies is None
             else check_app_dependencies,
@@ -564,6 +587,18 @@ def get_parser() -> argparse.ArgumentParser:
         'If set to ";", the value would be considered as an empty list',
     )
     common_args.add_argument(
+        '-ic',
+        '--ignore-app-dependencies-components',
+        type=semicolon_separated_str_to_list,
+        help='semicolon-separated string which specifies the modified components used for '
+        'ignoring checking the app dependencies. '
+        'The `depends_components` and `depends_filepatterns` set in the manifest files will be ignored when any of the '
+        'specified components matches any of the modified components. '
+        'Must be used together with --modified-components. '
+        'If set to "", the value would be considered as None. '
+        'If set to ";", the value would be considered as an empty list',
+    )
+    common_args.add_argument(
         '-if',
         '--ignore-app-dependencies-filepatterns',
         type=semicolon_separated_str_to_list,
@@ -683,11 +718,13 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
                 default_build_targets.append(target)
     args.default_build_targets = default_build_targets
 
+    if args.ignore_app_dependencies_components is not None:
+        if args.modified_components is None:
+            raise InvalidCommand('Must specify "--ignore-app-dependencies-components" with "--modified-components", ')
+
     if args.ignore_app_dependencies_filepatterns is not None:
         if args.modified_files is None:
-            raise InvalidCommand(
-                'Must specify "--ignore-component-dependencies-file-patterns" with "--modified-files", '
-            )
+            raise InvalidCommand('Must specify "--ignore-app-dependencies-filepatterns" with "--modified-files", ')
 
 
 def apply_config_args(args: argparse.Namespace) -> None:
@@ -731,6 +768,7 @@ def main():
         default_build_targets=args.default_build_targets,
         modified_components=args.modified_components,
         modified_files=args.modified_files,
+        ignore_app_dependencies_components=args.ignore_app_dependencies_components,
         ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
         sdkconfig_defaults=args.sdkconfig_defaults,
     )
@@ -766,6 +804,7 @@ def main():
         manifest_rootpath=args.manifest_rootpath,
         modified_components=args.modified_components,
         modified_files=args.modified_files,
+        ignore_app_dependencies_components=args.ignore_app_dependencies_components,
         ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
         junitxml=args.junitxml,
     )
