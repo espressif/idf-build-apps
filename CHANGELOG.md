@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.3.0 (2024-03-20)
+
+### Feat
+
+- support ignore app dependencies by components
+
 ## v2.2.2 (2024-03-13)
 
 ### Fix
