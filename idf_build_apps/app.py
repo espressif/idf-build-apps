@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import json
@@ -54,7 +54,7 @@ except ImportError:
     pass
 
 
-class BuildOrNot:
+class BuildOrNot(object):
     YES = 'yes'
     NO = 'no'
     UNKNOWN = 'unknown'
