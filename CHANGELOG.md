@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.3.1 (2024-04-22)
+
+### Fix
+
+- copy sdkconfig file while `_post_build` instead of the final phase of `build_apps`
+
 ## v2.3.0 (2024-03-20)
 
 ### Feat
