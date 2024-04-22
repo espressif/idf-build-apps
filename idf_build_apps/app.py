@@ -124,6 +124,7 @@ class App(BaseModel):
     verbose: bool = False
     check_warnings: bool = False
     preserve: bool = True
+    copy_sdkconfig: bool = False
 
     # build_apps() related
     build_apps_args: t.Optional[BuildAppsArgs] = None
@@ -560,6 +561,17 @@ class App(BaseModel):
 
     def _post_build(self) -> None:
         self._build_stage = BuildStage.POST_BUILD
+
+        if self.copy_sdkconfig:
+            try:
+                shutil.copy(
+                    os.path.join(self.work_dir, 'sdkconfig'),
+                    os.path.join(self.build_path, 'sdkconfig'),
+                )
+            except Exception as e:
+                self._logger.warning('Copy sdkconfig file from failed: %s', e)
+            else:
+                self._logger.debug('Copied sdkconfig file from %s to %s', self.work_dir, self.build_path)
 
         if not os.path.isfile(self.build_log_path):
             return

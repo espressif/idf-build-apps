@@ -6,7 +6,6 @@ import json
 import logging
 import os
 import re
-import shutil
 import sys
 import textwrap
 import typing as t
@@ -324,6 +323,7 @@ def build_apps(
         app.dry_run = dry_run
         app.index = index
         app.verbose = build_verbose
+        app.copy_sdkconfig = copy_sdkconfig
 
         LOGGER.info('(%s/%s) Building app: %s', index, len(apps), app)
 
@@ -352,17 +352,6 @@ def build_apps(
             with open(build_apps_args.collect_app_info, 'a') as fw:
                 fw.write(app.to_json() + '\n')
             LOGGER.debug('Recorded app info in %s', build_apps_args.collect_app_info)
-
-        if copy_sdkconfig:
-            try:
-                shutil.copy(
-                    os.path.join(app.work_dir, 'sdkconfig'),
-                    os.path.join(app.build_path, 'sdkconfig'),
-                )
-            except Exception as e:
-                LOGGER.warning('Copy sdkconfig file from failed: %s', e)
-            else:
-                LOGGER.debug('Copied sdkconfig file from %s to %s', app.work_dir, app.build_path)
 
         if app.build_status == BuildStatus.FAILED:
             if not keep_going:
