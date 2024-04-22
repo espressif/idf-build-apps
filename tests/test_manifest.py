@@ -122,7 +122,8 @@ test5:
 
     os.chdir(tmpdir)
     Manifest.ROOTPATH = tmpdir
-    manifest = Manifest.from_file(yaml_file)
+    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
+        manifest = Manifest.from_file(yaml_file)
 
     assert manifest.depends_components('test1', None, None) == ['VVV']
     assert manifest.depends_components('test1', None, 'AAA') == ['VVV']
@@ -175,7 +176,8 @@ test1:
     )
     os.chdir(tmpdir)
     Manifest.ROOTPATH = tmpdir
-    manifest = Manifest.from_file(yaml_file)
+    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
+        manifest = Manifest.from_file(yaml_file)
 
     assert manifest.depends_components('test1', None, None) == ['DF']
     assert manifest.depends_components('test1', None, 'CCC') == ['DF']
@@ -202,7 +204,8 @@ def test_manifest_switch_clause_wrong_manifest_format(tmpdir):
         encoding='utf8',
     )
     try:
-        Manifest.from_file(yaml_file)
+        with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
+            Manifest.from_file(yaml_file)
     except InvalidManifest as e:
         assert str(e) == "Only the 'if' and 'default' keywords are supported in switch clause."
 
@@ -219,7 +222,8 @@ def test_manifest_switch_clause_wrong_manifest_format(tmpdir):
         encoding='utf8',
     )
     try:
-        Manifest.from_file(yaml_file)
+        with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
+            Manifest.from_file(yaml_file)
     except InvalidManifest as e:
         assert str(e) == 'Current manifest format has to fit either the switch format or the list format.'
 
@@ -260,7 +264,9 @@ foo:
 """,
         encoding='utf8',
     )
-    manifest = Manifest.from_file(yaml_file)
+    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
+        manifest = Manifest.from_file(yaml_file)
+
     assert manifest.enable_build_targets('foo') == sorted(SUPPORTED_TARGETS)
 
     yaml_file.write_text(
@@ -281,7 +287,9 @@ examples/wifi/coexist:
         encoding='utf8',
     )
 
-    manifest = Manifest.from_file(yaml_file)
+    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
+        manifest = Manifest.from_file(yaml_file)
+
     assert manifest.depends_components('examples/wifi/coexist') == ['esp_coex', 'esp_hw_support', 'esp_wifi']
 
     yaml_file.write_text(
@@ -428,7 +436,9 @@ examples/wifi/coexist:
         encoding='utf8',
     )
 
-    manifest = Manifest.from_file(yaml_file)
+    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
+        manifest = Manifest.from_file(yaml_file)
+
     assert manifest.depends_components('examples/wifi/coexist') == ['esp_hw_support']
 
 
