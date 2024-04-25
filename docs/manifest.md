@@ -19,6 +19,33 @@ One typical manifest file look like this:
     - ...
 ```
 
+## Terms
+
+### Supported Targets
+
+This refers to the targets that are fully supported by the ESP-IDF project. You may check the supported targets by running `idf.py --list-targets`.
+
+`idf-build-apps` will get this information dynamically from your `$IDF_PATH`. For ESP-IDF release 5.3, the supported targets are:
+
+- esp32
+- esp32s2
+- esp32c3
+- esp32s3
+- esp32c2
+- esp32c6
+- esp32h2
+- esp32p4
+
+### Preview Targets
+
+This refers to the targets that are still in preview status. You may check the preview targets by running `idf.py --list-targets --preview`.
+
+`idf-build-apps` will get this information dynamically from your `$IDF_PATH`. For ESP-IDF release 5.3, the preview targets are:
+
+- linux
+- esp32c5
+- esp32c61
+
 ## `if` Clauses
 
 ### Operands
@@ -30,7 +57,7 @@ One typical manifest file look like this:
   - `IDF_VERSION_MAJOR`
   - `IDF_VERSION_MINOR`
   - `IDF_VERSION_PATCH`
-  - `INCLUDE_DEFAULT` (The default value of officially supported targets is 1, otherwise is 0)
+  - `INCLUDE_DEFAULT` (The default value of supported targets is 1, and the default value of preview targets is 0)
   - `CONFIG_NAME` (config name defined in [](project:#config-rules))
   - environment variables, default to `0` if not set
 - String, must be double-quoted. e.g., `"esp32"`, `"12345"`
@@ -53,7 +80,9 @@ All operators are binary operators. For more than two operands, you may use the 
 
 ## Enable/Disable Rules
 
-By default, we enable build and test for all supported targets. In other words, if an app supports all supported targets, it does not need to be added in a manifest file. The manifest files are files that set the violation rules for apps.
+By default, we enable build and test for all supported targets. In other words, all preview targets are disabled.
+
+To simplify the manifest file, if an app needs to be build and tested on all supported targets, it does not need to be added in a manifest file. The manifest files are files that set the violation rules for apps.
 
 Three rules (disable rules are calculated after the `enable` rule):
 - `enable`: run CI build/test jobs for targets that match any of the specified conditions only
