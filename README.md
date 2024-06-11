@@ -31,10 +31,11 @@ pipx install idf-build-apps
 
 `idf-build-apps` is a python package that could be used as a library or a CLI tool.
 
-As a CLI tool, it contains two sub-commands.
+As a CLI tool, it contains three sub-commands.
 
 - `find` to find the buildable applications
 - `build` to build the found applications
+- `completions` to activate autocompletions or print instructions for manual activation
 
 For detailed explanation to all CLI options, you may run
 
@@ -42,6 +43,7 @@ For detailed explanation to all CLI options, you may run
 idf-build-apps -h
 idf-build-apps find -h
 idf-build-apps build -h
+idf-build-apps completions -h
 ```
 
 As a library, you may check the [API documentation][api-doc] for more information. Overall it provides

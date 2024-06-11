@@ -1,3 +1,5 @@
+# PYTHON_ARGCOMPLETE_OK
+
 # SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
@@ -10,6 +12,7 @@ import sys
 import textwrap
 import typing as t
 
+import argcomplete
 from pydantic import (
     Field,
     create_model,
@@ -24,16 +27,14 @@ from .app import (
     CMakeApp,
     MakeApp,
 )
+from .autocompletions import activate_completions
 from .build_apps_args import (
     BuildAppsArgs,
 )
 from .config import (
     get_valid_config,
 )
-from .constants import (
-    ALL_TARGETS,
-    BuildStatus,
-)
+from .constants import ALL_TARGETS, BuildStatus, completion_instructions
 from .finder import (
     _find_apps,
 )
@@ -50,6 +51,7 @@ from .manifest.manifest import (
     Manifest,
 )
 from .utils import (
+    AutocompleteActivationError,
     InvalidCommand,
     files_matches_patterns,
     get_parallel_start_stop,
@@ -606,10 +608,27 @@ def get_parser() -> argparse.ArgumentParser:
         help='enable colored output by default on UNIX-like systems. enable this flag to make the logs uncolored.',
     )
 
-    find_parser = actions.add_parser('find', parents=[common_args], formatter_class=IdfBuildAppsCliFormatter)
+    find_parser = actions.add_parser(
+        'find',
+        help='Find the buildable applications. Run `idf-build-apps find --help` for more information on a command',
+        description='Find the buildable applications in the given path or paths for specified chips. '
+        '`--path` and `--target` options must be provided. '
+        'By default, print the found apps in stdout. '
+        'To find apps for all chips use the `--target` option with the `all` argument.',
+        parents=[common_args],
+        formatter_class=IdfBuildAppsCliFormatter,
+    )
+
     find_parser.add_argument('-o', '--output', help='Print the found apps to the specified file instead of stdout')
 
-    build_parser = actions.add_parser('build', parents=[common_args], formatter_class=IdfBuildAppsCliFormatter)
+    build_parser = actions.add_parser(
+        'build',
+        help='Build the found applications. Run `idf-build-apps build --help` for more information on a command',
+        description='Build the application in the given path or paths for specified chips. '
+        '`--path` and `--target` options must be provided.',
+        parents=[common_args],
+        formatter_class=IdfBuildAppsCliFormatter,
+    )
     build_parser.add_argument(
         '--build-verbose',
         action='store_true',
@@ -674,14 +693,48 @@ def get_parser() -> argparse.ArgumentParser:
         help='Path to the junitxml file. If specified, the junitxml file will be generated. Can expand placeholder @p',
     )
 
+    completions_parser = actions.add_parser(
+        'completions',
+        help='Add the autocompletion activation script to the shell rc file. '
+        'Run `idf-build-apps complations --help` for more information on a command',
+        description='Without `--activate` option print instructions for manual activation. '
+        'With `--activate` option add the autocompletion activation script to the shell rc file '
+        'for bash, zsh, or fish. Other shells are not supported. '
+        'The `--shell` option used only with the `--activate` option, '
+        'if provided, add the autocompletion activation script to the given shell; '
+        'without this argument, will detect shell type automatically. '
+        'May need to restart or re-login for the autocompletion to start working',
+        formatter_class=IdfBuildAppsCliFormatter,
+    )
+    completions_parser.add_argument(
+        '-a', '--activate', action='store_true', help='Activate autocompletion automatically and permanently'
+    )
+    completions_parser.add_argument(
+        '-s',
+        '--shell',
+        choices=['bash', 'zsh', 'fish'],
+        help='Specify the shell type for the autocomplite activation script. ',
+    )
+
     return parser
+
+
+def handle_completions(args: argparse.Namespace) -> None:
+    if args.activate:
+        if not args.shell:
+            args.shell = 'auto'
+        activate_completions(args.shell)
+    elif not args.activate and args.shell:
+        raise AutocompleteActivationError('The --shell option can only be used with the --activate option.')
+    else:
+        print(completion_instructions)
 
 
 def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     # validate cli subcommands
-    if args.action not in ['find', 'build']:
+    if args.action not in ['find', 'build', 'completions']:
         parser.print_help()
-        raise InvalidCommand('subcommand is required. {find, build}')
+        raise InvalidCommand('subcommand is required. {find, build, completions}')
 
     if not args.paths:
         raise InvalidCommand(
@@ -728,7 +781,12 @@ def apply_config_args(args: argparse.Namespace) -> None:
 
 def main():
     parser = get_parser()
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
+
+    if args.action == 'completions':
+        handle_completions(args)
+        sys.exit(0)
 
     apply_config_args(args)
     validate_args(parser, args)

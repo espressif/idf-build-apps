@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import enum
@@ -95,3 +95,37 @@ class BuildStage(str, enum.Enum):
     @classmethod
     def max_length(cls) -> int:
         return max(len(v.value) for v in cls.__members__.values())
+
+
+completion_instructions = """
+With `--activate` option detect your shell type and add the appropriate commands to your shell's config file
+so that it is run on startup. You will likely have to restart
+or re-login for the autocompletion to start working.
+
+You can also specify your shell by the `--shell` option.
+
+If you do not want automaticall modifying your shell config file
+you can manually add commands provided below to activate autocompletion
+or run them in your current terminal session for one-time activation.
+
+Once again, you will likely have to restart
+or re-login for the autocompletion to start working.
+
+bash:
+    eval "$(register-python-argcomplete idf-build-apps)"
+
+zsh:
+    To activate completions in zsh, first make sure compinit is marked for
+    autoload and run autoload:
+
+    autoload -U compinit
+    compinit
+
+    Afterwards you can enable completions for idf-build-apps:
+
+    eval "$(register-python-argcomplete idf-build-apps)"
+
+fish:
+    # Not required to be in the config file, only run once
+    register-python-argcomplete --shell fish idf-build-apps >~/.config/fish/completions/idf-build-apps.fish
+"""
