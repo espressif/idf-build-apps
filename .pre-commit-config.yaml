@@ -35,3 +35,5 @@ repos:
           - types-PyYAML
           - types-toml
           - pytest<8  # 8.0.0 does not support python 3.7
+          - argcomplete>=3
+          - annotated_types<0.7.0 # 0.7.0 does not support python 3.7

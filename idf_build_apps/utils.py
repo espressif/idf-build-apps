@@ -85,6 +85,10 @@ class BuildError(RuntimeError):
     pass
 
 
+class AutocompleteActivationError(SystemExit):
+    pass
+
+
 class InvalidCommand(SystemExit):
     def __init__(self, msg: str) -> None:
         super().__init__('Invalid Command: ' + msg.strip())
