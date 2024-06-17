@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.0 (2024-06-17)
+
+### Feat
+
+- support esp32c5 soc header
+- **cli**: add CLI autocompletions
+
 ## v2.3.1 (2024-04-22)
 
 ### Fix
