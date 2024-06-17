@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.1.dev0 (2024-06-17)
+
+### Fix
+
+- use esp32c5 mp as default path
+
 ## v2.4.0 (2024-06-17)
 
 ### Feat
