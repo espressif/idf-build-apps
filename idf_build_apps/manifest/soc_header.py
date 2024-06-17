@@ -1,6 +1,5 @@
 # SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-import glob
 import logging
 import os.path
 import typing as t
@@ -93,27 +92,21 @@ class SocHeader(dict):
 
         return dirs
 
-    @staticmethod
-    def _find_candidates_from_pattern(pattern: str) -> t.List[str]:
-        # get dirs from pattern
-        return [d for d in glob.glob(pattern) if os.path.isdir(d)]
-
     @classmethod
     def _parse_soc_header(cls, target: str) -> t.Dict[str, t.Any]:
         soc_headers_dirs = cls._get_dirs_from_candidates([
-            # master c5
-            *cls._find_candidates_from_pattern(
-                os.path.join(IDF_PATH, 'components', 'soc', target, '*', 'include', 'soc')
-            ),
+            # master c5 mp
+            os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', target, 'mp', 'include', 'soc')),
             # other branches
             os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', target, 'include', 'soc')),
             # release/v4.2
             os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', 'soc', target, 'include', 'soc')),
         ])
         esp_rom_headers_dirs = cls._get_dirs_from_candidates([
-            # master c5
-            *cls._find_candidates_from_pattern(os.path.join(IDF_PATH, 'components', 'esp_rom', target, '*', target)),
-            os.path.join(IDF_PATH, 'components', 'esp_rom', target),
+            # master c5 mp
+            os.path.abspath(os.path.join(IDF_PATH, 'components', 'esp_rom', target, 'mp', target)),
+            # others
+            os.path.abspath(os.path.join(IDF_PATH, 'components', 'esp_rom', target)),
         ])
 
         header_files: t.List[str] = []
