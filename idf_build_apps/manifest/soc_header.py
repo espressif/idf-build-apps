@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+import glob
 import logging
 import os.path
 import typing as t
@@ -82,35 +83,47 @@ class SocHeader(dict):
         super().__init__(**soc_header_dict)
 
     @staticmethod
-    def _get_dir_from_candidates(candidates: t.List[str]) -> t.Optional[str]:
+    def _get_dirs_from_candidates(candidates: t.List[str]) -> t.List[str]:
+        dirs = []
         for d in candidates:
             if not os.path.isdir(d):
                 LOGGER.debug('folder "%s" not found. Skipping...', os.path.abspath(d))
             else:
-                return d
+                dirs.append(d)
 
-        return None
+        return dirs
+
+    @staticmethod
+    def _find_candidates_from_pattern(pattern: str) -> t.List[str]:
+        # get dirs from pattern
+        return [d for d in glob.glob(pattern) if os.path.isdir(d)]
 
     @classmethod
     def _parse_soc_header(cls, target: str) -> t.Dict[str, t.Any]:
-        soc_headers_dir = cls._get_dir_from_candidates([
+        soc_headers_dirs = cls._get_dirs_from_candidates([
+            # master c5
+            *cls._find_candidates_from_pattern(
+                os.path.join(IDF_PATH, 'components', 'soc', target, '*', 'include', 'soc')
+            ),
             # other branches
             os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', target, 'include', 'soc')),
             # release/v4.2
             os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', 'soc', target, 'include', 'soc')),
         ])
-        esp_rom_headers_dir = cls._get_dir_from_candidates([
+        esp_rom_headers_dirs = cls._get_dirs_from_candidates([
+            # master c5
+            *cls._find_candidates_from_pattern(os.path.join(IDF_PATH, 'components', 'esp_rom', target, '*', target)),
             os.path.join(IDF_PATH, 'components', 'esp_rom', target),
         ])
 
         header_files: t.List[str] = []
-        if soc_headers_dir:
-            header_files += [str(p.resolve()) for p in Path(soc_headers_dir).glob(cls.CAPS_HEADER_FILEPATTERN)]
-        if esp_rom_headers_dir:
-            header_files += [str(p.resolve()) for p in Path(esp_rom_headers_dir).glob(cls.CAPS_HEADER_FILEPATTERN)]
+        for d in [*soc_headers_dirs, *esp_rom_headers_dirs]:
+            LOGGER.debug('Checking dir %s', d)
+            header_files += [str(p.resolve()) for p in Path(d).glob(cls.CAPS_HEADER_FILEPATTERN)]
 
         output_dict = {}
         for f in header_files:
+            LOGGER.debug('Checking header file %s', f)
             for line in get_defines(f):
                 try:
                     res = parse_define(line)
