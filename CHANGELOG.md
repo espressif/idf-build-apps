@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## v2.4.1.dev0 (2024-06-17)
+## v2.4.1 (2024-06-18)
 
 ### Fix
 

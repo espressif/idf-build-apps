@@ -61,7 +61,7 @@ idf-build-apps = "idf_build_apps:main.main"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "2.4.1.dev0"
+version = "2.4.1"
 tag_format = "v$version"
 version_files = [
     "idf_build_apps/__init__.py",
