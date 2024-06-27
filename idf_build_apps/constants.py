@@ -98,14 +98,14 @@ class BuildStage(str, enum.Enum):
 
 
 completion_instructions = """
-With `--activate` option detect your shell type and add the appropriate commands to your shell's config file
-so that it is run on startup. You will likely have to restart
+With the `--activate` option, detect your shell type and add the appropriate commands to your shell's config file
+so that it runs on startup. You will likely have to restart.
 or re-login for the autocompletion to start working.
 
-You can also specify your shell by the `--shell` option.
+You can also specify your shell using the `--shell` option.
 
-If you do not want automaticall modifying your shell config file
-you can manually add commands provided below to activate autocompletion
+If you do not want automatic modification of your shell configuration file
+You can manually add the commands provided below to activate autocompletion.
 or run them in your current terminal session for one-time activation.
 
 Once again, you will likely have to restart
