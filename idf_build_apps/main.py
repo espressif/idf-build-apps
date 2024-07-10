@@ -610,7 +610,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     find_parser = actions.add_parser(
         'find',
-        help='Find the buildable applications. Run `idf-build-apps find --help` for more information on a command',
+        help='Find the buildable applications. Run `idf-build-apps find --help` for more information on a command.',
         description='Find the buildable applications in the given path or paths for specified chips. '
         '`--path` and `--target` options must be provided. '
         'By default, print the found apps in stdout. '
@@ -623,7 +623,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     build_parser = actions.add_parser(
         'build',
-        help='Build the found applications. Run `idf-build-apps build --help` for more information on a command',
+        help='Build the found applications. Run `idf-build-apps build --help` for more information on a command.',
         description='Build the application in the given path or paths for specified chips. '
         '`--path` and `--target` options must be provided.',
         parents=[common_args],
@@ -696,18 +696,18 @@ def get_parser() -> argparse.ArgumentParser:
     completions_parser = actions.add_parser(
         'completions',
         help='Add the autocompletion activation script to the shell rc file. '
-        'Run `idf-build-apps complations --help` for more information on a command',
+        'Run `idf-build-apps completions --help` for more information on a command.',
         description='Without `--activate` option print instructions for manual activation. '
-        'With `--activate` option add the autocompletion activation script to the shell rc file '
-        'for bash, zsh, or fish. Other shells are not supported. '
-        'The `--shell` option used only with the `--activate` option, '
+        'With the `--activate` option, add the autocompletion activation script to the shell rc file '
+        'for bash, zsh, or fish. Other shells are not supported.'
+        'The `--shell` option is used only with the `--activate` option, '
         'if provided, add the autocompletion activation script to the given shell; '
         'without this argument, will detect shell type automatically. '
         'May need to restart or re-login for the autocompletion to start working',
         formatter_class=IdfBuildAppsCliFormatter,
     )
     completions_parser.add_argument(
-        '-a', '--activate', action='store_true', help='Activate autocompletion automatically and permanently'
+        '-a', '--activate', action='store_true', help='Activate autocompletion automatically and permanently. '
     )
     completions_parser.add_argument(
         '-s',
