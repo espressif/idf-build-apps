@@ -1,0 +1,40 @@
+name: Publish Bin Executable
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy-bin:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+#          - macos-latest
+          - macos-13  # for python 3.7
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.7'
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller
+          pip install .
+      - name: Build executable
+        shell: bash
+        run: |
+          echo -e "from idf_build_apps.main import main\nif __name__ == '__main__':\n    main()\n" > idf-build-apps.py
+          export IDF_PATH=$(pwd)
+          export VERSION=$(pip list | grep idf-build-apps | awk '{print $2}')
+          export OS=$(echo ${{ matrix.os }} | sed 's/-.*//')
+          pyinstaller -F idf-build-apps.py -n "idf-build-apps-${OS}-${VERSION}"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: idf-build-apps-${{ matrix.os }}
+          path: dist/*
