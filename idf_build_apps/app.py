@@ -546,6 +546,14 @@ class App(BaseModel):
         modified_files: t.Union[t.List[str], str, None] = None,
         check_app_dependencies: bool = False,
     ) -> None:
+        if self.build_status not in (
+            BuildStatus.UNKNOWN,
+            BuildStatus.SHOULD_BE_BUILT,
+        ):
+            self.build_comment = f'Build {self.build_status.value}. Skipping...'
+            return
+
+        # real build starts here
         self._pre_build()
 
         try:
@@ -926,7 +934,7 @@ class CMakeApp(App):
             '-DSDKCONFIG_DEFAULTS={}'.format(';'.join(self.sdkconfig_files) if self.sdkconfig_files else ';'),
         ]
 
-        if modified_components is not None and check_app_dependencies and self.build_status == BuildStatus.UNKNOWN:
+        if self.build_status == BuildStatus.UNKNOWN and modified_components is not None and check_app_dependencies:
             subprocess_run(
                 [*common_args, 'reconfigure'],
                 log_terminal=self._is_build_log_path_temp,
