@@ -570,8 +570,16 @@ class App(BaseModel):
         self._post_build()
 
     def _post_build(self) -> None:
+        """Post build actions for failed/success builds"""
+        if self.build_status not in (
+            BuildStatus.FAILED,
+            BuildStatus.SUCCESS,
+        ):
+            return
+
         self._build_stage = BuildStage.POST_BUILD
 
+        # both status applied
         if self.copy_sdkconfig:
             try:
                 shutil.copy(
@@ -583,9 +591,18 @@ class App(BaseModel):
             else:
                 self._logger.debug('Copied sdkconfig file from %s to %s', self.work_dir, self.build_path)
 
+        # for originally success builds generate size.json if enabled
+        #
+        # for the rest of the actions, we need to check if there's further build warnings
+        # to tell if this build is successful or not
+        if self.build_status == BuildStatus.SUCCESS:
+            self.write_size_json()
+
         if not os.path.isfile(self.build_log_path):
+            self._logger.warning(f'{self.build_log_path} does not exist. Skipping post build actions...')
             return
 
+        # check warnings
         has_unignored_warning = False
         with open(self.build_log_path) as fr:
             lines = [line.rstrip() for line in fr if line.rstrip()]
@@ -598,6 +615,14 @@ class App(BaseModel):
                         self._logger.warning('%s', line)
                         has_unignored_warning = True
 
+        # correct build status for originally successful builds
+        if self.build_status == BuildStatus.SUCCESS:
+            if self.check_warnings and has_unignored_warning:
+                self.build_status = BuildStatus.FAILED
+                self.build_comment = 'build succeeded with warnings'
+            elif has_unignored_warning:
+                self.build_comment = 'build succeeded with warnings'
+
         if self.build_status == BuildStatus.FAILED:
             # print last few lines to help debug
             self._logger.error(
@@ -608,13 +633,13 @@ class App(BaseModel):
             for line in lines[-self.LOG_DEBUG_LINES :]:
                 self._logger.error('%s', line)
 
-        if self._is_build_log_path_temp and self.build_status == BuildStatus.SUCCESS:
+            return
+
+        # Actions for real success builds
+        # remove temp log file
+        if self._is_build_log_path_temp:
             os.unlink(self.build_log_path)
             self._logger.debug('Removed success build temporary log file: %s', self.build_log_path)
-
-        # Generate Size Files
-        if self.build_status == BuildStatus.SUCCESS:
-            self.write_size_json()
 
         # Cleanup build directory if not preserving
         if not self.preserve:
@@ -628,13 +653,6 @@ class App(BaseModel):
                 exclude_file_patterns=exclude_list,
             )
             self._logger.debug('Removed built binaries under: %s', self.build_path)
-
-        # Build Result
-        if self.check_warnings and has_unignored_warning:
-            self.build_status = BuildStatus.FAILED
-            self.build_comment = 'build succeeded with warnings'
-        elif has_unignored_warning:
-            self.build_comment = 'build succeeded with warnings'
 
     def _build(
         self,
