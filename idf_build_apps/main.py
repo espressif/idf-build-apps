@@ -631,6 +631,11 @@ def get_parser() -> argparse.ArgumentParser:
         help='Output format. In "raw" format, each line is a valid json that represents the app. '
         'In "json" format, the whole file is a JSON file of a list of apps.',
     )
+    find_parser.add_argument(
+        '--include-all-apps',
+        action='store_true',
+        help='Include skipped and disabled apps. By default only apps that should be built.',
+    )
 
     build_parser = actions.add_parser(
         'build',
@@ -807,29 +812,33 @@ def main():
     if args.action == 'build':
         args.output = None  # build action doesn't support output option
 
+    kwargs = {
+        'build_system': args.build_system,
+        'recursive': args.recursive,
+        'exclude_list': args.exclude or [],
+        'work_dir': args.work_dir,
+        'build_dir': args.build_dir or 'build',
+        'config_rules_str': args.config,
+        'build_log_filename': args.build_log,
+        'size_json_filename': args.size_file,
+        'check_warnings': args.check_warnings,
+        'manifest_rootpath': args.manifest_rootpath,
+        'manifest_files': args.manifest_file,
+        'check_manifest_rules': args.check_manifest_rules,
+        'default_build_targets': args.default_build_targets,
+        'modified_components': args.modified_components,
+        'modified_files': args.modified_files,
+        'ignore_app_dependencies_components': args.ignore_app_dependencies_components,
+        'ignore_app_dependencies_filepatterns': args.ignore_app_dependencies_filepatterns,
+        'sdkconfig_defaults': args.sdkconfig_defaults,
+    }
+    # only useful in find
+    if args.action == 'find' and args.include_all_apps:
+        kwargs['include_skipped_apps'] = True
+        kwargs['include_disabled_apps'] = True
+
     # real call starts here
-    apps = find_apps(
-        args.paths,
-        args.target,
-        build_system=args.build_system,
-        recursive=args.recursive,
-        exclude_list=args.exclude or [],
-        work_dir=args.work_dir,
-        build_dir=args.build_dir or 'build',
-        config_rules_str=args.config,
-        build_log_filename=args.build_log,
-        size_json_filename=args.size_file,
-        check_warnings=args.check_warnings,
-        manifest_rootpath=args.manifest_rootpath,
-        manifest_files=args.manifest_file,
-        check_manifest_rules=args.check_manifest_rules,
-        default_build_targets=args.default_build_targets,
-        modified_components=args.modified_components,
-        modified_files=args.modified_files,
-        ignore_app_dependencies_components=args.ignore_app_dependencies_components,
-        ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
-        sdkconfig_defaults=args.sdkconfig_defaults,
-    )
+    apps = find_apps(args.paths, args.target, **kwargs)
 
     if args.action == 'find':
         if args.output:
