@@ -38,6 +38,7 @@ import os.path
 import typing as t
 from datetime import (
     datetime,
+    timezone,
 )
 from xml.etree import (
     ElementTree,
@@ -81,7 +82,7 @@ class TestCase:
             raise ValueError('Only one of failure_reason, skipped_reason, error_reason can be set')
 
         self.duration_sec = duration_sec
-        self.timestamp = timestamp or datetime.utcnow()
+        self.timestamp = timestamp or datetime.now(timezone.utc)
 
         self.properties = properties or {}
 
@@ -155,7 +156,7 @@ class TestSuite:
         self.skipped = 0
 
         self.duration_sec: float = 0
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
 
         self.properties = get_sys_info()
 

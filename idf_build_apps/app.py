@@ -10,9 +10,7 @@ import re
 import shutil
 import sys
 import typing as t
-from datetime import (
-    datetime,
-)
+from datetime import datetime, timezone
 from pathlib import (
     Path,
 )
@@ -472,11 +470,11 @@ class App(BaseModel):
     def record_build_duration(func):
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
-            self._build_timestamp = datetime.utcnow()
+            self._build_timestamp = datetime.now(timezone.utc)
             try:
                 return func(self, *args, **kwargs)
             finally:
-                self._build_duration = (datetime.utcnow() - self._build_timestamp).total_seconds()
+                self._build_duration = (datetime.now(timezone.utc) - self._build_timestamp).total_seconds()
 
         return wrapper
 
