@@ -623,8 +623,14 @@ def get_parser() -> argparse.ArgumentParser:
         parents=[common_args],
         formatter_class=IdfBuildAppsCliFormatter,
     )
-
     find_parser.add_argument('-o', '--output', help='Print the found apps to the specified file instead of stdout')
+    find_parser.add_argument(
+        '--output-format',
+        choices=['raw', 'json'],
+        default='raw',
+        help='Output format. In "raw" format, each line is a valid json that represents the app. '
+        'In "json" format, the whole file is a JSON file of a list of apps.',
+    )
 
     build_parser = actions.add_parser(
         'build',
@@ -828,9 +834,18 @@ def main():
     if args.action == 'find':
         if args.output:
             os.makedirs(os.path.dirname(os.path.realpath(args.output)), exist_ok=True)
+            if args.output.endswith('.json'):
+                LOGGER.info('Detecting output file ends with ".json", writing json file.')
+                args.output_format = 'json'
+
             with open(args.output, 'w') as fw:
-                for app in apps:
-                    fw.write(app.to_json() + '\n')
+                if args.output_format == 'raw':
+                    for app in apps:
+                        fw.write(app.to_json() + '\n')
+                elif args.output_format == 'json':
+                    fw.write(json.dumps([app.model_dump() for app in apps], indent=2))
+                else:
+                    raise ValueError(f'Output format {args.output_format} is not supported.')
         else:
             for app in apps:
                 print(app)
