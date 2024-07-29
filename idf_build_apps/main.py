@@ -365,12 +365,14 @@ def build_apps(
                 if os.path.isfile(app.size_json_path):
                     with open(build_apps_args.collect_size_info, 'a') as fw:
                         fw.write(
-                            json.dumps({
-                                'app_name': app.name,
-                                'config_name': app.config_name,
-                                'target': app.target,
-                                'path': app.size_json_path,
-                            })
+                            json.dumps(
+                                {
+                                    'app_name': app.name,
+                                    'config_name': app.config_name,
+                                    'target': app.target,
+                                    'path': app.size_json_path,
+                                }
+                            )
                             + '\n'
                         )
                     LOGGER.debug('Recorded size info file path in %s', build_apps_args.collect_size_info)

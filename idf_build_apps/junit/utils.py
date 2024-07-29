@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -26,7 +26,7 @@ def get_processor_name():
     if os.path.isfile('/proc/cpuinfo'):
         try:
             with open('/proc/cpuinfo') as f:
-                for line in f.readlines():
+                for line in f:
                     if 'model name' in line:
                         return re.sub('.*model name.*:', '', line, 1).strip()
         except Exception:

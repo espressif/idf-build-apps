@@ -94,20 +94,24 @@ class SocHeader(dict):
 
     @classmethod
     def _parse_soc_header(cls, target: str) -> t.Dict[str, t.Any]:
-        soc_headers_dirs = cls._get_dirs_from_candidates([
-            # master c5 mp
-            os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', target, 'mp', 'include', 'soc')),
-            # other branches
-            os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', target, 'include', 'soc')),
-            # release/v4.2
-            os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', 'soc', target, 'include', 'soc')),
-        ])
-        esp_rom_headers_dirs = cls._get_dirs_from_candidates([
-            # master c5 mp
-            os.path.abspath(os.path.join(IDF_PATH, 'components', 'esp_rom', target, 'mp', target)),
-            # others
-            os.path.abspath(os.path.join(IDF_PATH, 'components', 'esp_rom', target)),
-        ])
+        soc_headers_dirs = cls._get_dirs_from_candidates(
+            [
+                # master c5 mp
+                os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', target, 'mp', 'include', 'soc')),
+                # other branches
+                os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', target, 'include', 'soc')),
+                # release/v4.2
+                os.path.abspath(os.path.join(IDF_PATH, 'components', 'soc', 'soc', target, 'include', 'soc')),
+            ]
+        )
+        esp_rom_headers_dirs = cls._get_dirs_from_candidates(
+            [
+                # master c5 mp
+                os.path.abspath(os.path.join(IDF_PATH, 'components', 'esp_rom', target, 'mp', target)),
+                # others
+                os.path.abspath(os.path.join(IDF_PATH, 'components', 'esp_rom', target)),
+            ]
+        )
 
         header_files: t.List[str] = []
         for d in [*soc_headers_dirs, *esp_rom_headers_dirs]:
