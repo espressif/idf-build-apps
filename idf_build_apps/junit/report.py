@@ -38,6 +38,7 @@ import os.path
 import typing as t
 from datetime import (
     datetime,
+    timezone,
 )
 from xml.etree import (
     ElementTree,
@@ -81,14 +82,17 @@ class TestCase:
             raise ValueError('Only one of failure_reason, skipped_reason, error_reason can be set')
 
         self.duration_sec = duration_sec
-        self.timestamp = timestamp or datetime.utcnow()
+        self.timestamp = timestamp or datetime.now(timezone.utc)
 
         self.properties = properties or {}
 
     @classmethod
     def from_app(cls, app: App) -> 'TestCase':
-        if app.build_status not in (BuildStatus.FAILED, BuildStatus.SUCCESS, BuildStatus.SKIPPED):
-            raise ValueError(f'Cannot create test case from app with build status {app.build_status}')
+        if app.build_status in (BuildStatus.UNKNOWN, BuildStatus.SHOULD_BE_BUILT):
+            raise ValueError(
+                f'Cannot create build report for apps with build status {app.build_status}. '
+                f'Please finish the build process first.'
+            )
 
         kwargs: t.Dict[str, t.Any] = {
             'name': app.build_path,
@@ -98,7 +102,7 @@ class TestCase:
         }
         if app.build_status == BuildStatus.FAILED:
             kwargs['failure_reason'] = app.build_comment
-        elif app.build_status == BuildStatus.SKIPPED:
+        elif app.build_status in (BuildStatus.DISABLED, BuildStatus.SKIPPED):
             kwargs['skipped_reason'] = app.build_comment
 
         if app.size_json_path and os.path.isfile(app.size_json_path):
@@ -106,7 +110,7 @@ class TestCase:
                 for k, v in json.load(f).items():
                     kwargs['properties'][f'{k}'] = str(v)
 
-        return cls(**kwargs)  # type
+        return cls(**kwargs)
 
     @property
     def is_failed(self) -> bool:
@@ -155,7 +159,7 @@ class TestSuite:
         self.skipped = 0
 
         self.duration_sec: float = 0
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
 
         self.properties = get_sys_info()
 

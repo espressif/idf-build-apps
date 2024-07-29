@@ -112,7 +112,11 @@ class TestBuild:
         apps = [
             CMakeApp(test_dir, 'esp32', build_dir='build_1'),
             CMakeApp(test_dir, 'esp32', build_dir='build_2'),
+            CMakeApp(test_dir, 'esp32', build_dir='build_3'),
+            CMakeApp(test_dir, 'esp32', build_dir='build_4'),
         ]
+        apps[2].build_status = BuildStatus.DISABLED
+        apps[3].build_status = BuildStatus.SKIPPED
 
         build_apps(deepcopy(apps), dry_run=True, junitxml=str(tmpdir / 'test.xml'))
 
@@ -123,13 +127,20 @@ class TestBuild:
         assert test_suite.attrib['tests'] == '0'
         assert test_suite.attrib['failures'] == '0'
         assert test_suite.attrib['errors'] == '0'
-        assert test_suite.attrib['skipped'] == '2'
+        assert test_suite.attrib['skipped'] == '4'
 
         for i, testcase in enumerate(test_suite.findall('testcase')):
             assert testcase.attrib['name'] == apps[i].build_path
             assert float(testcase.attrib['time']) > 0
             assert testcase.find('skipped') is not None
-            assert testcase.find('skipped').attrib['message'] == 'dry run'
+            if i in (0, 1):
+                assert testcase.find('skipped').attrib['message'] == 'dry run'
+            elif i == 2:
+                assert testcase.find('skipped').attrib['message'] == 'Build disabled. Skipping...'
+            elif i == 3:
+                assert testcase.find('skipped').attrib['message'] == 'Build skipped. Skipping...'
+            else:
+                assert False  # not expected
 
         build_apps(deepcopy(apps), junitxml=str(tmpdir / 'test.xml'))
 
@@ -140,14 +151,21 @@ class TestBuild:
         assert test_suite.attrib['tests'] == '2'
         assert test_suite.attrib['failures'] == '0'
         assert test_suite.attrib['errors'] == '0'
-        assert test_suite.attrib['skipped'] == '0'
+        assert test_suite.attrib['skipped'] == '2'
 
         for i, testcase in enumerate(test_suite.findall('testcase')):
-            assert testcase.attrib['name'] == apps[i].build_path
             assert float(testcase.attrib['time']) > 0
-            assert testcase.find('skipped') is None
+            assert testcase.attrib['name'] == apps[i].build_path
             assert testcase.find('error') is None
             assert testcase.find('failure') is None
+            if i in (0, 1):
+                assert testcase.find('skipped') is None
+            elif i == 2:
+                assert testcase.find('skipped').attrib['message'] == 'Build disabled. Skipping...'
+            elif i == 3:
+                assert testcase.find('skipped').attrib['message'] == 'Build skipped. Skipping...'
+            else:
+                assert False  # not expected
 
     def test_work_dir_inside_relative_app_dir(self, tmp_path):
         create_project('foo', tmp_path)

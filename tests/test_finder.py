@@ -109,6 +109,33 @@ examples/get-started:
             == apps
         )
 
+    def test_include_disabled_apps(self, tmpdir):
+        test_dir = Path(IDF_PATH) / 'examples' / 'get-started'
+        yaml_file = tmpdir / 'test.yml'
+        yaml_file.write_text(
+            f"""
+        {test_dir}:
+            enable:
+                - if: IDF_TARGET == "esp32s2"
+        """,
+            encoding='utf8',
+        )
+
+        test_dir = Path(IDF_PATH) / 'examples' / 'get-started'
+        apps = find_apps(
+            str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file), include_disabled_apps=False
+        )
+        assert not apps
+
+        apps = find_apps(
+            str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file), include_disabled_apps=True
+        )
+        assert apps
+        for app in apps:
+            assert app.build_status == BuildStatus.DISABLED
+            app.build()
+            assert app.build_comment == 'Build disabled. Skipping...'
+
 
 class TestFindWithModifiedFilesComponents:
     @pytest.mark.parametrize(

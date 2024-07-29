@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -43,6 +43,7 @@ def _get_apps_from_path(
     check_app_dependencies: bool = False,
     sdkconfig_defaults_str: t.Optional[str] = None,
     include_skipped_apps: bool = False,
+    include_disabled_apps: bool = False,
 ) -> t.List[App]:
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
@@ -50,7 +51,8 @@ def _get_apps_from_path(
     def _validate_app(_app: App) -> bool:
         if target not in _app.supported_targets:
             LOGGER.debug('=> Ignored. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
-            return False
+            _app.build_status = BuildStatus.DISABLED
+            return include_disabled_apps
 
         _app._check_should_build(
             manifest_rootpath=manifest_rootpath,

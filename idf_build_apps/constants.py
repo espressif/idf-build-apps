@@ -80,6 +80,7 @@ IDF_VERSION = to_version(f'{IDF_VERSION_MAJOR}.{IDF_VERSION_MINOR}.{IDF_VERSION_
 
 class BuildStatus(str, enum.Enum):
     UNKNOWN = 'unknown'
+    DISABLED = 'disabled'
     SKIPPED = 'skipped'
     SHOULD_BE_BUILT = 'should be built'
     FAILED = 'build failed'
