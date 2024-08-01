@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.2 (2024-08-01)
+
+### Feat
+
+- support `--enable-preview-targets`
+- support `--include-all-apps` while find_apps
+- support `--output-format json` while find_apps
+- support `include_disabled_apps` while `find_apps`
+
+### Fix
+
+- ignore specified target if unknown in current ESP-IDF branch instead of raise exception
+- correct `post_build` actions for succeeded with warnings builds
+- **completions**: fix typos in help
+
+### Refactor
+
+- update deprecated `datetime.utcnow`
+
 ## v2.4.1 (2024-06-18)
 
 ### Fix
