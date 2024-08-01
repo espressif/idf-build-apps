@@ -767,12 +767,11 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
     if args.default_build_targets:
         for target in args.default_build_targets:
             if target not in ALL_TARGETS:
-                raise InvalidCommand(
-                    f'Unrecognizable target {target} specified with "--default-build-targets". '
+                LOGGER.warning(
+                    f'Ignoring... Unrecognizable target {target} specified with "--default-build-targets". '
                     f'Current ESP-IDF available targets: {ALL_TARGETS}'
                 )
-
-            if target not in default_build_targets:
+            elif target not in default_build_targets:
                 default_build_targets.append(target)
     args.default_build_targets = default_build_targets
 
