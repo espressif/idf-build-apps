@@ -11,6 +11,7 @@ import re
 import sys
 import textwrap
 import typing as t
+from copy import deepcopy
 
 import argcomplete
 from pydantic import (
@@ -556,14 +557,19 @@ def get_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='Exit with error if any of the manifest rules does not exist on your filesystem',
     )
-
+    common_args.add_argument(
+        '--enable-preview-targets',
+        action='store_true',
+        help='Build the apps with all targets in the current ESP-IDF branch, '
+        'including preview targets, when the app supports the target.',
+    )
     common_args.add_argument(
         '--default-build-targets',
         nargs='+',
-        help='space-separated list of supported targets. Targets supported in current ESP-IDF branch '
-        '(except preview ones) would be used if this option is not set.',
+        help='space-separated list of string which specifies the targets for building the apps. '
+        'If provided, the apps will be built only with the specified targets '
+        'when the app supports the target.',
     )
-
     common_args.add_argument(
         '--modified-components',
         type=semicolon_separated_str_to_list,
@@ -773,7 +779,9 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
                 )
             elif target not in default_build_targets:
                 default_build_targets.append(target)
-    args.default_build_targets = default_build_targets
+        args.default_build_targets = default_build_targets
+    elif args.enable_preview_targets:
+        args.default_build_targets = deepcopy(ALL_TARGETS)
 
     if args.ignore_app_dependencies_components is not None:
         if args.modified_components is None:
