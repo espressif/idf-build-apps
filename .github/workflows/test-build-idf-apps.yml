@@ -52,9 +52,12 @@ jobs:
           bash $IDF_PATH/install.sh
           . $IDF_PATH/export.sh
           pip install idf_build_apps-*.whl
-          python -m idf_build_apps build -vv -t esp32 \
-            -p $IDF_PATH/examples/get-started/hello_world \
-            --size-file size_info.json
+          cd $IDF_PATH/examples/get-started/hello_world
+          cat 'CONFIG_IDF_TARGET="esp32"' >sdkconfig.defaults
+          idf-build-apps build --build-dir build_@t --size-file size_info.json
+          test -f build_esp32/hello_world.bin
+          test -f build_esp32/size_info.json
+          test ! -f build_esp32s2/hello_world.bin
 
   build-apps-on-idf-master:
     runs-on: ubuntu-latest
