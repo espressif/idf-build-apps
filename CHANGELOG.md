@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.4.3 (2024-08-07)
+
+### Feat
+
+- set default building target to "all" if `--target` is not specified
+- set default paths to current directory if `--paths` is not specified
+
 ## v2.4.2 (2024-08-01)
 
 ### Feat
