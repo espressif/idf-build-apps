@@ -458,8 +458,12 @@ def get_parser() -> argparse.ArgumentParser:
         help='Path to the default configuration file, toml file',
     )
 
-    common_args.add_argument('-p', '--paths', nargs='+', help='One or more paths to look for apps')
-    common_args.add_argument('-t', '--target', help='filter apps by given target')
+    common_args.add_argument(
+        '-p', '--paths', nargs='*', help='One or more paths to look for apps. By default build the current directory.'
+    )
+    common_args.add_argument(
+        '-t', '--target', default='all', help='filter apps by given target. By default build all supported targets.'
+    )
     common_args.add_argument(
         '--build-system', default='cmake', choices=['cmake', 'make'], help='filter apps by given build system'
     )
@@ -759,15 +763,13 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
         raise InvalidCommand('subcommand is required. {find, build, completions}')
 
     if not args.paths:
-        raise InvalidCommand(
-            'Must specify at least one path to search for the apps ' 'with CLI option "-p <path>" or "--path <path>"'
-        )
+        cur_dir = os.getcwd()
+        LOGGER.debug(f'--paths is missing. Set --path as current directory "{cur_dir}".')
+        args.paths = [cur_dir]
 
     if not args.target:
-        raise InvalidCommand(
-            'Must specify current build target with CLI option "-t <target>" or "--target <target>". '
-            '(choices: [{}]'.format(','.join([*ALL_TARGETS, 'all']))
-        )
+        LOGGER.debug('--target is missing. Set --target as "all".')
+        args.target = 'all'
 
     default_build_targets = []
     if args.default_build_targets:
