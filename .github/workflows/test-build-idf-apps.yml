@@ -53,7 +53,7 @@ jobs:
           . $IDF_PATH/export.sh
           pip install idf_build_apps-*.whl
           cd $IDF_PATH/examples/get-started/hello_world
-          cat 'CONFIG_IDF_TARGET="esp32"' >sdkconfig.defaults
+          echo 'CONFIG_IDF_TARGET="esp32"' >sdkconfig.defaults
           idf-build-apps build --build-dir build_@t --size-file size_info.json
           test -f build_esp32/hello_world.bin
           test -f build_esp32/size_info.json
