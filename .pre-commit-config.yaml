@@ -37,10 +37,11 @@ repos:
           - argcomplete>=3
           - annotated_types<0.7.0 # 0.7.0 does not support python 3.7
   - repo: https://github.com/hfudev/rstfmt
-    rev: v0.1.3
+    rev: v0.1.4
     hooks:
       - id: rstfmt
         args: ['-w', '-1']
         files: "docs\/.+rst$"
         additional_dependencies:
           - sphinx-argparse
+          - sphinxcontrib-mermaid
