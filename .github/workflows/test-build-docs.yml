@@ -19,6 +19,7 @@ jobs:
           flit install -s
       - name: Build the docs
         run: |
-          cd docs && make html
+          cd docs
+          pushd en && make html && popd
       - name: markdown-link-check
         uses: gaurav-nelson/github-action-markdown-link-check@1.0.15

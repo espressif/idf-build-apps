@@ -1,4 +1,4 @@
-# Manifest File
+# Manifest File `.build-test-rules.yml`
 
 A `.build-test-rules.yml` file is the manifest file to control whether the app will be built or tested under the rules.
 
