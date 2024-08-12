@@ -17,6 +17,7 @@ project = 'idf-build-apps'
 project_homepage = 'https://github.com/espressif/idf-build-apps'
 copyright = '2023, Espressif Systems (Shanghai) Co., Ltd.'  # noqa: A001
 author = 'Fu Hanxi'
+languages = ['en']
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -36,8 +37,8 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_css_files = ['theme_overrides.css']
-html_logo = '_static/espressif-logo.svg'
-html_static_path = ['_static']
+html_logo = '../_static/espressif-logo.svg'
+html_static_path = ['../_static']
 html_theme = 'sphinx_rtd_theme'
 
 # mermaid 10.2.0 will show syntax error
@@ -47,22 +48,24 @@ mermaid_version = '10.6.1'
 # building docs
 os.environ['BUILDING_DOCS'] = '1'
 
-# generating api docs
-docs_dir = os.path.dirname(__file__)
-api_dir = os.path.join(docs_dir, 'api')
-if os.path.isdir(api_dir):
-    shutil.rmtree(api_dir)
-subprocess.run(
-    [
-        'sphinx-apidoc',
-        os.path.join(docs_dir, '..', 'idf_build_apps'),
-        '-f',
-        '-H',
-        'API Reference',
-        '--no-headings',
-        '-t',
-        '_apidoc_templates',
-        '-o',
-        api_dir,
-    ]
-)
+
+def generate_api_docs(language):
+    docs_dir = os.path.dirname(__file__)
+    api_dir = os.path.join(docs_dir, language, 'api')
+    if os.path.isdir(api_dir):
+        shutil.rmtree(api_dir)
+
+    subprocess.run(
+        [
+            'sphinx-apidoc',
+            os.path.join(docs_dir, '..', 'idf_build_apps'),
+            '-f',
+            '-H',
+            'API Reference',
+            '--no-headings',
+            '-t',
+            '_apidoc_templates',
+            '-o',
+            api_dir,
+        ]
+    )
