@@ -9,15 +9,17 @@ import subprocess
 #
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
+from datetime import datetime
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'idf-build-apps'
 project_homepage = 'https://github.com/espressif/idf-build-apps'
-copyright = '2023, Espressif Systems (Shanghai) Co., Ltd.'  # noqa: A001
+copyright = f'2023-{datetime.now().year}, Espressif Systems (Shanghai) Co., Ltd.'  # noqa: A001
 author = 'Fu Hanxi'
 languages = ['en']
+version = '2.x'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -51,7 +53,7 @@ os.environ['BUILDING_DOCS'] = '1'
 
 def generate_api_docs(language):
     docs_dir = os.path.dirname(__file__)
-    api_dir = os.path.join(docs_dir, language, 'api')
+    api_dir = os.path.join(docs_dir, language, 'references', 'api')
     if os.path.isdir(api_dir):
         shutil.rmtree(api_dir)
 

@@ -1,22 +1,35 @@
-.. idf-build-apps documentation master file, created by
-   sphinx-quickstart on Wed Feb  8 10:04:16 2023.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+########################################
+ idf-build-apps |version| Documentation
+########################################
 
-Welcome to idf-build-apps's documentation!
-==========================================
-
-.. include:: ../../README.md
-   :parser: myst_parser.sphinx_
+This documentation is for idf-build-apps. idf-build-apps is a tool that allows developers to easily and reliably build applications for the ESP-IDF framework.
 
 .. toctree::
-   :hidden:
+   :maxdepth: 1
+   :caption: Explanations
 
-   find_build
-   manifest
-   config_file
-   cli
-   api/modules
-   migration/1.x_to_2.x
-   CHANGELOG
-   CONTRIBUTING
+   explanations/config_rules
+   explanations/find
+   explanations/build
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Guides
+
+   guides/1.x_to_2.x
+
+.. toctree::
+   :maxdepth: 1
+   :caption: References
+
+   references/manifest
+   references/config_file
+   references/cli
+   references/api/modules.rst
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Others
+   :glob:
+
+   others/*

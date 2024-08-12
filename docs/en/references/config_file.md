@@ -1,4 +1,4 @@
-# Configuration File
+# Configuration File `.idf-build-apps.toml`
 
 There are many CLI options available for `idf-build-apps`. While these options provide usage flexibility, they also make the CLI command too long and difficult to read. However, a configuration file allows defining all these options in a more readable and maintainable way.
 
