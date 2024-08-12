@@ -34,6 +34,8 @@ By default, ESP-IDF uses the ``sdkconfig.defaults`` file to set the pre-set conf
 
 In ESP-IDF, the target-specific sdkconfig files are used to override the pre-set configurations, when building the project for a specific target. Target-specific sdkconfig files are always endswith the target name. For example, when building the project for the ESP32 target, the ESP-IDF build system will consider the `sdkconfig files`_ with the ``.esp32`` suffix. The values in these target-specific sdkconfig files will override the pre-set values in the ``sdkconfig.defaults`` file. The `override order`_ is explained in more detail in a later section.
 
+.. _config-rules:
+
 **************
  Config Rules
 **************
