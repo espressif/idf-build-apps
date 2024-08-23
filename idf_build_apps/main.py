@@ -451,13 +451,44 @@ def get_parser() -> argparse.ArgumentParser:
     )
     actions = parser.add_subparsers(dest='action')
 
-    common_args = argparse.ArgumentParser(add_help=False)
-    common_args.add_argument(
+    #######################################
+    # Base Arguments Used by All Commands #
+    #######################################
+    base_args = argparse.ArgumentParser(add_help=False)
+    base_args.add_argument(
         '-c',
         '--config-file',
         help='Path to the default configuration file, toml file',
     )
+    base_args.add_argument(
+        '-v',
+        '--verbose',
+        default=0,
+        action='count',
+        help='Increase the logging level of the whole process. Can be specified multiple times. '
+        'By default set to WARNING level. '
+        'Specify once to set to INFO level. '
+        'Specify twice or more to set to DEBUG level',
+    )
+    base_args.add_argument(
+        '--manifest-file',
+        nargs='+',
+        help='Manifest files which specify the build test rules of the apps',
+    )
+    base_args.add_argument(
+        '--log-file',
+        help='Write the log to the specified file, instead of stderr',
+    )
+    base_args.add_argument(
+        '--no-color',
+        action='store_true',
+        help='enable colored output by default on UNIX-like systems. enable this flag to make the logs uncolored.',
+    )
 
+    ###########################################
+    # Common Arguments Used by Find and Build #
+    ###########################################
+    common_args = argparse.ArgumentParser(add_help=False)
     common_args.add_argument(
         '-p', '--paths', nargs='*', help='One or more paths to look for apps. By default build the current directory.'
     )
@@ -529,27 +560,7 @@ def get_parser() -> argparse.ArgumentParser:
         'environment variables "SDKCONFIG_DEFAULTS"',
     )
     common_args.add_argument(
-        '-v',
-        '--verbose',
-        default=0,
-        action='count',
-        help='Increase the logging level of the whole process. Can be specified multiple times. '
-        'By default set to WARNING level. '
-        'Specify once to set to INFO level. '
-        'Specify twice or more to set to DEBUG level',
-    )
-    common_args.add_argument(
-        '--log-file',
-        help='Write the log to the specified file, instead of stderr',
-    )
-    common_args.add_argument(
         '--check-warnings', action='store_true', help='If set, fail the build if warnings are found'
-    )
-
-    common_args.add_argument(
-        '--manifest-file',
-        nargs='+',
-        help='Manifest files which specify the build test rules of the apps',
     )
     common_args.add_argument(
         '--manifest-rootpath',
@@ -617,12 +628,9 @@ def get_parser() -> argparse.ArgumentParser:
         'If set to ";", the value would be considered as an empty list',
     )
 
-    common_args.add_argument(
-        '--no-color',
-        action='store_true',
-        help='enable colored output by default on UNIX-like systems. enable this flag to make the logs uncolored.',
-    )
-
+    ########
+    # Find #
+    ########
     find_parser = actions.add_parser(
         'find',
         help='Find the buildable applications. Run `idf-build-apps find --help` for more information on a command.',
@@ -630,7 +638,7 @@ def get_parser() -> argparse.ArgumentParser:
         '`--path` and `--target` options must be provided. '
         'By default, print the found apps in stdout. '
         'To find apps for all chips use the `--target` option with the `all` argument.',
-        parents=[common_args],
+        parents=[base_args, common_args],
         formatter_class=IdfBuildAppsCliFormatter,
     )
     find_parser.add_argument('-o', '--output', help='Print the found apps to the specified file instead of stdout')
@@ -647,12 +655,15 @@ def get_parser() -> argparse.ArgumentParser:
         help='Include skipped and disabled apps. By default only apps that should be built.',
     )
 
+    #########
+    # Build #
+    #########
     build_parser = actions.add_parser(
         'build',
         help='Build the found applications. Run `idf-build-apps build --help` for more information on a command.',
         description='Build the application in the given path or paths for specified chips. '
         '`--path` and `--target` options must be provided.',
-        parents=[common_args],
+        parents=[base_args, common_args],
         formatter_class=IdfBuildAppsCliFormatter,
     )
     build_parser.add_argument(
@@ -719,6 +730,9 @@ def get_parser() -> argparse.ArgumentParser:
         help='Path to the junitxml file. If specified, the junitxml file will be generated. Can expand placeholder @p',
     )
 
+    ###############
+    # Completions #
+    ###############
     completions_parser = actions.add_parser(
         'completions',
         help='Add the autocompletion activation script to the shell rc file. '
@@ -739,7 +753,20 @@ def get_parser() -> argparse.ArgumentParser:
         '-s',
         '--shell',
         choices=['bash', 'zsh', 'fish'],
-        help='Specify the shell type for the autocomplite activation script. ',
+        help='Specify the shell type for the autocomplete activation script.',
+    )
+
+    ############################
+    # Dump Manifest SHA Values #
+    ############################
+    dump_manifest_parser = actions.add_parser(
+        'dump-manifest-sha',
+        parents=[base_args],
+        help='Dump the manifest files SHA values. '
+        'This could be useful in CI to check if the manifest files are changed.',
+    )
+    dump_manifest_parser.add_argument(
+        '--output', required=True, help='Record the sha values of the manifest files to the specified file'
     )
 
     return parser
@@ -756,9 +783,19 @@ def handle_completions(args: argparse.Namespace) -> None:
         print(completion_instructions)
 
 
+def handle_dump_manifest_sha(args: argparse.Namespace) -> None:
+    if not args.manifest_file:
+        raise InvalidCommand('Manifest files are required to dump the SHA values.')
+
+    if not args.output:
+        raise InvalidCommand('Output file is required to record the SHA values.')
+
+    Manifest.from_files(to_list(args.manifest_file)).dump_sha_values(args.output)
+
+
 def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     # validate cli subcommands
-    if args.action not in ['find', 'build', 'completions']:
+    if args.action not in ['find', 'build', 'dump-manifest-sha', 'completions']:
         parser.print_help()
         raise InvalidCommand('subcommand is required. {find, build, completions}')
 
@@ -814,12 +851,15 @@ def main():
         sys.exit(0)
 
     apply_config_args(args)
-    validate_args(parser, args)
+
+    if args.action == 'dump-manifest-sha':
+        handle_dump_manifest_sha(args)
+        sys.exit(0)
 
     SESSION_ARGS.set(args)
 
     if args.action == 'build':
-        args.output = None  # build action doesn't support output option
+        args.output = None  # build action doesn't support output option, fool the kwargs
 
     kwargs = {
         'build_system': args.build_system,

@@ -68,7 +68,6 @@ version_files = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-s --log-cli-level DEBUG"
 testpaths = [
     "tests",
 ]
