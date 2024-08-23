@@ -1,6 +1,7 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import os
+import shutil
 from pathlib import (
     Path,
 )
@@ -134,3 +135,16 @@ def test_files_matches_patterns(tmpdir):
         os.chdir(temp_dir)
         for f in matched_files:
             assert files_matches_patterns(f, abs_pat)
+
+
+@pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')
+def test_idf_version_keywords_type():
+    from idf_build_apps.constants import (
+        IDF_VERSION_MAJOR,
+        IDF_VERSION_MINOR,
+        IDF_VERSION_PATCH,
+    )
+
+    assert isinstance(IDF_VERSION_MAJOR, int)
+    assert isinstance(IDF_VERSION_MINOR, int)
+    assert isinstance(IDF_VERSION_PATCH, int)

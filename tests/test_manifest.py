@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import shutil
 
 import pytest
 import yaml
@@ -18,9 +17,11 @@ from idf_build_apps.manifest.if_parser import (
     BOOL_STMT,
 )
 from idf_build_apps.manifest.manifest import (
+    IfClause,
     Manifest,
 )
 from idf_build_apps.utils import (
+    InvalidIfClause,
     InvalidManifest,
 )
 from idf_build_apps.yaml import (
@@ -481,15 +482,11 @@ class TestIfParser:
         statement = 'IDF_VERSION in  ["5.9.0"]'
         assert BOOL_STMT.parseString(statement)[0].get_value('esp32', 'foo') is True
 
+    def test_invalid_if_statement(self):
+        statement = '1'
+        with pytest.raises(InvalidIfClause, match='Invalid if statement: 1'):
+            IfClause(statement)
 
-@pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')
-def test_idf_version_keywords_type():
-    from idf_build_apps.constants import (
-        IDF_VERSION_MAJOR,
-        IDF_VERSION_MINOR,
-        IDF_VERSION_PATCH,
-    )
-
-    assert isinstance(IDF_VERSION_MAJOR, int)
-    assert isinstance(IDF_VERSION_MINOR, int)
-    assert isinstance(IDF_VERSION_PATCH, int)
+    def test_temporary_must_with_reason(self):
+        with pytest.raises(InvalidIfClause, match='"reason" must be set when "temporary: true"'):
+            IfClause(stmt='IDF_TARGET == "esp32"', temporary=True)
