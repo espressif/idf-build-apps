@@ -134,7 +134,7 @@ All notable changes to this project will be documented in this file.
 
 ### BREAKING CHANGES
 
-2.x introduces a lot of breaking changes. For a detailed migration guide, please refer to our [Migration From 1.x to 2.x Guide](https://github.com/espressif/idf-build-apps/blob/main/docs/migration/1.x_to_2.x.md)
+2.x introduces a lot of breaking changes. For a detailed migration guide, please refer to our [Migration From 1.x to 2.x Guide](https://docs.espressif.com/projects/idf-build-apps/en/latest/guides/1.x_to_2.x.html)
 
 Here are the breaking changes:
 
