@@ -473,6 +473,28 @@ foo:
         Manifest.from_files([str(yaml_file_1), str(yaml_file_2)])
 
 
+def test_manifest_dump_sha(tmpdir, sha_of_enable_only_esp32):
+    yaml_file = tmpdir / 'test.yml'
+    yaml_file.write_text(
+        """
+foo:
+  enable:
+    - if: IDF_TARGET == "esp32"
+bar:
+  enable:
+    - if: IDF_TARGET == "esp32"
+""",
+        encoding='utf8',
+    )
+
+    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
+        Manifest.from_file(yaml_file).dump_sha_values(str(tmpdir / '.sha'))
+
+    with open(tmpdir / '.sha') as f:
+        assert f.readline() == f'bar:{sha_of_enable_only_esp32}\n'
+        assert f.readline() == f'foo:{sha_of_enable_only_esp32}\n'
+
+
 class TestIfParser:
     def test_idf_version(self, monkeypatch):
         monkeypatch.setattr(idf_build_apps.manifest.if_parser, 'IDF_VERSION', Version('5.9.0'))

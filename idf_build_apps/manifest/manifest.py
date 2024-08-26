@@ -1,10 +1,11 @@
 # SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
 import logging
 import os
+import pickle
 import typing as t
 import warnings
+from hashlib import sha512
 
 from pyparsing import (
     ParseException,
@@ -128,7 +129,26 @@ class FolderRule:
         self.depends_filepatterns = _clause_to_switch_or_list(depends_filepatterns)
 
     def __hash__(self) -> int:
-        return hash(self.folder)
+        return hash(self.sha)
+
+    @property
+    def sha(self) -> str:
+        """
+        SHA of the FolderRule instance
+
+        :return: SHA value
+        """
+        sha = sha512()
+        for obj in [
+            self.enable,
+            self.disable,
+            self.disable_test,
+            self.depends_components,
+            self.depends_filepatterns,
+        ]:
+            sha.update(pickle.dumps(obj))
+
+        return sha.hexdigest()
 
     def __repr__(self) -> str:
         return f'FolderRule({self.folder})'
@@ -217,7 +237,14 @@ class Manifest:
 
     @classmethod
     def from_files(cls, paths: t.Iterable[str], *, root_path: str = os.curdir) -> 'Manifest':
-        # folder, defined_at dict
+        """
+        Create a Manifest instance from multiple manifest files
+
+        :param paths: manifest file paths
+        :param root_path: root path for relative paths in manifest files
+        :return: Manifest instance
+        """
+        # folder, defined as dict
         _known_folders: t.Dict[str, str] = dict()
 
         rules: t.List[FolderRule] = []
@@ -240,6 +267,13 @@ class Manifest:
 
     @classmethod
     def from_file(cls, path: str, *, root_path: str = os.curdir) -> 'Manifest':
+        """
+        Create a Manifest instance from a manifest file
+
+        :param path: path to the manifest file
+        :param root_path: root path for relative paths in manifest file
+        :return: Manifest instance
+        """
         manifest_dict = parse(path)
 
         rules: t.List[FolderRule] = []
@@ -264,6 +298,18 @@ class Manifest:
                 raise InvalidManifest(f'Invalid manifest file {path}: {e}')
 
         return Manifest(rules, root_path=root_path)
+
+    def dump_sha_values(self, sha_filepath: str) -> None:
+        """
+        Dump the (relative path of the folder, SHA of the FolderRule instance) pairs
+        for all rules to the file in format: ``<relative_path>:<SHA>``
+
+        :param sha_filepath: output file path
+        :return: None
+        """
+        with open(sha_filepath, 'w') as fw:
+            for rule in self.rules:
+                fw.write(f'{os.path.relpath(rule.folder, self._root_path)}:{rule.sha}\n')
 
     def _most_suitable_rule(self, _folder: str) -> FolderRule:
         folder = to_absolute_path(_folder)
