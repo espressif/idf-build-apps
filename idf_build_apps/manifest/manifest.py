@@ -17,6 +17,7 @@ from ..constants import (
 from ..utils import (
     InvalidIfClause,
     InvalidManifest,
+    to_absolute_path,
 )
 from ..yaml import (
     parse,
@@ -207,23 +208,21 @@ class DefaultRule(FolderRule):
 
 class Manifest:
     # could be reassigned later
-    ROOTPATH = os.curdir
     CHECK_MANIFEST_RULES = False
 
-    def __init__(
-        self,
-        rules: t.Iterable[FolderRule],
-    ) -> None:
+    def __init__(self, rules: t.Iterable[FolderRule], *, root_path: str = os.curdir) -> None:
         self.rules = sorted(rules, key=lambda x: x.folder)
 
+        self._root_path = root_path
+
     @classmethod
-    def from_files(cls, paths: t.List[str]) -> 'Manifest':
+    def from_files(cls, paths: t.Iterable[str], *, root_path: str = os.curdir) -> 'Manifest':
         # folder, defined_at dict
         _known_folders: t.Dict[str, str] = dict()
 
         rules: t.List[FolderRule] = []
         for path in paths:
-            _manifest = cls.from_file(path)
+            _manifest = cls.from_file(path, root_path=root_path)
 
             for rule in _manifest.rules:
                 if rule.folder in _known_folders:
@@ -237,20 +236,20 @@ class Manifest:
 
             rules.extend(_manifest.rules)
 
-        return Manifest(rules)
+        return Manifest(rules, root_path=root_path)
 
     @classmethod
-    def from_file(cls, path: str) -> 'Manifest':
+    def from_file(cls, path: str, *, root_path: str = os.curdir) -> 'Manifest':
         manifest_dict = parse(path)
 
         rules: t.List[FolderRule] = []
         for folder, folder_rule in manifest_dict.items():
-            # not a folder, but a anchor
+            # not a folder, but an anchor
             if folder.startswith('.'):
                 continue
 
             if not os.path.isabs(folder):
-                folder = os.path.join(cls.ROOTPATH, folder)
+                folder = os.path.join(root_path, folder)
 
             if not os.path.exists(folder):
                 msg = f'Folder "{folder}" does not exist. Please check your manifest file {path}'
@@ -264,10 +263,10 @@ class Manifest:
             except InvalidIfClause as e:
                 raise InvalidManifest(f'Invalid manifest file {path}: {e}')
 
-        return Manifest(rules)
+        return Manifest(rules, root_path=root_path)
 
     def _most_suitable_rule(self, _folder: str) -> FolderRule:
-        folder = os.path.abspath(_folder)
+        folder = to_absolute_path(_folder)
         for rule in self.rules[::-1]:
             if os.path.commonpath([folder, rule.folder]) == rule.folder:
                 return rule

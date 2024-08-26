@@ -47,8 +47,7 @@ test2:
     )
 
     os.chdir(tmpdir)
-    Manifest.ROOTPATH = tmpdir
-    manifest = Manifest.from_file(yaml_file)
+    manifest = Manifest.from_file(yaml_file, root_path=tmpdir)
     msg_fmt = 'Folder "{}" does not exist. Please check your manifest file {}'
 
     # two warnings warn test1 test2 not exists
@@ -63,7 +62,7 @@ test2:
 
     monkeypatch.setattr(idf_build_apps.manifest.manifest.Manifest, 'CHECK_MANIFEST_RULES', True)
     with pytest.raises(InvalidManifest, match=msg_fmt.format(os.path.join(tmpdir, 'test1'), yaml_file)):
-        Manifest.from_file(yaml_file)
+        Manifest.from_file(yaml_file, root_path=tmpdir)
 
     # test with folder that has the same prefix as one of the folders in the manifest
     assert manifest.enable_build_targets('test23') == sorted(SUPPORTED_TARGETS)
@@ -121,9 +120,8 @@ test5:
     )
 
     os.chdir(tmpdir)
-    Manifest.ROOTPATH = tmpdir
     with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-        manifest = Manifest.from_file(yaml_file)
+        manifest = Manifest.from_file(yaml_file, root_path=tmpdir)
 
     assert manifest.depends_components('test1', None, None) == ['VVV']
     assert manifest.depends_components('test1', None, 'AAA') == ['VVV']
@@ -175,9 +173,8 @@ test1:
         encoding='utf8',
     )
     os.chdir(tmpdir)
-    Manifest.ROOTPATH = tmpdir
     with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-        manifest = Manifest.from_file(yaml_file)
+        manifest = Manifest.from_file(yaml_file, root_path=tmpdir)
 
     assert manifest.depends_components('test1', None, None) == ['DF']
     assert manifest.depends_components('test1', None, 'CCC') == ['DF']

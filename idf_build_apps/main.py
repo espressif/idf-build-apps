@@ -178,12 +178,12 @@ def find_apps(
             raise ValueError('Only Support "make" and "cmake"')
     app_cls = build_system
 
-    # always set the manifest rootpath at the very beginning of find_apps in case ESP-IDF switches the branch.
-    Manifest.ROOTPATH = to_absolute_path(manifest_rootpath or os.curdir)
     Manifest.CHECK_MANIFEST_RULES = check_manifest_rules
 
     if manifest_files:
-        App.MANIFEST = Manifest.from_files(to_list(manifest_files))
+        App.MANIFEST = Manifest.from_files(
+            to_list(manifest_files), root_path=to_absolute_path(manifest_rootpath or os.curdir)
+        )
 
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)

@@ -42,9 +42,7 @@ examples/get-started:
 
         # manifest folder invalid
         os.chdir(test_dir)
-        with pytest.warns(
-            UserWarning, match=f'Folder "{IDF_PATH}/examples/get-started/examples/get-started" does not exist'
-        ):
+        with pytest.warns(UserWarning, match=f'Folder "{test_dir}/examples/get-started" does not exist'):
             assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file))
 
     def test_manifest_rootpath_specified(self):
