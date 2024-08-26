@@ -751,9 +751,11 @@ class App(BaseModel):
 
         return False
 
-    def _check_should_build(
+    def check_should_build(
         self,
+        *,
         manifest_rootpath: t.Optional[str] = None,
+        modified_manifest_folders: t.Optional[t.Set[str]] = None,
         check_app_dependencies: bool = False,
         modified_components: t.Optional[t.List[str]] = None,
         modified_files: t.Optional[t.List[str]] = None,
@@ -763,6 +765,16 @@ class App(BaseModel):
 
         if not check_app_dependencies:
             self.build_status = BuildStatus.SHOULD_BE_BUILT
+            self._checked_should_build = True
+            return
+
+        if (
+            self.MANIFEST
+            and modified_manifest_folders
+            and self.MANIFEST.most_suitable_rule(self.app_dir).folder in modified_manifest_folders
+        ):
+            self.build_status = BuildStatus.SHOULD_BE_BUILT
+            self.build_comment = 'current build modifies the related manifest rules'
             self._checked_should_build = True
             return
 
@@ -925,7 +937,7 @@ class CMakeApp(App):
         )
 
         if not self._checked_should_build:
-            self._check_should_build(
+            self.check_should_build(
                 manifest_rootpath=manifest_rootpath,
                 modified_components=modified_components,
                 modified_files=modified_files,

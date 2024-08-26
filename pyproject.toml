@@ -68,7 +68,6 @@ version_files = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-s --log-cli-level DEBUG"
 testpaths = [
     "tests",
 ]
@@ -158,4 +157,4 @@ quote-style = "single"
 docstring-code-format = true
 
 [tool.mypy]
-python_version = "3.7"
+python_version = "3.8"

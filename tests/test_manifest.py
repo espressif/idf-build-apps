@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import shutil
 
 import pytest
 import yaml
@@ -18,9 +17,11 @@ from idf_build_apps.manifest.if_parser import (
     BOOL_STMT,
 )
 from idf_build_apps.manifest.manifest import (
+    IfClause,
     Manifest,
 )
 from idf_build_apps.utils import (
+    InvalidIfClause,
     InvalidManifest,
 )
 from idf_build_apps.yaml import (
@@ -47,8 +48,7 @@ test2:
     )
 
     os.chdir(tmpdir)
-    Manifest.ROOTPATH = tmpdir
-    manifest = Manifest.from_file(yaml_file)
+    manifest = Manifest.from_file(yaml_file, root_path=tmpdir)
     msg_fmt = 'Folder "{}" does not exist. Please check your manifest file {}'
 
     # two warnings warn test1 test2 not exists
@@ -63,7 +63,7 @@ test2:
 
     monkeypatch.setattr(idf_build_apps.manifest.manifest.Manifest, 'CHECK_MANIFEST_RULES', True)
     with pytest.raises(InvalidManifest, match=msg_fmt.format(os.path.join(tmpdir, 'test1'), yaml_file)):
-        Manifest.from_file(yaml_file)
+        Manifest.from_file(yaml_file, root_path=tmpdir)
 
     # test with folder that has the same prefix as one of the folders in the manifest
     assert manifest.enable_build_targets('test23') == sorted(SUPPORTED_TARGETS)
@@ -121,9 +121,8 @@ test5:
     )
 
     os.chdir(tmpdir)
-    Manifest.ROOTPATH = tmpdir
     with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-        manifest = Manifest.from_file(yaml_file)
+        manifest = Manifest.from_file(yaml_file, root_path=tmpdir)
 
     assert manifest.depends_components('test1', None, None) == ['VVV']
     assert manifest.depends_components('test1', None, 'AAA') == ['VVV']
@@ -175,9 +174,8 @@ test1:
         encoding='utf8',
     )
     os.chdir(tmpdir)
-    Manifest.ROOTPATH = tmpdir
     with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-        manifest = Manifest.from_file(yaml_file)
+        manifest = Manifest.from_file(yaml_file, root_path=tmpdir)
 
     assert manifest.depends_components('test1', None, None) == ['DF']
     assert manifest.depends_components('test1', None, 'CCC') == ['DF']
@@ -475,6 +473,59 @@ foo:
         Manifest.from_files([str(yaml_file_1), str(yaml_file_2)])
 
 
+def test_manifest_dump_sha(tmpdir, sha_of_enable_only_esp32):
+    yaml_file = tmpdir / 'test.yml'
+    yaml_file.write_text(
+        """
+foo:
+  enable:
+    - if: IDF_TARGET == "esp32"
+bar:
+  enable:
+    - if: IDF_TARGET == "esp32"
+""",
+        encoding='utf8',
+    )
+
+    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
+        Manifest.from_file(yaml_file).dump_sha_values(str(tmpdir / '.sha'))
+
+    with open(tmpdir / '.sha') as f:
+        assert f.readline() == f'bar:{sha_of_enable_only_esp32}\n'
+        assert f.readline() == f'foo:{sha_of_enable_only_esp32}\n'
+
+
+def test_manifest_diff_sha(tmpdir, sha_of_enable_only_esp32):
+    yaml_file = tmpdir / 'test.yml'
+    yaml_file.write_text(
+        """
+foo:
+  enable:
+    - if: IDF_TARGET == "esp32"
+    - if: IDF_TARGET == "esp32c3"
+bar:
+  enable:
+    - if: IDF_TARGET == "esp32"
+baz:
+  enable:
+    - if: IDF_TARGET == "esp32"
+""",
+        encoding='utf8',
+    )
+
+    with open(tmpdir / '.sha', 'w') as fw:
+        fw.write(f'bar:{sha_of_enable_only_esp32}\n')
+        fw.write('\n')  # test empty line
+        fw.write('       ')  # test spaces
+        fw.write(f'foo:{sha_of_enable_only_esp32}\n')
+
+    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
+        assert Manifest.from_file(yaml_file).diff_sha_with_filepath(str(tmpdir / '.sha')) == {
+            'baz',
+            'foo',
+        }
+
+
 class TestIfParser:
     def test_idf_version(self, monkeypatch):
         monkeypatch.setattr(idf_build_apps.manifest.if_parser, 'IDF_VERSION', Version('5.9.0'))
@@ -484,15 +535,11 @@ class TestIfParser:
         statement = 'IDF_VERSION in  ["5.9.0"]'
         assert BOOL_STMT.parseString(statement)[0].get_value('esp32', 'foo') is True
 
+    def test_invalid_if_statement(self):
+        statement = '1'
+        with pytest.raises(InvalidIfClause, match='Invalid if statement: 1'):
+            IfClause(statement)
 
-@pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')
-def test_idf_version_keywords_type():
-    from idf_build_apps.constants import (
-        IDF_VERSION_MAJOR,
-        IDF_VERSION_MINOR,
-        IDF_VERSION_PATCH,
-    )
-
-    assert isinstance(IDF_VERSION_MAJOR, int)
-    assert isinstance(IDF_VERSION_MINOR, int)
-    assert isinstance(IDF_VERSION_PATCH, int)
+    def test_temporary_must_with_reason(self):
+        with pytest.raises(InvalidIfClause, match='"reason" must be set when "temporary: true"'):
+            IfClause(stmt='IDF_TARGET == "esp32"', temporary=True)

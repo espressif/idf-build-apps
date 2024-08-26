@@ -16,26 +16,25 @@ repos:
           - license_header.txt        # defaults to: LICENSE.txt
           - --use-current-year
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: 'v0.5.7'
+    rev: 'v0.6.2'
     hooks:
       - id: ruff
         args: ['--fix']
       - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: 'v1.11.1'   # 1.9 doesn't support python 3.7
+    rev: 'v1.11.2'
     hooks:
       - id: mypy
         args: ['--warn-unused-ignores']
         additional_dependencies:
-          - pydantic<2.6  # 2.6 does not support python 3.7
+          - pydantic
           - packaging
           - toml
           - pyparsing
           - types-PyYAML
           - types-toml
-          - pytest<8  # 8.0.0 does not support python 3.7
+          - pytest
           - argcomplete>=3
-          - annotated_types<0.7.0 # 0.7.0 does not support python 3.7
   - repo: https://github.com/hfudev/rstfmt
     rev: v0.1.4
     hooks:

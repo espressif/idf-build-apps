@@ -21,6 +21,7 @@ from idf_build_apps.constants import (
 from idf_build_apps.main import (
     find_apps,
 )
+from idf_build_apps.manifest.manifest import Manifest
 
 
 class TestFindWithManifest:
@@ -42,9 +43,7 @@ examples/get-started:
 
         # manifest folder invalid
         os.chdir(test_dir)
-        with pytest.warns(
-            UserWarning, match=f'Folder "{IDF_PATH}/examples/get-started/examples/get-started" does not exist'
-        ):
+        with pytest.warns(UserWarning, match=f'Folder "{test_dir}/examples/get-started" does not exist'):
             assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file))
 
     def test_manifest_rootpath_specified(self):
@@ -385,6 +384,47 @@ examples/wifi/getting_started:
 
         apps[0].build()
         assert apps[0].build_status == BuildStatus.SKIPPED
+
+    def test_with_modified_manifest(self, tmp_path, sha_of_enable_only_esp32):
+        create_project('foo', tmp_path)
+
+        yaml_file = tmp_path / 'test.yml'
+        yaml_file.write_text(
+            """
+foo:
+    enable:
+        - if: IDF_TARGET == "esp32"
+    depends_components:
+        - foo
+        """,
+            encoding='utf8',
+        )
+        # dump sha
+        Manifest.from_file(str(yaml_file)).dump_sha_values('.sha')
+        sha_abspath = os.path.abspath('.sha')
+
+        # chdir, and modify bar, should not be found
+        os.chdir(tmp_path)
+        apps = find_apps(
+            'foo',
+            'esp32',
+            manifest_files=[yaml_file],
+            modified_components=['bar'],
+            check_manifest_sha_filepath=sha_abspath,
+        )
+        assert not apps
+
+        # touch the sha file, should be found now
+        with open(sha_abspath, 'w') as fw:
+            fw.write(f'foo:{sha_of_enable_only_esp32}')  # change the folder rule
+        apps = find_apps(
+            'foo',
+            'esp32',
+            manifest_files=[yaml_file],
+            modified_components=['bar'],
+            check_manifest_sha_filepath=sha_abspath,
+        )
+        assert len(apps) == 1
 
 
 class TestFindWithSdkconfigFiles:

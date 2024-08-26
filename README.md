@@ -75,4 +75,4 @@ Thanks for your contribution! Please refer to our [Contributing Guide](CONTRIBUT
 [hello-world]: https://github.com/espressif/esp-idf/tree/master/examples/get-started/hello_world
 [supported-targets]: https://github.com/espressif/esp-idf/tree/v5.0#esp-idf-release-and-soc-compatibility
 [doc]: https://docs.espressif.com/projects/idf-build-apps/en/latest/
-[api-doc]: https://docs.espressif.com/projects/idf-build-apps/en/latest/api/modules.html
+[api-doc]: https://docs.espressif.com/projects/idf-build-apps/en/latest/references/api/modules.html

@@ -120,6 +120,7 @@ def find_apps(
     preserve: bool = True,
     manifest_rootpath: t.Optional[str] = None,
     manifest_files: t.Optional[t.Union[t.List[str], str]] = None,
+    check_manifest_sha_filepath: t.Optional[str] = None,
     check_manifest_rules: bool = False,
     default_build_targets: t.Optional[t.Union[t.List[str], str]] = None,
     modified_components: t.Optional[t.Union[t.List[str], str]] = None,
@@ -151,6 +152,8 @@ def find_apps(
     :param manifest_rootpath: The root path of the manifest files. Usually the folders specified in the manifest files
         are relative paths. Use the current directory if not specified
     :param manifest_files: paths of the manifest files
+    :param check_manifest_sha_filepath: compare the SHA values of the manifest files with the given file.
+        All apps shall be built and tested if the SHA values of the matched rules are different.
     :param check_manifest_rules: check the manifest rules or not
     :param default_build_targets: default build targets used in manifest files
     :param modified_components: modified components
@@ -178,12 +181,17 @@ def find_apps(
             raise ValueError('Only Support "make" and "cmake"')
     app_cls = build_system
 
-    # always set the manifest rootpath at the very beginning of find_apps in case ESP-IDF switches the branch.
-    Manifest.ROOTPATH = to_absolute_path(manifest_rootpath or os.curdir)
     Manifest.CHECK_MANIFEST_RULES = check_manifest_rules
 
+    modified_manifest_folders: t.Set[str] = set()
     if manifest_files:
-        App.MANIFEST = Manifest.from_files(to_list(manifest_files))
+        App.MANIFEST = Manifest.from_files(
+            to_list(manifest_files), root_path=to_absolute_path(manifest_rootpath or os.curdir)
+        )
+        if check_manifest_sha_filepath:
+            modified_manifest_folders = App.MANIFEST.diff_sha_with_filepath(
+                check_manifest_sha_filepath, use_abspath=True
+            )
 
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
@@ -215,6 +223,9 @@ def find_apps(
                     check_warnings=check_warnings,
                     preserve=preserve,
                     manifest_rootpath=manifest_rootpath,
+                    modified_manifest_folders=modified_manifest_folders,
+                    modified_components=modified_components,
+                    modified_files=modified_files,
                     check_app_dependencies=_check_app_dependency(
                         manifest_rootpath=manifest_rootpath,
                         modified_components=modified_components,
@@ -222,8 +233,6 @@ def find_apps(
                         ignore_app_dependencies_components=ignore_app_dependencies_components,
                         ignore_app_dependencies_filepatterns=ignore_app_dependencies_filepatterns,
                     ),
-                    modified_components=modified_components,
-                    modified_files=modified_files,
                     sdkconfig_defaults_str=sdkconfig_defaults,
                     include_skipped_apps=include_skipped_apps,
                     include_disabled_apps=include_disabled_apps,
@@ -451,15 +460,50 @@ def get_parser() -> argparse.ArgumentParser:
     )
     actions = parser.add_subparsers(dest='action')
 
-    common_args = argparse.ArgumentParser(add_help=False)
-    common_args.add_argument(
+    #######################################
+    # Base Arguments Used by All Commands #
+    #######################################
+    base_args = argparse.ArgumentParser(add_help=False)
+    base_args.add_argument(
         '-c',
         '--config-file',
         help='Path to the default configuration file, toml file',
     )
+    base_args.add_argument(
+        '-v',
+        '--verbose',
+        default=0,
+        action='count',
+        help='Increase the logging level of the whole process. Can be specified multiple times. '
+        'By default set to WARNING level. '
+        'Specify once to set to INFO level. '
+        'Specify twice or more to set to DEBUG level',
+    )
+    base_args.add_argument(
+        '--manifest-file',
+        nargs='+',
+        help='Manifest files which specify the build test rules of the apps',
+    )
+    base_args.add_argument(
+        '--log-file',
+        help='Write the log to the specified file, instead of stderr',
+    )
+    base_args.add_argument(
+        '--no-color',
+        action='store_true',
+        help='enable colored output by default on UNIX-like systems. enable this flag to make the logs uncolored.',
+    )
 
+    ###########################################
+    # Common Arguments Used by Find and Build #
+    ###########################################
+    common_args = argparse.ArgumentParser(add_help=False)
     common_args.add_argument(
-        '-p', '--paths', nargs='*', help='One or more paths to look for apps. By default build the current directory.'
+        '-p',
+        '--paths',
+        nargs='*',
+        default=[os.curdir],
+        help='One or more paths to look for apps. By default build the current directory.',
     )
     common_args.add_argument(
         '-t', '--target', default='all', help='filter apps by given target. By default build all supported targets.'
@@ -529,32 +573,17 @@ def get_parser() -> argparse.ArgumentParser:
         'environment variables "SDKCONFIG_DEFAULTS"',
     )
     common_args.add_argument(
-        '-v',
-        '--verbose',
-        default=0,
-        action='count',
-        help='Increase the logging level of the whole process. Can be specified multiple times. '
-        'By default set to WARNING level. '
-        'Specify once to set to INFO level. '
-        'Specify twice or more to set to DEBUG level',
-    )
-    common_args.add_argument(
-        '--log-file',
-        help='Write the log to the specified file, instead of stderr',
-    )
-    common_args.add_argument(
         '--check-warnings', action='store_true', help='If set, fail the build if warnings are found'
-    )
-
-    common_args.add_argument(
-        '--manifest-file',
-        nargs='+',
-        help='Manifest files which specify the build test rules of the apps',
     )
     common_args.add_argument(
         '--manifest-rootpath',
         help='Root directory for calculating the realpath of the relative path defined in the manifest files. '
         'Would use the current directory if not set',
+    )
+    common_args.add_argument(
+        '--check-manifest-sha-filepath',
+        help='Compare the SHA values of the manifest files with the given file. '
+        'All apps shall be built and tested if the SHA values of the matched rules are different. ',
     )
     common_args.add_argument(
         '--check-manifest-rules',
@@ -617,12 +646,9 @@ def get_parser() -> argparse.ArgumentParser:
         'If set to ";", the value would be considered as an empty list',
     )
 
-    common_args.add_argument(
-        '--no-color',
-        action='store_true',
-        help='enable colored output by default on UNIX-like systems. enable this flag to make the logs uncolored.',
-    )
-
+    ########
+    # Find #
+    ########
     find_parser = actions.add_parser(
         'find',
         help='Find the buildable applications. Run `idf-build-apps find --help` for more information on a command.',
@@ -630,7 +656,7 @@ def get_parser() -> argparse.ArgumentParser:
         '`--path` and `--target` options must be provided. '
         'By default, print the found apps in stdout. '
         'To find apps for all chips use the `--target` option with the `all` argument.',
-        parents=[common_args],
+        parents=[base_args, common_args],
         formatter_class=IdfBuildAppsCliFormatter,
     )
     find_parser.add_argument('-o', '--output', help='Print the found apps to the specified file instead of stdout')
@@ -647,12 +673,15 @@ def get_parser() -> argparse.ArgumentParser:
         help='Include skipped and disabled apps. By default only apps that should be built.',
     )
 
+    #########
+    # Build #
+    #########
     build_parser = actions.add_parser(
         'build',
         help='Build the found applications. Run `idf-build-apps build --help` for more information on a command.',
         description='Build the application in the given path or paths for specified chips. '
         '`--path` and `--target` options must be provided.',
-        parents=[common_args],
+        parents=[base_args, common_args],
         formatter_class=IdfBuildAppsCliFormatter,
     )
     build_parser.add_argument(
@@ -719,6 +748,9 @@ def get_parser() -> argparse.ArgumentParser:
         help='Path to the junitxml file. If specified, the junitxml file will be generated. Can expand placeholder @p',
     )
 
+    ###############
+    # Completions #
+    ###############
     completions_parser = actions.add_parser(
         'completions',
         help='Add the autocompletion activation script to the shell rc file. '
@@ -739,7 +771,20 @@ def get_parser() -> argparse.ArgumentParser:
         '-s',
         '--shell',
         choices=['bash', 'zsh', 'fish'],
-        help='Specify the shell type for the autocomplite activation script. ',
+        help='Specify the shell type for the autocomplete activation script.',
+    )
+
+    ############################
+    # Dump Manifest SHA Values #
+    ############################
+    dump_manifest_parser = actions.add_parser(
+        'dump-manifest-sha',
+        parents=[base_args],
+        help='Dump the manifest files SHA values. '
+        'This could be useful in CI to check if the manifest files are changed.',
+    )
+    dump_manifest_parser.add_argument(
+        '--output', required=True, help='Record the sha values of the manifest files to the specified file'
     )
 
     return parser
@@ -756,16 +801,21 @@ def handle_completions(args: argparse.Namespace) -> None:
         print(completion_instructions)
 
 
+def handle_dump_manifest_sha(args: argparse.Namespace) -> None:
+    if not args.manifest_file:
+        raise InvalidCommand('Manifest files are required to dump the SHA values.')
+
+    if not args.output:
+        raise InvalidCommand('Output file is required to record the SHA values.')
+
+    Manifest.from_files(to_list(args.manifest_file)).dump_sha_values(args.output)
+
+
 def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     # validate cli subcommands
-    if args.action not in ['find', 'build', 'completions']:
+    if args.action not in ['find', 'build', 'dump-manifest-sha', 'completions']:
         parser.print_help()
         raise InvalidCommand('subcommand is required. {find, build, completions}')
-
-    if not args.paths:
-        cur_dir = os.getcwd()
-        LOGGER.debug(f'--paths is missing. Set --path as current directory "{cur_dir}".')
-        args.paths = [cur_dir]
 
     if not args.target:
         LOGGER.debug('--target is missing. Set --target as "all".')
@@ -814,12 +864,17 @@ def main():
         sys.exit(0)
 
     apply_config_args(args)
+
+    if args.action == 'dump-manifest-sha':
+        handle_dump_manifest_sha(args)
+        sys.exit(0)
+
     validate_args(parser, args)
 
     SESSION_ARGS.set(args)
 
     if args.action == 'build':
-        args.output = None  # build action doesn't support output option
+        args.output = None  # build action doesn't support output option, fool the kwargs
 
     kwargs = {
         'build_system': args.build_system,
@@ -833,6 +888,7 @@ def main():
         'check_warnings': args.check_warnings,
         'manifest_rootpath': args.manifest_rootpath,
         'manifest_files': args.manifest_file,
+        'check_manifest_sha_filepath': args.check_manifest_sha_filepath,
         'check_manifest_rules': args.check_manifest_rules,
         'default_build_targets': args.default_build_targets,
         'modified_components': args.modified_components,

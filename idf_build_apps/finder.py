@@ -38,6 +38,7 @@ def _get_apps_from_path(
     check_warnings: bool = False,
     preserve: bool = True,
     manifest_rootpath: t.Optional[str] = None,
+    modified_manifest_folders: t.Optional[t.Set[str]] = None,
     modified_components: t.Optional[t.List[str]] = None,
     modified_files: t.Optional[t.List[str]] = None,
     check_app_dependencies: bool = False,
@@ -54,8 +55,9 @@ def _get_apps_from_path(
             _app.build_status = BuildStatus.DISABLED
             return include_disabled_apps
 
-        _app._check_should_build(
+        _app.check_should_build(
             manifest_rootpath=manifest_rootpath,
+            modified_manifest_folders=modified_manifest_folders,
             modified_components=modified_components,
             modified_files=modified_files,
             check_app_dependencies=check_app_dependencies,

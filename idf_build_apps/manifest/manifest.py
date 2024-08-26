@@ -1,10 +1,11 @@
 # SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
 import logging
 import os
+import pickle
 import typing as t
 import warnings
+from hashlib import sha512
 
 from pyparsing import (
     ParseException,
@@ -17,6 +18,7 @@ from ..constants import (
 from ..utils import (
     InvalidIfClause,
     InvalidManifest,
+    to_absolute_path,
 )
 from ..yaml import (
     parse,
@@ -127,7 +129,26 @@ class FolderRule:
         self.depends_filepatterns = _clause_to_switch_or_list(depends_filepatterns)
 
     def __hash__(self) -> int:
-        return hash(self.folder)
+        return hash(self.sha)
+
+    @property
+    def sha(self) -> str:
+        """
+        SHA of the FolderRule instance
+
+        :return: SHA value
+        """
+        sha = sha512()
+        for obj in [
+            self.enable,
+            self.disable,
+            self.disable_test,
+            self.depends_components,
+            self.depends_filepatterns,
+        ]:
+            sha.update(pickle.dumps(obj))
+
+        return sha.hexdigest()
 
     def __repr__(self) -> str:
         return f'FolderRule({self.folder})'
@@ -207,23 +228,28 @@ class DefaultRule(FolderRule):
 
 class Manifest:
     # could be reassigned later
-    ROOTPATH = os.curdir
     CHECK_MANIFEST_RULES = False
 
-    def __init__(
-        self,
-        rules: t.Iterable[FolderRule],
-    ) -> None:
+    def __init__(self, rules: t.Iterable[FolderRule], *, root_path: str = os.curdir) -> None:
         self.rules = sorted(rules, key=lambda x: x.folder)
 
+        self._root_path = to_absolute_path(root_path)
+
     @classmethod
-    def from_files(cls, paths: t.List[str]) -> 'Manifest':
-        # folder, defined_at dict
+    def from_files(cls, paths: t.Iterable[str], *, root_path: str = os.curdir) -> 'Manifest':
+        """
+        Create a Manifest instance from multiple manifest files
+
+        :param paths: manifest file paths
+        :param root_path: root path for relative paths in manifest files
+        :return: Manifest instance
+        """
+        # folder, defined as dict
         _known_folders: t.Dict[str, str] = dict()
 
         rules: t.List[FolderRule] = []
         for path in paths:
-            _manifest = cls.from_file(path)
+            _manifest = cls.from_file(path, root_path=root_path)
 
             for rule in _manifest.rules:
                 if rule.folder in _known_folders:
@@ -237,20 +263,27 @@ class Manifest:
 
             rules.extend(_manifest.rules)
 
-        return Manifest(rules)
+        return Manifest(rules, root_path=root_path)
 
     @classmethod
-    def from_file(cls, path: str) -> 'Manifest':
+    def from_file(cls, path: str, *, root_path: str = os.curdir) -> 'Manifest':
+        """
+        Create a Manifest instance from a manifest file
+
+        :param path: path to the manifest file
+        :param root_path: root path for relative paths in manifest file
+        :return: Manifest instance
+        """
         manifest_dict = parse(path)
 
         rules: t.List[FolderRule] = []
         for folder, folder_rule in manifest_dict.items():
-            # not a folder, but a anchor
+            # not a folder, but an anchor
             if folder.startswith('.'):
                 continue
 
             if not os.path.isabs(folder):
-                folder = os.path.join(cls.ROOTPATH, folder)
+                folder = os.path.join(root_path, folder)
 
             if not os.path.exists(folder):
                 msg = f'Folder "{folder}" does not exist. Please check your manifest file {path}'
@@ -264,10 +297,66 @@ class Manifest:
             except InvalidIfClause as e:
                 raise InvalidManifest(f'Invalid manifest file {path}: {e}')
 
-        return Manifest(rules)
+        return Manifest(rules, root_path=root_path)
 
-    def _most_suitable_rule(self, _folder: str) -> FolderRule:
-        folder = os.path.abspath(_folder)
+    def dump_sha_values(self, sha_filepath: str) -> None:
+        """
+        Dump the (relative path of the folder, SHA of the FolderRule instance) pairs
+        for all rules to the file in format: ``<relative_path>:<SHA>``
+
+        :param sha_filepath: output file path
+        :return: None
+        """
+        with open(sha_filepath, 'w') as fw:
+            for rule in self.rules:
+                fw.write(f'{os.path.relpath(rule.folder, self._root_path)}:{rule.sha}\n')
+
+    def diff_sha_with_filepath(self, sha_filepath: str, use_abspath: bool = False) -> t.Set[str]:
+        """
+        Compare the SHA recorded in the file with the current Manifest instance.
+
+        :param sha_filepath: dumped SHA file path
+        :param use_abspath: whether to return the absolute path of the folders
+        :return: Set of folders that have different SHA values
+        """
+        recorded__rel_folder__sha__dict = dict()
+        with open(sha_filepath) as fr:
+            for line in fr:
+                line = line.strip()
+                if line:
+                    try:
+                        folder, sha_value = line.strip().rsplit(':', maxsplit=1)
+                    except ValueError:
+                        raise InvalidManifest(f'Invalid line in SHA file: {line}. Expected format: <folder>:<SHA>')
+
+                    recorded__rel_folder__sha__dict[folder] = sha_value
+
+        self__rel_folder__sha__dict = {os.path.relpath(rule.folder, self._root_path): rule.sha for rule in self.rules}
+
+        diff_folders = set()
+        if use_abspath:
+
+            def _path(x):
+                return os.path.join(self._root_path, x)
+        else:
+
+            def _path(x):
+                return x
+
+        for folder, sha_value in recorded__rel_folder__sha__dict.items():
+            if folder not in self__rel_folder__sha__dict:
+                diff_folders.add(_path(folder))
+            elif sha_value != self__rel_folder__sha__dict[folder]:
+                diff_folders.add(_path(folder))
+
+        for folder in self__rel_folder__sha__dict:
+            if folder not in recorded__rel_folder__sha__dict:
+                diff_folders.add(_path(folder))
+
+        return diff_folders
+
+    def most_suitable_rule(self, _folder: str) -> FolderRule:
+        folder = to_absolute_path(_folder)
         for rule in self.rules[::-1]:
             if os.path.commonpath([folder, rule.folder]) == rule.folder:
                 return rule
@@ -277,17 +366,17 @@ class Manifest:
     def enable_build_targets(
         self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> t.List[str]:
-        return self._most_suitable_rule(folder).enable_build_targets(default_sdkconfig_target, config_name)
+        return self.most_suitable_rule(folder).enable_build_targets(default_sdkconfig_target, config_name)
 
     def enable_test_targets(
         self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> t.List[str]:
-        return self._most_suitable_rule(folder).enable_test_targets(default_sdkconfig_target, config_name)
+        return self.most_suitable_rule(folder).enable_test_targets(default_sdkconfig_target, config_name)
 
     def depends_components(
         self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> t.List[str]:
-        res = self._most_suitable_rule(folder).depends_components
+        res = self.most_suitable_rule(folder).depends_components
         if isinstance(res, list):
             return res
         return res.get_value(default_sdkconfig_target or '', config_name or '')
@@ -295,7 +384,7 @@ class Manifest:
     def depends_filepatterns(
         self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> t.List[str]:
-        res = self._most_suitable_rule(folder).depends_filepatterns
+        res = self.most_suitable_rule(folder).depends_filepatterns
         if isinstance(res, list):
             return res
         return res.get_value(default_sdkconfig_target or '', config_name or '')
