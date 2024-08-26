@@ -120,6 +120,7 @@ def find_apps(
     preserve: bool = True,
     manifest_rootpath: t.Optional[str] = None,
     manifest_files: t.Optional[t.Union[t.List[str], str]] = None,
+    check_manifest_sha_filepath: t.Optional[str] = None,
     check_manifest_rules: bool = False,
     default_build_targets: t.Optional[t.Union[t.List[str], str]] = None,
     modified_components: t.Optional[t.Union[t.List[str], str]] = None,
@@ -151,6 +152,8 @@ def find_apps(
     :param manifest_rootpath: The root path of the manifest files. Usually the folders specified in the manifest files
         are relative paths. Use the current directory if not specified
     :param manifest_files: paths of the manifest files
+    :param check_manifest_sha_filepath: compare the SHA values of the manifest files with the given file.
+        All apps shall be built and tested if the SHA values of the matched rules are different.
     :param check_manifest_rules: check the manifest rules or not
     :param default_build_targets: default build targets used in manifest files
     :param modified_components: modified components
@@ -180,10 +183,15 @@ def find_apps(
 
     Manifest.CHECK_MANIFEST_RULES = check_manifest_rules
 
+    modified_manifest_folders: t.Set[str] = set()
     if manifest_files:
         App.MANIFEST = Manifest.from_files(
             to_list(manifest_files), root_path=to_absolute_path(manifest_rootpath or os.curdir)
         )
+        if check_manifest_sha_filepath:
+            modified_manifest_folders = App.MANIFEST.diff_sha_with_filepath(
+                check_manifest_sha_filepath, use_abspath=True
+            )
 
     modified_components = to_list(modified_components)
     modified_files = to_list(modified_files)
@@ -215,6 +223,9 @@ def find_apps(
                     check_warnings=check_warnings,
                     preserve=preserve,
                     manifest_rootpath=manifest_rootpath,
+                    modified_manifest_folders=modified_manifest_folders,
+                    modified_components=modified_components,
+                    modified_files=modified_files,
                     check_app_dependencies=_check_app_dependency(
                         manifest_rootpath=manifest_rootpath,
                         modified_components=modified_components,
@@ -222,8 +233,6 @@ def find_apps(
                         ignore_app_dependencies_components=ignore_app_dependencies_components,
                         ignore_app_dependencies_filepatterns=ignore_app_dependencies_filepatterns,
                     ),
-                    modified_components=modified_components,
-                    modified_files=modified_files,
                     sdkconfig_defaults_str=sdkconfig_defaults,
                     include_skipped_apps=include_skipped_apps,
                     include_disabled_apps=include_disabled_apps,
@@ -490,7 +499,11 @@ def get_parser() -> argparse.ArgumentParser:
     ###########################################
     common_args = argparse.ArgumentParser(add_help=False)
     common_args.add_argument(
-        '-p', '--paths', nargs='*', help='One or more paths to look for apps. By default build the current directory.'
+        '-p',
+        '--paths',
+        nargs='*',
+        default=[os.curdir],
+        help='One or more paths to look for apps. By default build the current directory.',
     )
     common_args.add_argument(
         '-t', '--target', default='all', help='filter apps by given target. By default build all supported targets.'
@@ -566,6 +579,11 @@ def get_parser() -> argparse.ArgumentParser:
         '--manifest-rootpath',
         help='Root directory for calculating the realpath of the relative path defined in the manifest files. '
         'Would use the current directory if not set',
+    )
+    common_args.add_argument(
+        '--check-manifest-sha-filepath',
+        help='Compare the SHA values of the manifest files with the given file. '
+        'All apps shall be built and tested if the SHA values of the matched rules are different. ',
     )
     common_args.add_argument(
         '--check-manifest-rules',
@@ -799,11 +817,6 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
         parser.print_help()
         raise InvalidCommand('subcommand is required. {find, build, completions}')
 
-    if not args.paths:
-        cur_dir = os.getcwd()
-        LOGGER.debug(f'--paths is missing. Set --path as current directory "{cur_dir}".')
-        args.paths = [cur_dir]
-
     if not args.target:
         LOGGER.debug('--target is missing. Set --target as "all".')
         args.target = 'all'
@@ -856,6 +869,8 @@ def main():
         handle_dump_manifest_sha(args)
         sys.exit(0)
 
+    validate_args(parser, args)
+
     SESSION_ARGS.set(args)
 
     if args.action == 'build':
@@ -873,6 +888,7 @@ def main():
         'check_warnings': args.check_warnings,
         'manifest_rootpath': args.manifest_rootpath,
         'manifest_files': args.manifest_file,
+        'check_manifest_sha_filepath': args.check_manifest_sha_filepath,
         'check_manifest_rules': args.check_manifest_rules,
         'default_build_targets': args.default_build_targets,
         'modified_components': args.modified_components,

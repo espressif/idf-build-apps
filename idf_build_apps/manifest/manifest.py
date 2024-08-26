@@ -233,7 +233,7 @@ class Manifest:
     def __init__(self, rules: t.Iterable[FolderRule], *, root_path: str = os.curdir) -> None:
         self.rules = sorted(rules, key=lambda x: x.folder)
 
-        self._root_path = root_path
+        self._root_path = to_absolute_path(root_path)
 
     @classmethod
     def from_files(cls, paths: t.Iterable[str], *, root_path: str = os.curdir) -> 'Manifest':
@@ -311,7 +311,51 @@ class Manifest:
             for rule in self.rules:
                 fw.write(f'{os.path.relpath(rule.folder, self._root_path)}:{rule.sha}\n')
 
-    def _most_suitable_rule(self, _folder: str) -> FolderRule:
+    def diff_sha_with_filepath(self, sha_filepath: str, use_abspath: bool = False) -> t.Set[str]:
+        """
+        Compare the SHA recorded in the file with the current Manifest instance.
+
+        :param sha_filepath: dumped SHA file path
+        :param use_abspath: whether to return the absolute path of the folders
+        :return: Set of folders that have different SHA values
+        """
+        recorded__rel_folder__sha__dict = dict()
+        with open(sha_filepath) as fr:
+            for line in fr:
+                line = line.strip()
+                if line:
+                    try:
+                        folder, sha_value = line.strip().rsplit(':', maxsplit=1)
+                    except ValueError:
+                        raise InvalidManifest(f'Invalid line in SHA file: {line}. Expected format: <folder>:<SHA>')
+
+                    recorded__rel_folder__sha__dict[folder] = sha_value
+
+        self__rel_folder__sha__dict = {os.path.relpath(rule.folder, self._root_path): rule.sha for rule in self.rules}
+
+        diff_folders = set()
+        if use_abspath:
+
+            def _path(x):
+                return os.path.join(self._root_path, x)
+        else:
+
+            def _path(x):
+                return x
+
+        for folder, sha_value in recorded__rel_folder__sha__dict.items():
+            if folder not in self__rel_folder__sha__dict:
+                diff_folders.add(_path(folder))
+            elif sha_value != self__rel_folder__sha__dict[folder]:
+                diff_folders.add(_path(folder))
+
+        for folder in self__rel_folder__sha__dict:
+            if folder not in recorded__rel_folder__sha__dict:
+                diff_folders.add(_path(folder))
+
+        return diff_folders
+
+    def most_suitable_rule(self, _folder: str) -> FolderRule:
         folder = to_absolute_path(_folder)
         for rule in self.rules[::-1]:
             if os.path.commonpath([folder, rule.folder]) == rule.folder:
@@ -322,17 +366,17 @@ class Manifest:
     def enable_build_targets(
         self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> t.List[str]:
-        return self._most_suitable_rule(folder).enable_build_targets(default_sdkconfig_target, config_name)
+        return self.most_suitable_rule(folder).enable_build_targets(default_sdkconfig_target, config_name)
 
     def enable_test_targets(
         self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> t.List[str]:
-        return self._most_suitable_rule(folder).enable_test_targets(default_sdkconfig_target, config_name)
+        return self.most_suitable_rule(folder).enable_test_targets(default_sdkconfig_target, config_name)
 
     def depends_components(
         self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> t.List[str]:
-        res = self._most_suitable_rule(folder).depends_components
+        res = self.most_suitable_rule(folder).depends_components
         if isinstance(res, list):
             return res
         return res.get_value(default_sdkconfig_target or '', config_name or '')
@@ -340,7 +384,7 @@ class Manifest:
     def depends_filepatterns(
         self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> t.List[str]:
-        res = self._most_suitable_rule(folder).depends_filepatterns
+        res = self.most_suitable_rule(folder).depends_filepatterns
         if isinstance(res, list):
             return res
         return res.get_value(default_sdkconfig_target or '', config_name or '')

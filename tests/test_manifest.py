@@ -495,6 +495,37 @@ bar:
         assert f.readline() == f'foo:{sha_of_enable_only_esp32}\n'
 
 
+def test_manifest_diff_sha(tmpdir, sha_of_enable_only_esp32):
+    yaml_file = tmpdir / 'test.yml'
+    yaml_file.write_text(
+        """
+foo:
+  enable:
+    - if: IDF_TARGET == "esp32"
+    - if: IDF_TARGET == "esp32c3"
+bar:
+  enable:
+    - if: IDF_TARGET == "esp32"
+baz:
+  enable:
+    - if: IDF_TARGET == "esp32"
+""",
+        encoding='utf8',
+    )
+
+    with open(tmpdir / '.sha', 'w') as fw:
+        fw.write(f'bar:{sha_of_enable_only_esp32}\n')
+        fw.write('\n')  # test empty line
+        fw.write('       ')  # test spaces
+        fw.write(f'foo:{sha_of_enable_only_esp32}\n')
+
+    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
+        assert Manifest.from_file(yaml_file).diff_sha_with_filepath(str(tmpdir / '.sha')) == {
+            'baz',
+            'foo',
+        }
+
+
 class TestIfParser:
     def test_idf_version(self, monkeypatch):
         monkeypatch.setattr(idf_build_apps.manifest.if_parser, 'IDF_VERSION', Version('5.9.0'))
