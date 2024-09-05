@@ -21,10 +21,10 @@ class FakeArgs:
 @pytest.mark.parametrize(
     'args, expected_error',
     [
-        ([], 'the following arguments are required: --output'),
-        (['--output', 'test.sha1'], 'Manifest files are required to dump the SHA values.'),
-        (['--manifest-file', 'test.yml'], 'the following arguments are required: --output'),
-        (['--manifest-file', 'test.yml', '--output', 'test.sha1'], None),
+        ([], 'the following arguments are required: --manifest-files, --output/-o'),
+        (['--output', 'test.sha1'], 'the following arguments are required: --manifest-files'),
+        (['--manifest-files', 'test.yml'], 'the following arguments are required: --output'),
+        (['--manifest-files', 'test.yml', '--output', 'test.sha1'], None),
     ],
 )
 def test_manifest_dump_sha_values(tmpdir, args, expected_error, sha_of_enable_only_esp32, capsys, monkeypatch):

@@ -26,9 +26,6 @@ from pydantic import (
 from . import (
     SESSION_ARGS,
 )
-from .build_apps_args import (
-    BuildAppsArgs,
-)
 from .constants import (
     DEFAULT_SDKCONFIG,
     IDF_PY,
@@ -49,6 +46,7 @@ from .manifest.manifest import (
 from .utils import (
     BaseModel,
     BuildError,
+    Literal,
     files_matches_patterns,
     find_first_match,
     rmdir,
@@ -56,15 +54,6 @@ from .utils import (
     to_absolute_path,
     to_list,
 )
-
-if sys.version_info < (3, 8):
-    from typing_extensions import (
-        Literal,
-    )
-else:
-    from typing import (
-        Literal,
-    )
 
 
 class _AppBuildStageFilter(logging.Filter):
@@ -85,6 +74,7 @@ class App(BaseModel):
     NAME_PLACEHOLDER: t.ClassVar[str] = '@n'  # replace it with self.name
     FULL_NAME_PLACEHOLDER: t.ClassVar[str] = '@f'  # replace it with escaped self.app_dir
     IDF_VERSION_PLACEHOLDER: t.ClassVar[str] = '@v'  # replace it with the IDF version
+    PARALLEL_INDEX_PLACEHOLDER: t.ClassVar[str] = '@p'  # replace it with the parallel index
     INDEX_PLACEHOLDER: t.ClassVar[str] = '@i'  # replace it with the build index (while build_apps)
 
     SDKCONFIG_LINE_REGEX: t.ClassVar[t.Pattern] = re.compile(r'^([^=]+)=\"?([^\"\n]*)\"?\n*$')
@@ -125,7 +115,7 @@ class App(BaseModel):
     copy_sdkconfig: bool = False
 
     # build_apps() related
-    build_apps_args: t.Optional[BuildAppsArgs] = None
+    parallel_index: t.Optional[int] = None  # used for expand
     index: t.Optional[int] = None
 
     # build status related
@@ -254,8 +244,8 @@ class App(BaseModel):
 
         if self.index is not None:
             path = path.replace(self.INDEX_PLACEHOLDER, str(self.index))
-        if self.build_apps_args:
-            path = self.build_apps_args.expand(path)
+        if self.parallel_index:
+            path = path.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
         path = path.replace(
             self.IDF_VERSION_PLACEHOLDER, f'{IDF_VERSION_MAJOR}_{IDF_VERSION_MINOR}_{IDF_VERSION_PATCH}'
         )
@@ -755,7 +745,7 @@ class App(BaseModel):
         self,
         *,
         manifest_rootpath: t.Optional[str] = None,
-        modified_manifest_folders: t.Optional[t.Set[str]] = None,
+        modified_manifest_rules_folders: t.Optional[t.Set[str]] = None,
         check_app_dependencies: bool = False,
         modified_components: t.Optional[t.List[str]] = None,
         modified_files: t.Optional[t.List[str]] = None,
@@ -770,8 +760,8 @@ class App(BaseModel):
 
         if (
             self.MANIFEST
-            and modified_manifest_folders
-            and self.MANIFEST.most_suitable_rule(self.app_dir).folder in modified_manifest_folders
+            and modified_manifest_rules_folders
+            and self.MANIFEST.most_suitable_rule(self.app_dir).folder in modified_manifest_rules_folders
         ):
             self.build_status = BuildStatus.SHOULD_BE_BUILT
             self.build_comment = 'current build modifies the related manifest rules'

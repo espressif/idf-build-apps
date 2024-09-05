@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -7,7 +7,7 @@ from pathlib import (
     Path,
 )
 
-from idf_build_apps.utils import (
+from .utils import (
     to_absolute_path,
 )
 
@@ -65,6 +65,23 @@ def _get_config_from_path(dirpath: str) -> t.Tuple[t.Optional[dict], str]:
 
 
 def get_valid_config(starts_from: str = os.getcwd(), custom_path: t.Optional[str] = None) -> t.Optional[dict]:
+    """
+    Get the valid config from the current directory or its parent directories.
+
+    If the custom path is provided, it will be used to get the config file.
+
+    Otherwise, the search will start from the current working directory and go up to the root directory.
+
+    The search will stop in the following cases:
+
+    - A valid config file is found.
+    - A `.git` directory is found.
+    - The root directory is reached.
+
+    :param starts_from: starting directory to search for the config file. Default is the current working directory.
+    :param custom_path: custom path to the config file.
+    :return: the valid config dict if found, otherwise None.
+    """
     root_dir = to_absolute_path('/')
     cur_dir = to_absolute_path(starts_from)
 

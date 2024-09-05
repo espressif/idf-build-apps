@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
 
 import pytest
 from pydantic import (
@@ -16,15 +15,7 @@ from idf_build_apps import (
 from idf_build_apps.main import (
     json_to_app,
 )
-
-if sys.version_info < (3, 8):
-    from typing_extensions import (
-        Literal,
-    )
-else:
-    from typing import (
-        Literal,
-    )
+from idf_build_apps.utils import Literal
 
 
 def test_serialization():

@@ -50,12 +50,33 @@ mermaid_version = '10.6.1'
 # building docs
 os.environ['BUILDING_DOCS'] = '1'
 
+autodoc_default_options = {
+    'members': True,
+    'member-order': 'bysource',
+    'show-inheritance': True,
+    'exclude-members': 'model_computed_fields,model_config,model_fields',
+}
+
 
 def generate_api_docs(language):
+    from idf_build_apps.args import (
+        BuildArguments,
+        FindArguments,
+        add_arguments_to_obj_doc_as_params,
+    )
+    from idf_build_apps.main import build_apps, find_apps
+
     docs_dir = os.path.dirname(__file__)
     api_dir = os.path.join(docs_dir, language, 'references', 'api')
     if os.path.isdir(api_dir):
         shutil.rmtree(api_dir)
+
+    # --- MOCK DOCSTRINGS By Arguments ---
+    add_arguments_to_obj_doc_as_params(FindArguments)
+    add_arguments_to_obj_doc_as_params(BuildArguments)
+    add_arguments_to_obj_doc_as_params(FindArguments, find_apps)
+    add_arguments_to_obj_doc_as_params(BuildArguments, build_apps)
+    # --- MOCK DOCSTRINGS FINISHED ---
 
     subprocess.run(
         [

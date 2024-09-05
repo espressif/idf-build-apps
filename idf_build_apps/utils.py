@@ -21,6 +21,24 @@ from pydantic import BaseModel as _BaseModel
 
 LOGGER = logging.getLogger(__name__)
 
+if sys.version_info < (3, 8):
+    from typing_extensions import (
+        Literal,
+    )
+else:
+    from typing import (
+        Literal,  # noqa
+    )
+
+if sys.version_info < (3, 11):
+    from typing_extensions import (
+        Self,
+    )
+else:
+    from typing import (
+        Self,  # noqa
+    )
+
 
 class ConfigRule:
     def __init__(self, file_name: str, config_name: str = '') -> None:
