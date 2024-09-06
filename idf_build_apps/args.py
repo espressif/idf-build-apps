@@ -125,6 +125,9 @@ class GlobalArguments:
         self.apply_config()
 
     def __setattr__(self, key, value):
+        if value == getattr(self, key, None):
+            return
+
         _new_name_deprecated_name_dict = {}
         _deprecated_name_new_name_dict = {}
         for _n, _f in {f.name: f for f in fields(self)}.items():
