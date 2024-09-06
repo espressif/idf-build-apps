@@ -7,11 +7,10 @@ import argparse
 import json
 import logging
 import os
-import re
 import sys
 import textwrap
 import typing as t
-from copy import deepcopy
+from dataclasses import asdict
 
 import argcomplete
 from pydantic import (
@@ -19,9 +18,8 @@ from pydantic import (
     create_model,
 )
 
-from . import (
-    SESSION_ARGS,
-)
+from idf_build_apps.args import BuildArguments, DumpManifestShaArguments, FindArguments, add_arguments_to_parser
+
 from .app import (
     App,
     AppDeserializer,
@@ -29,12 +27,6 @@ from .app import (
     MakeApp,
 )
 from .autocompletions import activate_completions
-from .build_apps_args import (
-    BuildAppsArgs,
-)
-from .config import (
-    get_valid_config,
-)
 from .constants import ALL_TARGETS, BuildStatus, completion_instructions
 from .finder import (
     _find_apps,
@@ -44,198 +36,64 @@ from .junit import (
     TestReport,
     TestSuite,
 )
-from .log import (
-    setup_logging,
-)
 from .manifest.manifest import (
-    FolderRule,
     Manifest,
 )
 from .utils import (
     AutocompleteActivationError,
     InvalidCommand,
-    files_matches_patterns,
     get_parallel_start_stop,
-    semicolon_separated_str_to_list,
-    to_absolute_path,
     to_list,
 )
 
 LOGGER = logging.getLogger(__name__)
 
 
-def _check_app_dependency(
-    manifest_rootpath: t.Optional[str] = None,
-    modified_components: t.Optional[t.List[str]] = None,
-    modified_files: t.Optional[t.List[str]] = None,
-    ignore_app_dependencies_components: t.Optional[t.List[str]] = None,
-    ignore_app_dependencies_filepatterns: t.Optional[t.List[str]] = None,
-) -> bool:
-    # not check since modified_components and modified_files are not passed
-    if modified_components is None and modified_files is None:
-        return False
-
-    # not check since ignore_app_dependencies_components is passed and matched
-    if (
-        ignore_app_dependencies_components
-        and modified_components is not None
-        and set(modified_components).intersection(ignore_app_dependencies_components)
-    ):
-        LOGGER.info(
-            'Build all apps since modified components %s matches ignored components %s',
-            ', '.join(modified_components),
-            ', '.join(ignore_app_dependencies_components),
-        )
-        return False
-
-    # not check since ignore_app_dependencies_filepatterns is passed and matched
-    if (
-        ignore_app_dependencies_filepatterns
-        and modified_files is not None
-        and files_matches_patterns(modified_files, ignore_app_dependencies_filepatterns, manifest_rootpath)
-    ):
-        LOGGER.info(
-            'Build all apps since modified files %s matches ignored file patterns %s',
-            ', '.join(modified_files),
-            ', '.join(ignore_app_dependencies_filepatterns),
-        )
-        return False
-
-    return True
-
-
 def find_apps(
-    paths: t.Union[t.List[str], str],
-    target: str,
+    paths: t.Union[t.List[str], str, None] = None,
+    target: t.Optional[str] = None,
     *,
-    build_system: t.Union[t.Type[App], str] = CMakeApp,
-    recursive: bool = False,
-    exclude_list: t.Optional[t.List[str]] = None,
-    work_dir: t.Optional[str] = None,
-    build_dir: str = 'build',
-    config_rules_str: t.Optional[t.Union[t.List[str], str]] = None,
-    build_log_filename: t.Optional[str] = None,
-    size_json_filename: t.Optional[str] = None,
-    check_warnings: bool = False,
-    preserve: bool = True,
-    manifest_rootpath: t.Optional[str] = None,
-    manifest_files: t.Optional[t.Union[t.List[str], str]] = None,
-    check_manifest_sha_filepath: t.Optional[str] = None,
-    check_manifest_rules: bool = False,
-    default_build_targets: t.Optional[t.Union[t.List[str], str]] = None,
-    modified_components: t.Optional[t.Union[t.List[str], str]] = None,
-    modified_files: t.Optional[t.Union[t.List[str], str]] = None,
-    ignore_app_dependencies_components: t.Optional[t.Union[t.List[str], str]] = None,
-    ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
-    sdkconfig_defaults: t.Optional[str] = None,
-    include_skipped_apps: bool = False,
-    include_disabled_apps: bool = False,
+    find_arguments: t.Optional[FindArguments] = None,
+    **kwargs,
 ) -> t.List[App]:
     """
-    Find app directories in paths (possibly recursively), which contain apps for the given build system, compatible
-    with the given target
+    Find apps in the given paths for the specified target. For all kwargs, please refer to `FindArguments`
 
-    :param paths: list of app directories (can be / usually will be a relative path)
-    :param target: desired value of IDF_TARGET; apps incompatible with the given target are skipped.
-    :param build_system: class of the build system, default CMakeApp
-    :param recursive: Recursively search into the nested sub-folders if no app is found or not
-    :param exclude_list: list of paths to be excluded from the recursive search
-    :param work_dir: directory where the app should be copied before building. Support placeholders
-    :param build_dir: directory where the build will be done. Support placeholders.
-    :param config_rules_str: mapping of sdkconfig file name patterns to configuration names
-    :param build_log_filename: filename of the build log. Will be placed under the app.build_path.
-        Support placeholders. The logs will go to stdout/stderr if not specified
-    :param size_json_filename: filename to collect the app's size information. Will be placed under the app.build_path.
-        Support placeholders. The app's size information won't be collected if not specified
-    :param check_warnings: Check for warnings in the build log or not
-    :param preserve: Preserve the built binaries or not
-    :param manifest_rootpath: The root path of the manifest files. Usually the folders specified in the manifest files
-        are relative paths. Use the current directory if not specified
-    :param manifest_files: paths of the manifest files
-    :param check_manifest_sha_filepath: compare the SHA values of the manifest files with the given file.
-        All apps shall be built and tested if the SHA values of the matched rules are different.
-    :param check_manifest_rules: check the manifest rules or not
-    :param default_build_targets: default build targets used in manifest files
-    :param modified_components: modified components
-    :param modified_files: modified files
-    :param ignore_app_dependencies_components: components used for ignoring checking the app dependencies
-    :param ignore_app_dependencies_filepatterns: file patterns used for ignoring checking the app dependencies
-    :param sdkconfig_defaults: semicolon-separated string, pass to idf.py -DSDKCONFIG_DEFAULTS if specified,
-        also could be set via environment variables "SDKCONFIG_DEFAULTS"
-    :param include_skipped_apps: include skipped apps or not
-    :param include_disabled_apps: include disabled apps or not
     :return: list of found apps
     """
-    if default_build_targets:
-        default_build_targets = to_list(default_build_targets)
-        LOGGER.info('Overriding default build targets to %s', default_build_targets)
-        FolderRule.DEFAULT_BUILD_TARGETS = default_build_targets
+    if find_arguments is None:
+        find_arguments = FindArguments(
+            paths=to_list(paths),  # type: ignore
+            target=target,  # type: ignore
+            **kwargs,
+        )
 
-    if isinstance(build_system, str):
+    app_cls: t.Type[App]
+    if isinstance(find_arguments.build_system, str):
         # backwards compatible
-        if build_system == 'cmake':
-            build_system = CMakeApp
-        elif build_system == 'make':
-            build_system = MakeApp
+        if find_arguments.build_system == 'cmake':
+            app_cls = CMakeApp
+        elif find_arguments.build_system == 'make':
+            app_cls = MakeApp
         else:
             raise ValueError('Only Support "make" and "cmake"')
-    app_cls = build_system
-
-    Manifest.CHECK_MANIFEST_RULES = check_manifest_rules
-
-    modified_manifest_folders: t.Set[str] = set()
-    if manifest_files:
-        App.MANIFEST = Manifest.from_files(
-            to_list(manifest_files), root_path=to_absolute_path(manifest_rootpath or os.curdir)
-        )
-        if check_manifest_sha_filepath:
-            modified_manifest_folders = App.MANIFEST.diff_sha_with_filepath(
-                check_manifest_sha_filepath, use_abspath=True
-            )
-
-    modified_components = to_list(modified_components)
-    modified_files = to_list(modified_files)
-    ignore_app_dependencies_components = to_list(ignore_app_dependencies_components)
-    ignore_app_dependencies_filepatterns = to_list(ignore_app_dependencies_filepatterns)
-    config_rules_str = to_list(config_rules_str)
+    else:
+        app_cls = find_arguments.build_system
 
     apps = []
-    if target == 'all':
+    if find_arguments.target == 'all':
         targets = ALL_TARGETS
     else:
-        targets = [target]
+        targets = [find_arguments.target]
 
-    for target in targets:
-        for path in to_list(paths):
-            path = path.strip()
+    for _t in targets:
+        for _p in find_arguments.paths:
             apps.extend(
                 _find_apps(
-                    path,
-                    target,
-                    app_cls,
-                    recursive,
-                    exclude_list or [],
-                    work_dir=work_dir,
-                    build_dir=build_dir or 'build',
-                    config_rules_str=config_rules_str,
-                    build_log_filename=build_log_filename,
-                    size_json_filename=size_json_filename,
-                    check_warnings=check_warnings,
-                    preserve=preserve,
-                    manifest_rootpath=manifest_rootpath,
-                    modified_manifest_folders=modified_manifest_folders,
-                    modified_components=modified_components,
-                    modified_files=modified_files,
-                    check_app_dependencies=_check_app_dependency(
-                        manifest_rootpath=manifest_rootpath,
-                        modified_components=modified_components,
-                        modified_files=modified_files,
-                        ignore_app_dependencies_components=ignore_app_dependencies_components,
-                        ignore_app_dependencies_filepatterns=ignore_app_dependencies_filepatterns,
-                    ),
-                    sdkconfig_defaults_str=sdkconfig_defaults,
-                    include_skipped_apps=include_skipped_apps,
-                    include_disabled_apps=include_disabled_apps,
+                    _p,
+                    _t,
+                    app_cls=app_cls,
+                    args=find_arguments,
                 )
             )
 
@@ -245,85 +103,32 @@ def find_apps(
 
 
 def build_apps(
-    apps: t.Union[t.List[App], App],
-    *,
-    build_verbose: bool = False,
-    dry_run: bool = False,
-    keep_going: bool = False,
-    ignore_warning_strs: t.Optional[t.List[str]] = None,
-    ignore_warning_file: t.Optional[t.TextIO] = None,
-    copy_sdkconfig: bool = False,
-    manifest_rootpath: t.Optional[str] = None,
-    modified_components: t.Optional[t.Union[t.List[str], str]] = None,
-    modified_files: t.Optional[t.Union[t.List[str], str]] = None,
-    ignore_app_dependencies_components: t.Optional[t.Union[t.List[str], str]] = None,
-    ignore_app_dependencies_filepatterns: t.Optional[t.Union[t.List[str], str]] = None,
-    check_app_dependencies: t.Optional[bool] = None,
-    # BuildAppsArgs
-    parallel_count: int = 1,
-    parallel_index: int = 1,
-    collect_size_info: t.Optional[str] = None,
-    collect_app_info: t.Optional[str] = None,
-    junitxml: t.Optional[str] = None,
+    apps: t.Union[t.List[App], App, None] = None, *, build_arguments: t.Optional[BuildArguments] = None, **kwargs
 ) -> int:
     """
-    Build all the specified apps
+    Build all the specified apps. For all kwargs, please refer to `BuildArguments`
 
-    :param apps: list of apps to be built
-    :param build_verbose: call ``--verbose`` in ``idf.py build`` or not
-    :param dry_run: simulate this run or not
-    :param keep_going: keep building or not if one app's build failed
-    :param ignore_warning_strs: ignore build warnings that matches any of the specified regex patterns
-    :param ignore_warning_file: ignore build warnings that matches any of the lines of the regex patterns in the
-        specified file
-    :param copy_sdkconfig: copy the sdkconfig file to the build directory or not
-    :param manifest_rootpath: The root path of the manifest files. Usually the folders specified in the manifest files
-        are relative paths. Use the current directory if not specified
-    :param modified_components: modified components
-    :param modified_files: modified files
-    :param ignore_app_dependencies_components: components used for ignoring checking the app dependencies
-    :param ignore_app_dependencies_filepatterns: file patterns used for ignoring checking the app dependencies
-    :param check_app_dependencies: check app dependencies or not. if not set, will be calculated by modified_components,
-        modified_files, and ignore_app_dependencies_filepatterns
-    :param parallel_count: number of parallel tasks to run
-    :param parallel_index: index of the parallel task to run
-    :param collect_size_info: file path to record all generated size files' paths if specified
-    :param collect_app_info: file path to record all the built apps' info if specified
-    :param junitxml: path of the junitxml file
     :return: exit code
     """
     apps = to_list(apps)
-    modified_components = to_list(modified_components)
-    modified_files = to_list(modified_files)
-    ignore_app_dependencies_components = to_list(ignore_app_dependencies_components)
-    ignore_app_dependencies_filepatterns = to_list(ignore_app_dependencies_filepatterns)
+    if build_arguments is None:
+        build_arguments = BuildArguments(
+            **kwargs,
+        )
+
+    if apps is None:
+        apps = find_apps(find_arguments=FindArguments.from_dict(asdict(build_arguments)))
 
     test_suite = TestSuite('build_apps')
 
-    ignore_warnings_regexes = []
-    if ignore_warning_strs:
-        for s in ignore_warning_strs:
-            ignore_warnings_regexes.append(re.compile(s))
-    if ignore_warning_file:
-        for s in ignore_warning_file:
-            ignore_warnings_regexes.append(re.compile(s.strip()))
-    App.IGNORE_WARNS_REGEXES = ignore_warnings_regexes
-
-    start, stop = get_parallel_start_stop(len(apps), parallel_count, parallel_index)
+    start, stop = get_parallel_start_stop(len(apps), build_arguments.parallel_count, build_arguments.parallel_index)
     LOGGER.info('Total %s apps. running build for app %s-%s', len(apps), start, stop)
 
-    build_apps_args = BuildAppsArgs(
-        parallel_count=parallel_count,
-        parallel_index=parallel_index,
-        collect_size_info=collect_size_info,
-        collect_app_info=collect_app_info,
-        junitxml=junitxml,
-    )
     for app in apps[start - 1 : stop]:  # we use 1-based
-        app.build_apps_args = build_apps_args
+        app.parallel_index = build_arguments.parallel_index
 
     # cleanup collect files if exists at this early-stage
-    for f in (build_apps_args.collect_app_info, build_apps_args.collect_size_info, build_apps_args.junitxml):
+    for f in (build_arguments.collect_app_info, build_arguments.collect_size_info, build_arguments.junitxml):
         if f and os.path.isfile(f):
             os.remove(f)
             LOGGER.debug('Remove existing collect file %s', f)
@@ -335,26 +140,18 @@ def build_apps(
             continue
 
         # attrs
-        app.dry_run = dry_run
+        app.dry_run = build_arguments.dry_run
         app.index = index
-        app.verbose = build_verbose
-        app.copy_sdkconfig = copy_sdkconfig
+        app.verbose = build_arguments.build_verbose
+        app.copy_sdkconfig = build_arguments.copy_sdkconfig
 
         LOGGER.info('(%s/%s) Building app: %s', index, len(apps), app)
 
         app.build(
-            manifest_rootpath=manifest_rootpath,
-            modified_components=modified_components,
-            modified_files=modified_files,
-            check_app_dependencies=_check_app_dependency(
-                manifest_rootpath=manifest_rootpath,
-                modified_components=modified_components,
-                modified_files=modified_files,
-                ignore_app_dependencies_components=ignore_app_dependencies_components,
-                ignore_app_dependencies_filepatterns=ignore_app_dependencies_filepatterns,
-            )
-            if check_app_dependencies is None
-            else check_app_dependencies,
+            manifest_rootpath=build_arguments.manifest_rootpath,
+            modified_components=build_arguments.modified_components,
+            modified_files=build_arguments.modified_files,
+            check_app_dependencies=build_arguments.dependency_driven_build_enabled,
         )
         test_suite.add_test_case(TestCase.from_app(app))
 
@@ -363,20 +160,20 @@ def build_apps(
         else:
             LOGGER.info('%s', app.build_status.value)
 
-        if build_apps_args.collect_app_info:
-            with open(build_apps_args.collect_app_info, 'a') as fw:
+        if build_arguments.collect_app_info:
+            with open(build_arguments.collect_app_info, 'a') as fw:
                 fw.write(app.to_json() + '\n')
-            LOGGER.debug('Recorded app info in %s', build_apps_args.collect_app_info)
+            LOGGER.debug('Recorded app info in %s', build_arguments.collect_app_info)
 
         if app.build_status == BuildStatus.FAILED:
-            if not keep_going:
+            if not build_arguments.keep_going:
                 return 1
             else:
                 exit_code = 1
         elif app.build_status == BuildStatus.SUCCESS:
-            if build_apps_args.collect_size_info and app.size_json_path:
+            if build_arguments.collect_size_info and app.size_json_path:
                 if os.path.isfile(app.size_json_path):
-                    with open(build_apps_args.collect_size_info, 'a') as fw:
+                    with open(build_arguments.collect_size_info, 'a') as fw:
                         fw.write(
                             json.dumps(
                                 {
@@ -388,13 +185,13 @@ def build_apps(
                             )
                             + '\n'
                         )
-                    LOGGER.debug('Recorded size info file path in %s', build_apps_args.collect_size_info)
+                    LOGGER.debug('Recorded size info file path in %s', build_arguments.collect_size_info)
 
         LOGGER.info('')  # add one empty line for separating different builds
 
-    if build_apps_args.junitxml:
-        TestReport([test_suite], build_apps_args.junitxml).create_test_report()
-        LOGGER.info('Generated junit report for build apps: %s', build_apps_args.junitxml)
+    if build_arguments.junitxml:
+        TestReport([test_suite], build_arguments.junitxml).create_test_report()
+        LOGGER.info('Generated junit report for build apps: %s', build_arguments.junitxml)
 
     return exit_code
 
@@ -447,7 +244,7 @@ class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description='Tools for building ESP-IDF related apps.'
+        description='Tools for building ESP-IDF related apps. '
         'Some CLI options can be expanded by the following placeholders, like "--work-dir", "--build-dir", etc.:\n'
         '- @t: would be replaced by the target chip type\n'
         '- @w: would be replaced by the wildcard, usually the sdkconfig\n'
@@ -458,193 +255,7 @@ def get_parser() -> argparse.ArgumentParser:
         '- @p: would be replaced by the parallel index (only available in `build` command)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    actions = parser.add_subparsers(dest='action')
-
-    #######################################
-    # Base Arguments Used by All Commands #
-    #######################################
-    base_args = argparse.ArgumentParser(add_help=False)
-    base_args.add_argument(
-        '-c',
-        '--config-file',
-        help='Path to the default configuration file, toml file',
-    )
-    base_args.add_argument(
-        '-v',
-        '--verbose',
-        default=0,
-        action='count',
-        help='Increase the logging level of the whole process. Can be specified multiple times. '
-        'By default set to WARNING level. '
-        'Specify once to set to INFO level. '
-        'Specify twice or more to set to DEBUG level',
-    )
-    base_args.add_argument(
-        '--manifest-file',
-        nargs='+',
-        help='Manifest files which specify the build test rules of the apps',
-    )
-    base_args.add_argument(
-        '--log-file',
-        help='Write the log to the specified file, instead of stderr',
-    )
-    base_args.add_argument(
-        '--no-color',
-        action='store_true',
-        help='enable colored output by default on UNIX-like systems. enable this flag to make the logs uncolored.',
-    )
-
-    ###########################################
-    # Common Arguments Used by Find and Build #
-    ###########################################
-    common_args = argparse.ArgumentParser(add_help=False)
-    common_args.add_argument(
-        '-p',
-        '--paths',
-        nargs='*',
-        default=[os.curdir],
-        help='One or more paths to look for apps. By default build the current directory.',
-    )
-    common_args.add_argument(
-        '-t', '--target', default='all', help='filter apps by given target. By default build all supported targets.'
-    )
-    common_args.add_argument(
-        '--build-system', default='cmake', choices=['cmake', 'make'], help='filter apps by given build system'
-    )
-    common_args.add_argument(
-        '--recursive',
-        action='store_true',
-        help='Look for apps in the specified paths recursively',
-    )
-    common_args.add_argument('--exclude', nargs='+', help='Ignore specified path (if --recursive is given)')
-    common_args.add_argument(
-        '--work-dir',
-        help='If set, the app is first copied into the specified directory, and then built. '
-        'If not set, the work directory is the directory of the app. Can expand placeholders',
-    )
-    common_args.add_argument(
-        '--build-dir',
-        default='build',
-        help='If set, specifies the build directory name. Can be either a name relative to the work directory, '
-        'or an absolute path. Can expand placeholders',
-    )
-    common_args.add_argument(
-        '--build-log',
-        help='Relative to build dir. The build log will be written to this file instead of sys.stdout if specified. '
-        'Can expand placeholders',
-    )
-    common_args.add_argument(
-        '--size-file',
-        help='Relative to build dir. The size json will be written to this file if specified. Can expand placeholders',
-    )
-    common_args.add_argument(
-        '--config',
-        nargs='+',
-        help='Adds configurations (sdkconfig file names) to build. '
-        'This can either be FILENAME[=NAME] or FILEPATTERN. FILENAME is the name of the sdkconfig file, '
-        'relative to the project directory, to be used. Optional NAME can be specified, '
-        'which can be used as a name of this configuration. FILEPATTERN is the name of '
-        'the sdkconfig file, relative to the project directory, with at most one wildcard. '
-        'The part captured by the wildcard is used as the name of the configuration',
-    )
-
-    common_args.add_argument(
-        '--override-sdkconfig-items',
-        nargs='?',
-        type=str,
-        help='The --override-sdkconfig-items option is a comma-separated list '
-        'that permits the overriding of specific configuration items defined '
-        "in the SDK's sdkconfig file and Kconfig using a command-line argument. "
-        'The sdkconfig items specified here override the same sdkconfig '
-        'item defined in the --override-sdkconfig-files, if exists.',
-    )
-    common_args.add_argument(
-        '--override-sdkconfig-files',
-        nargs='?',
-        type=str,
-        help='"The --override-sdkconfig-files option is a comma-separated list, '
-        'which provides an alternative (alt: --override-sdkconfig-items) '
-        'approach for overriding SDK configuration items. '
-        'The filepath may be global or relative to the root.',
-    )
-    common_args.add_argument(
-        '--sdkconfig-defaults',
-        help='semicolon-separated string, pass to idf.py -DSDKCONFIG_DEFAULTS if specified, also could be set via '
-        'environment variables "SDKCONFIG_DEFAULTS"',
-    )
-    common_args.add_argument(
-        '--check-warnings', action='store_true', help='If set, fail the build if warnings are found'
-    )
-    common_args.add_argument(
-        '--manifest-rootpath',
-        help='Root directory for calculating the realpath of the relative path defined in the manifest files. '
-        'Would use the current directory if not set',
-    )
-    common_args.add_argument(
-        '--check-manifest-sha-filepath',
-        help='Compare the SHA values of the manifest files with the given file. '
-        'All apps shall be built and tested if the SHA values of the matched rules are different. ',
-    )
-    common_args.add_argument(
-        '--check-manifest-rules',
-        action='store_true',
-        help='Exit with error if any of the manifest rules does not exist on your filesystem',
-    )
-    common_args.add_argument(
-        '--enable-preview-targets',
-        action='store_true',
-        help='Build the apps with all targets in the current ESP-IDF branch, '
-        'including preview targets, when the app supports the target.',
-    )
-    common_args.add_argument(
-        '--default-build-targets',
-        nargs='+',
-        help='space-separated list of string which specifies the targets for building the apps. '
-        'If provided, the apps will be built only with the specified targets '
-        'when the app supports the target.',
-    )
-    common_args.add_argument(
-        '--modified-components',
-        type=semicolon_separated_str_to_list,
-        help='semicolon-separated string which specifies the modified components. '
-        'app with `depends_components` set in the corresponding manifest files would only be built '
-        'if depends on any of the specified components. '
-        'If set to "", the value would be considered as None. '
-        'If set to ";", the value would be considered as an empty list',
-    )
-    common_args.add_argument(
-        '--modified-files',
-        type=semicolon_separated_str_to_list,
-        help='semicolon-separated string which specifies the modified files. '
-        'app with `depends_filepatterns` set in the corresponding manifest files would only be built '
-        'if any of the specified file pattern matches any of the specified modified files. '
-        'If set to "", the value would be considered as None. '
-        'If set to ";", the value would be considered as an empty list',
-    )
-    common_args.add_argument(
-        '-ic',
-        '--ignore-app-dependencies-components',
-        type=semicolon_separated_str_to_list,
-        help='semicolon-separated string which specifies the modified components used for '
-        'ignoring checking the app dependencies. '
-        'The `depends_components` and `depends_filepatterns` set in the manifest files will be ignored when any of the '
-        'specified components matches any of the modified components. '
-        'Must be used together with --modified-components. '
-        'If set to "", the value would be considered as None. '
-        'If set to ";", the value would be considered as an empty list',
-    )
-    common_args.add_argument(
-        '-if',
-        '--ignore-app-dependencies-filepatterns',
-        type=semicolon_separated_str_to_list,
-        help='semicolon-separated string which specifies the file patterns used for '
-        'ignoring checking the app dependencies. '
-        'The `depends_components` and `depends_filepatterns` set in the manifest files will be ignored when any of the '
-        'specified file patterns matches any of the modified files. '
-        'Must be used together with --modified-files. '
-        'If set to "", the value would be considered as None. '
-        'If set to ";", the value would be considered as an empty list',
-    )
+    actions = parser.add_subparsers(dest='action', required=True)
 
     ########
     # Find #
@@ -656,22 +267,9 @@ def get_parser() -> argparse.ArgumentParser:
         '`--path` and `--target` options must be provided. '
         'By default, print the found apps in stdout. '
         'To find apps for all chips use the `--target` option with the `all` argument.',
-        parents=[base_args, common_args],
         formatter_class=IdfBuildAppsCliFormatter,
     )
-    find_parser.add_argument('-o', '--output', help='Print the found apps to the specified file instead of stdout')
-    find_parser.add_argument(
-        '--output-format',
-        choices=['raw', 'json'],
-        default='raw',
-        help='Output format. In "raw" format, each line is a valid json that represents the app. '
-        'In "json" format, the whole file is a JSON file of a list of apps.',
-    )
-    find_parser.add_argument(
-        '--include-all-apps',
-        action='store_true',
-        help='Include skipped and disabled apps. By default only apps that should be built.',
-    )
+    add_arguments_to_parser(FindArguments, find_parser)
 
     #########
     # Build #
@@ -681,72 +279,9 @@ def get_parser() -> argparse.ArgumentParser:
         help='Build the found applications. Run `idf-build-apps build --help` for more information on a command.',
         description='Build the application in the given path or paths for specified chips. '
         '`--path` and `--target` options must be provided.',
-        parents=[base_args, common_args],
         formatter_class=IdfBuildAppsCliFormatter,
     )
-    build_parser.add_argument(
-        '--build-verbose',
-        action='store_true',
-        help='Enable verbose output of the build system',
-    )
-    build_parser.add_argument(
-        '--parallel-count',
-        default=1,
-        type=int,
-        help="Number of parallel build jobs. Note that this script doesn't start all jobs simultaneously. "
-        'It needs to be executed multiple times with same value of --parallel-count and '
-        'different values of --parallel-index',
-    )
-    build_parser.add_argument(
-        '--parallel-index',
-        default=1,
-        type=int,
-        help='Index (1-based) of the job, out of the number specified by --parallel-count',
-    )
-    build_parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help="Don't actually build, only print the build commands",
-    )
-    build_parser.add_argument(
-        '--keep-going',
-        action='store_true',
-        help="Don't exit immediately when a build fails",
-    )
-    build_parser.add_argument(
-        '--no-preserve',
-        action='store_true',
-        help="Don't preserve the build directory after a successful build",
-    )
-    build_parser.add_argument(
-        '--collect-size-info',
-        help='write size info json file while building into the specified file. each line is a json object. '
-        'Can expand placeholder @p',
-    )
-    build_parser.add_argument(
-        '--collect-app-info',
-        help='write app info json file while building into the specified file. each line is a json object. '
-        'Can expand placeholder @p',
-    )
-    build_parser.add_argument(
-        '--ignore-warning-str',
-        nargs='+',
-        help='Ignore the warning string that match the specified regex in the build output',
-    )
-    build_parser.add_argument(
-        '--ignore-warning-file',
-        type=argparse.FileType('r'),
-        help='Ignore the warning strings in the specified file. Each line should be a regex string',
-    )
-    build_parser.add_argument(
-        '--copy-sdkconfig',
-        action='store_true',
-        help='Copy the sdkconfig file to the build directory',
-    )
-    build_parser.add_argument(
-        '--junitxml',
-        help='Path to the junitxml file. If specified, the junitxml file will be generated. Can expand placeholder @p',
-    )
+    add_arguments_to_parser(BuildArguments, build_parser)
 
     ###############
     # Completions #
@@ -779,13 +314,10 @@ def get_parser() -> argparse.ArgumentParser:
     ############################
     dump_manifest_parser = actions.add_parser(
         'dump-manifest-sha',
-        parents=[base_args],
         help='Dump the manifest files SHA values. '
         'This could be useful in CI to check if the manifest files are changed.',
     )
-    dump_manifest_parser.add_argument(
-        '--output', required=True, help='Record the sha values of the manifest files to the specified file'
-    )
+    add_arguments_to_parser(DumpManifestShaArguments, dump_manifest_parser)
 
     return parser
 
@@ -801,59 +333,6 @@ def handle_completions(args: argparse.Namespace) -> None:
         print(completion_instructions)
 
 
-def handle_dump_manifest_sha(args: argparse.Namespace) -> None:
-    if not args.manifest_file:
-        raise InvalidCommand('Manifest files are required to dump the SHA values.')
-
-    if not args.output:
-        raise InvalidCommand('Output file is required to record the SHA values.')
-
-    Manifest.from_files(to_list(args.manifest_file)).dump_sha_values(args.output)
-
-
-def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
-    # validate cli subcommands
-    if args.action not in ['find', 'build', 'dump-manifest-sha', 'completions']:
-        parser.print_help()
-        raise InvalidCommand('subcommand is required. {find, build, completions}')
-
-    if not args.target:
-        LOGGER.debug('--target is missing. Set --target as "all".')
-        args.target = 'all'
-
-    default_build_targets = []
-    if args.default_build_targets:
-        for target in args.default_build_targets:
-            if target not in ALL_TARGETS:
-                LOGGER.warning(
-                    f'Ignoring... Unrecognizable target {target} specified with "--default-build-targets". '
-                    f'Current ESP-IDF available targets: {ALL_TARGETS}'
-                )
-            elif target not in default_build_targets:
-                default_build_targets.append(target)
-        args.default_build_targets = default_build_targets
-    elif args.enable_preview_targets:
-        args.default_build_targets = deepcopy(ALL_TARGETS)
-
-    if args.ignore_app_dependencies_components is not None:
-        if args.modified_components is None:
-            raise InvalidCommand('Must specify "--ignore-app-dependencies-components" with "--modified-components", ')
-
-    if args.ignore_app_dependencies_filepatterns is not None:
-        if args.modified_files is None:
-            raise InvalidCommand('Must specify "--ignore-app-dependencies-filepatterns" with "--modified-files", ')
-
-
-def apply_config_args(args: argparse.Namespace) -> None:
-    # support toml config file
-    config_dict = get_valid_config(custom_path=args.config_file)
-    if config_dict:
-        for k, v in config_dict.items():
-            setattr(args, k, v)
-
-    setup_logging(args.verbose, args.log_file, not args.no_color)
-
-
 def main():
     parser = get_parser()
     argcomplete.autocomplete(parser)
@@ -863,92 +342,43 @@ def main():
         handle_completions(args)
         sys.exit(0)
 
-    apply_config_args(args)
-
     if args.action == 'dump-manifest-sha':
-        handle_dump_manifest_sha(args)
+        arguments = DumpManifestShaArguments.from_dict(vars(args))
+        print(arguments)
+        Manifest.from_files(arguments.manifest_files).dump_sha_values(arguments.output)
         sys.exit(0)
 
-    validate_args(parser, args)
-
-    SESSION_ARGS.set(args)
-
-    if args.action == 'build':
-        args.output = None  # build action doesn't support output option, fool the kwargs
-
-    kwargs = {
-        'build_system': args.build_system,
-        'recursive': args.recursive,
-        'exclude_list': args.exclude or [],
-        'work_dir': args.work_dir,
-        'build_dir': args.build_dir or 'build',
-        'config_rules_str': args.config,
-        'build_log_filename': args.build_log,
-        'size_json_filename': args.size_file,
-        'check_warnings': args.check_warnings,
-        'manifest_rootpath': args.manifest_rootpath,
-        'manifest_files': args.manifest_file,
-        'check_manifest_sha_filepath': args.check_manifest_sha_filepath,
-        'check_manifest_rules': args.check_manifest_rules,
-        'default_build_targets': args.default_build_targets,
-        'modified_components': args.modified_components,
-        'modified_files': args.modified_files,
-        'ignore_app_dependencies_components': args.ignore_app_dependencies_components,
-        'ignore_app_dependencies_filepatterns': args.ignore_app_dependencies_filepatterns,
-        'sdkconfig_defaults': args.sdkconfig_defaults,
-    }
-    # only useful in find
-    if args.action == 'find' and args.include_all_apps:
-        kwargs['include_skipped_apps'] = True
-        kwargs['include_disabled_apps'] = True
+    if args.action == 'find':
+        arguments = FindArguments.from_dict(vars(args))
+    else:
+        arguments = BuildArguments.from_dict(vars(args))
 
     # real call starts here
-    apps = find_apps(args.paths, args.target, **kwargs)
-
-    if args.action == 'find':
-        if args.output:
-            os.makedirs(os.path.dirname(os.path.realpath(args.output)), exist_ok=True)
-            if args.output.endswith('.json'):
-                LOGGER.info('Detecting output file ends with ".json", writing json file.')
-                args.output_format = 'json'
-
-            with open(args.output, 'w') as fw:
-                if args.output_format == 'raw':
+    # build also needs to find first
+    apps = find_apps(args.paths, args.target, find_arguments=arguments)
+    if isinstance(arguments, FindArguments):  # find only
+        if arguments.output:
+            os.makedirs(os.path.dirname(os.path.realpath(arguments.output)), exist_ok=True)
+            with open(arguments.output, 'w') as fw:
+                if arguments.output_format == 'raw':
                     for app in apps:
                         fw.write(app.to_json() + '\n')
-                elif args.output_format == 'json':
+                elif arguments.output_format == 'json':
                     fw.write(json.dumps([app.model_dump() for app in apps], indent=2))
                 else:
-                    raise ValueError(f'Output format {args.output_format} is not supported.')
+                    raise InvalidCommand(f'Output format {arguments.output_format} is not supported.')
         else:
             for app in apps:
                 print(app)
 
         sys.exit(0)
 
-    if args.no_preserve:
+    # build
+    if arguments.no_preserve:
         for app in apps:
             app.preserve = False
 
-    res = build_apps(
-        apps,
-        build_verbose=args.build_verbose,
-        parallel_count=args.parallel_count,
-        parallel_index=args.parallel_index,
-        dry_run=args.dry_run,
-        keep_going=args.keep_going,
-        collect_size_info=args.collect_size_info,
-        collect_app_info=args.collect_app_info,
-        ignore_warning_strs=args.ignore_warning_str,
-        ignore_warning_file=args.ignore_warning_file,
-        copy_sdkconfig=args.copy_sdkconfig,
-        manifest_rootpath=args.manifest_rootpath,
-        modified_components=args.modified_components,
-        modified_files=args.modified_files,
-        ignore_app_dependencies_components=args.ignore_app_dependencies_components,
-        ignore_app_dependencies_filepatterns=args.ignore_app_dependencies_filepatterns,
-        junitxml=args.junitxml,
-    )
+    ret_code = build_apps(apps, build_arguments=arguments)
 
     built_apps = [app for app in apps if app.build_status == BuildStatus.SUCCESS]
     if built_apps:
@@ -968,7 +398,7 @@ def main():
         for app in failed_apps:
             print(f'  {app}')
 
-    sys.exit(res)
+    sys.exit(ret_code)
 
 
 def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = None) -> App:

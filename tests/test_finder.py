@@ -410,7 +410,7 @@ foo:
             'esp32',
             manifest_files=[yaml_file],
             modified_components=['bar'],
-            check_manifest_sha_filepath=sha_abspath,
+            compare_manifest_sha_filepath=sha_abspath,
         )
         assert not apps
 
@@ -422,7 +422,7 @@ foo:
             'esp32',
             manifest_files=[yaml_file],
             modified_components=['bar'],
-            check_manifest_sha_filepath=sha_abspath,
+            compare_manifest_sha_filepath=sha_abspath,
         )
         assert len(apps) == 1
 
