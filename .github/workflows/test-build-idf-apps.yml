@@ -34,11 +34,11 @@ jobs:
           path: dist/idf_build_apps-*.whl
 
   build-apps-on-idf-env:
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'test-old-idf-releases') }}
     needs: build-python-packages
     strategy:
       matrix:
-        idf-branch: [ release-v5.0, release-v5.1, release-v5.2 ]
+        idf-branch: [ release-v5.0, release-v5.1, release-v5.2, release-v5.3 ]
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:${{ matrix.idf-branch }}
