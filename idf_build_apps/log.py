@@ -82,5 +82,7 @@ def setup_logging(verbose: int = 0, log_file: t.Optional[str] = None, colored: b
         handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(ColoredFormatter(colored))
 
+    if package_logger.hasHandlers():
+        package_logger.handlers.clear()
     package_logger.addHandler(handler)
     package_logger.propagate = False  # don't propagate to root logger
