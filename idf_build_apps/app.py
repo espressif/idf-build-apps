@@ -310,7 +310,7 @@ class App(BaseModel):
             return os.path.join(self.build_path, self.build_log_filename)
 
         # use a temp file if build log path is not specified
-        return os.path.join(self.build_path, f'.temp.build.{hash(self)}.log')
+        return os.path.join(self.build_path, '.temp.build.log')
 
     @computed_field  # type: ignore
     @property
@@ -559,6 +559,8 @@ class App(BaseModel):
 
         self._post_build()
 
+        self._finalize()
+
     def _post_build(self) -> None:
         """Post build actions for failed/success builds"""
         if self.build_status not in (
@@ -623,9 +625,13 @@ class App(BaseModel):
             for line in lines[-self.LOG_DEBUG_LINES :]:
                 self._logger.error('%s', line)
 
+    def _finalize(self) -> None:
+        """
+        Actions for real success builds
+        """
+        if self.build_status != BuildStatus.SUCCESS:
             return
 
-        # Actions for real success builds
         # remove temp log file
         if self._is_build_log_path_temp:
             os.unlink(self.build_log_path)
