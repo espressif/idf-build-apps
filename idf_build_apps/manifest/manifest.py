@@ -4,7 +4,6 @@ import logging
 import os
 import pickle
 import typing as t
-import warnings
 from hashlib import sha512
 
 from pyparsing import (
@@ -257,7 +256,7 @@ class Manifest:
                     if cls.CHECK_MANIFEST_RULES:
                         raise InvalidManifest(msg)
                     else:
-                        warnings.warn(msg)
+                        LOGGER.warning(msg)
 
                 _known_folders[rule.folder] = path
 
@@ -290,7 +289,7 @@ class Manifest:
                 if cls.CHECK_MANIFEST_RULES:
                     raise InvalidManifest(msg)
                 else:
-                    warnings.warn(msg)
+                    LOGGER.warning(msg)
 
             try:
                 rules.append(FolderRule(folder, **folder_rule if folder_rule else {}))

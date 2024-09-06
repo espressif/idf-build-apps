@@ -16,7 +16,6 @@ import logging
 import os
 import re
 import typing as t
-import warnings
 from copy import deepcopy
 from dataclasses import InitVar, asdict, dataclass, field, fields
 
@@ -141,8 +140,10 @@ class GlobalArguments:
             # set together with the deprecated field
             super().__setattr__(_new_name_deprecated_name_dict[key], value)
         elif key in _deprecated_name_new_name_dict:
-            warnings.warn(
-                f'Field {key} is deprecated by {_deprecated_name_new_name_dict[key]}. Will be removed in the future.'
+            LOGGER.warning(
+                'Field %s is deprecated by %s. Will be removed in the future.',
+                key,
+                _deprecated_name_new_name_dict[key],
             )
             super().__setattr__(key, value)
             # set together with the new field
