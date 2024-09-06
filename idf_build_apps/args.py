@@ -545,6 +545,33 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
             )
         ),
     )
+    include_skipped_apps: bool = field(
+        default=False,
+        metadata=asdict(
+            FieldMetadata(
+                description='Include the skipped apps in the output, together with the enabled ones',
+                action='store_true',
+            )
+        ),
+    )
+    include_disabled_apps: bool = field(
+        default=False,
+        metadata=asdict(
+            FieldMetadata(
+                description='Include the disabled apps in the output, together with the enabled ones',
+                action='store_true',
+            )
+        ),
+    )
+    include_all_apps: bool = field(
+        default=False,
+        metadata=asdict(
+            FieldMetadata(
+                description='Include skipped, and disabled apps in the output, together with the enabled ones',
+                action='store_true',
+            )
+        ),
+    )
 
     def __post_init__(
         self,
@@ -610,33 +637,6 @@ class FindArguments(FindBuildArguments):
                 'In "raw" format, each line is a json string serialized from the app model. '
                 'In "json" format, the output is a json list of the serialized app models',
                 choices=['raw', 'json'],
-            )
-        ),
-    )
-    include_skipped_apps: bool = field(
-        default=False,
-        metadata=asdict(
-            FieldMetadata(
-                description='Include the skipped apps in the output, together with the enabled ones',
-                action='store_true',
-            )
-        ),
-    )
-    include_disabled_apps: bool = field(
-        default=False,
-        metadata=asdict(
-            FieldMetadata(
-                description='Include the disabled apps in the output, together with the enabled ones',
-                action='store_true',
-            )
-        ),
-    )
-    include_all_apps: bool = field(
-        default=False,
-        metadata=asdict(
-            FieldMetadata(
-                description='Include skipped, and disabled apps in the output, together with the enabled ones',
-                action='store_true',
             )
         ),
     )
