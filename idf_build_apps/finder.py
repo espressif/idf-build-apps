@@ -145,7 +145,7 @@ def _find_apps(
 
     if not args.recursive:
         if args.exclude:
-            LOGGER.warning('--exclude option is ignored when used without --recursive')
+            LOGGER.debug('--exclude option is ignored when used without --recursive')
 
         return _get_apps_from_path(path, target, app_cls=app_cls, args=args)
 

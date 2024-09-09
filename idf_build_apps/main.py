@@ -344,7 +344,6 @@ def main():
 
     if args.action == 'dump-manifest-sha':
         arguments = DumpManifestShaArguments.from_dict(vars(args))
-        print(arguments)
         Manifest.from_files(arguments.manifest_files).dump_sha_values(arguments.output)
         sys.exit(0)
 

@@ -10,6 +10,7 @@ from packaging.version import (
 )
 
 import idf_build_apps
+from idf_build_apps import setup_logging
 from idf_build_apps.constants import (
     SUPPORTED_TARGETS,
 )
@@ -29,7 +30,9 @@ from idf_build_apps.yaml import (
 )
 
 
-def test_manifest(tmpdir, recwarn, monkeypatch):
+def test_manifest_from_file_warning(tmpdir, capsys, monkeypatch):
+    setup_logging()
+
     yaml_file = tmpdir / 'test.yml'
     yaml_file.write_text(
         """
@@ -49,12 +52,12 @@ test2:
 
     os.chdir(tmpdir)
     manifest = Manifest.from_file(yaml_file, root_path=tmpdir)
+    captured_err = capsys.readouterr().err.splitlines()
     msg_fmt = 'Folder "{}" does not exist. Please check your manifest file {}'
-
     # two warnings warn test1 test2 not exists
-    assert len(recwarn) == 2
-    assert recwarn.pop(UserWarning).message.args[0] == msg_fmt.format(os.path.join(tmpdir, 'test1'), yaml_file)
-    assert recwarn.pop(UserWarning).message.args[0] == msg_fmt.format(os.path.join(tmpdir, 'test2'), yaml_file)
+    assert len(captured_err) == 2
+    assert msg_fmt.format(os.path.join(tmpdir, 'test1'), yaml_file) in captured_err[0]
+    assert msg_fmt.format(os.path.join(tmpdir, 'test2'), yaml_file) in captured_err[1]
 
     assert manifest.enable_build_targets('test1') == ['esp32', 'esp32c3', 'esp32s2']
     assert manifest.enable_test_targets('test1') == ['esp32', 'esp32s2']
@@ -121,8 +124,7 @@ test5:
     )
 
     os.chdir(tmpdir)
-    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-        manifest = Manifest.from_file(yaml_file, root_path=tmpdir)
+    manifest = Manifest.from_file(yaml_file)
 
     assert manifest.depends_components('test1', None, None) == ['VVV']
     assert manifest.depends_components('test1', None, 'AAA') == ['VVV']
@@ -174,8 +176,7 @@ test1:
         encoding='utf8',
     )
     os.chdir(tmpdir)
-    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-        manifest = Manifest.from_file(yaml_file, root_path=tmpdir)
+    manifest = Manifest.from_file(yaml_file, root_path=tmpdir)
 
     assert manifest.depends_components('test1', None, None) == ['DF']
     assert manifest.depends_components('test1', None, 'CCC') == ['DF']
@@ -220,8 +221,7 @@ def test_manifest_switch_clause_wrong_manifest_format(tmpdir):
         encoding='utf8',
     )
     try:
-        with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-            Manifest.from_file(yaml_file)
+        Manifest.from_file(yaml_file)
     except InvalidManifest as e:
         assert str(e) == 'Current manifest format has to fit either the switch format or the list format.'
 
@@ -246,10 +246,7 @@ bar:
     )
 
     monkeypatch.setattr(idf_build_apps.manifest.manifest.FolderRule, 'DEFAULT_BUILD_TARGETS', ['esp32'])
-
-    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-        manifest = Manifest.from_file(yaml_file)
-
+    manifest = Manifest.from_file(yaml_file)
     assert manifest.enable_build_targets('bar') == []
 
 
@@ -262,9 +259,7 @@ foo:
 """,
         encoding='utf8',
     )
-    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-        manifest = Manifest.from_file(yaml_file)
-
+    manifest = Manifest.from_file(yaml_file)
     assert manifest.enable_build_targets('foo') == sorted(SUPPORTED_TARGETS)
 
     yaml_file.write_text(
@@ -285,9 +280,7 @@ examples/wifi/coexist:
         encoding='utf8',
     )
 
-    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-        manifest = Manifest.from_file(yaml_file)
-
+    manifest = Manifest.from_file(yaml_file)
     assert manifest.depends_components('examples/wifi/coexist') == ['esp_coex', 'esp_hw_support', 'esp_wifi']
 
     yaml_file.write_text(
@@ -434,9 +427,7 @@ examples/wifi/coexist:
         encoding='utf8',
     )
 
-    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-        manifest = Manifest.from_file(yaml_file)
-
+    manifest = Manifest.from_file(yaml_file)
     assert manifest.depends_components('examples/wifi/coexist') == ['esp_hw_support']
 
 
@@ -469,8 +460,7 @@ foo:
         Manifest.from_files([str(yaml_file_1), str(yaml_file_2)])
 
     monkeypatch.setattr(idf_build_apps.manifest.manifest.Manifest, 'CHECK_MANIFEST_RULES', False)
-    with pytest.warns(UserWarning, match=f'Folder "{folder_path}" is already defined in {yaml_file_1!s}'):
-        Manifest.from_files([str(yaml_file_1), str(yaml_file_2)])
+    Manifest.from_files([str(yaml_file_1), str(yaml_file_2)])
 
 
 def test_manifest_dump_sha(tmpdir, sha_of_enable_only_esp32):
@@ -487,8 +477,7 @@ bar:
         encoding='utf8',
     )
 
-    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-        Manifest.from_file(yaml_file).dump_sha_values(str(tmpdir / '.sha'))
+    Manifest.from_file(yaml_file).dump_sha_values(str(tmpdir / '.sha'))
 
     with open(tmpdir / '.sha') as f:
         assert f.readline() == f'bar:{sha_of_enable_only_esp32}\n'
@@ -519,11 +508,10 @@ baz:
         fw.write('       ')  # test spaces
         fw.write(f'foo:{sha_of_enable_only_esp32}\n')
 
-    with pytest.warns(UserWarning, match='Folder ".+" does not exist. Please check your manifest file'):
-        assert Manifest.from_file(yaml_file).diff_sha_with_filepath(str(tmpdir / '.sha')) == {
-            'baz',
-            'foo',
-        }
+    assert Manifest.from_file(yaml_file).diff_sha_with_filepath(str(tmpdir / '.sha')) == {
+        'baz',
+        'foo',
+    }
 
 
 class TestIfParser:
