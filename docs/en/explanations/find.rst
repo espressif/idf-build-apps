@@ -28,6 +28,10 @@ All examples are based on the following demo projects, with the folder structure
            ├── CMakeLists.txt
            └── test-2.c
 
+.. note::
+
+   For detailed list of arguments, please refer to the :class:`~idf_build_apps.args.FindArguments` reference.
+
 ************************
  Basic ``find`` Command
 ************************

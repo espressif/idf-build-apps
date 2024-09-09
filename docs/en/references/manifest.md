@@ -146,66 +146,6 @@ examples/get-started/blink:
       reason: This one supports all supported targets and linux
 ```
 
-## Building Apps Only on Related Changes
-
-In large projects or monorepos, it is often desirable to only run builds and tests which are somehow related to the changes in a pull request.
-
-idf-build-apps supports this by checking whether a particular app has been modified, or depends on modified components or modified files. This check is based on the knowledge of two things: the list of components/files the app depends on, and the list of components/app which are modified in the pull request.
-
-### Specify the List of Modified Files and Components
-
-To enable this feature, you need to pass the list of modified files or modified components to idf-build-apps using the following CLI options:
-
-- `--modified-files`
-- `--modified-components`
-
-For example, if the project uses Git, you can obtain the list of files modified in a branch or a pull request by calling
-
-```shell
-git diff --name-only ${pr_branch_head} $(git merge-base ${pr_branch_head} main)
-```
-
-where `pr_branch_head` is the branch of the pull request, and `main` is the default branch.
-
-### Specifying the app dependencies
-
-idf-build-apps uses the following rules to determine whether to build an app or not:
-
-1. The app is built if any files in the app itself are modified (.md files are excluded)
-2. If `depends_components` or `depends_filepatterns` are specified in the manifest file, idf-build-apps matches `--modified-components` and `--modified-files` against these two entries. If any of the modified components are in the `depends_components` list or any of the modified files are matched by `depends_filepatterns`, the app is built.
-3. If `depends_components` or `depends_filepatterns` are not specified in the manifest files, idf-build-apps determines the list of components the app depends on using `BUILD_COMPONENTS` property in IDF build system. For the given app, this property contains the list of all the components included into the build. idf-build-apps runs `idf.py reconfigure` to determine the value of this property for the app. If any of the modified components are present in the `BUILD_COMPONENTS` list, the app is built.
-
-For example, this is an app `example/foo`, which depends on `comp1`, `comp2`, `comp3` and all files under `common_header_files`:
-
-```yaml
-examples/foo:
-  depends_components:
-    - comp1
-    - comp2
-    - comp3
-  depends_filepatterns:
-    - "common_header_files/**/*"
-```
-
-This app will be built with the following CLI options:
-
-- `--modified-files examples/foo/main/foo.c`
-- `--modified-components comp1`
-- `--modified-components comp2;comp4 --modified-files /tmp/foo.h`
-- `--modified-files common_header_files/foo.h`
-- `--modified-components comp4 --modified-files common_header_files/foo.h`
-
-This app will not be built with the following CLI options:
-
-- `--modified-files examples/foo/main/foo.md`
-- `--modified-components bar`
-
-### Handle Low-level Dependencies
-
-Low-level dependencies, are components or files that are used by many others. For example, component `freertos` provides the operating system support for all apps, and ESP-IDF build system related cmake files are also used by all apps. When these items are modified, we definitely need to build and test all the apps.
-
-To disable the build-apps-only-on-related-changes feature, you can use the CLI option `--ignore-app-dependencies-filepatterns`. Once any of the modified files matches the specified patterns, the special rules will be disabled. All apps will be built, no exceptions.
-
 ## Enhanced YAML Syntax
 
 ### Switch-Like Clauses
