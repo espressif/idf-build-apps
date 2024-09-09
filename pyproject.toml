@@ -28,13 +28,11 @@ dependencies = [
     "packaging",
     "toml; python_version < '3.11'",
     "pydantic~=2.0",
-    "argcomplete>=3"
+    "argcomplete>=3",
+    "typing-extensions; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "typing-extensions; python_version < '3.8'",
-]
 test = [
     "pytest",
     "pytest-cov",
