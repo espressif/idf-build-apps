@@ -25,7 +25,7 @@ from idf_build_apps.manifest.manifest import Manifest
 
 
 class TestFindWithManifest:
-    def test_manifest_rootpath_chdir(self):
+    def test_manifest_rootpath_chdir(self, capsys):
         test_dir = Path(IDF_PATH) / 'examples' / 'get-started'
 
         yaml_file = test_dir / 'test.yml'
@@ -40,13 +40,14 @@ examples/get-started:
 
         os.chdir(IDF_PATH)
         assert not find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file))
+        assert not capsys.readouterr().err
 
         # manifest folder invalid
         os.chdir(test_dir)
-        with pytest.warns(UserWarning, match=f'Folder "{test_dir}/examples/get-started" does not exist'):
-            assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file))
+        assert find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file))
+        assert f'Folder "{test_dir}/examples/get-started" does not exist' in capsys.readouterr().err
 
-    def test_manifest_rootpath_specified(self):
+    def test_manifest_rootpath_specified(self, capsys):
         test_dir = Path(IDF_PATH) / 'examples' / 'get-started'
 
         yaml_file = test_dir / 'test.yml'
@@ -58,11 +59,12 @@ get-started:
 """,
             encoding='utf8',
         )
-        with pytest.warns(UserWarning, match=f'Folder "{IDF_PATH}/get-started" does not exist.'):
-            assert find_apps(
-                str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file), manifest_rootpath=str(IDF_PATH)
-            )
+        assert find_apps(
+            str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file), manifest_rootpath=str(IDF_PATH)
+        )
+        assert f'Folder "{IDF_PATH}/get-started" does not exist' in capsys.readouterr().err
 
+        # set correct rootpath
         assert not find_apps(
             str(test_dir),
             'esp32',
@@ -70,6 +72,7 @@ get-started:
             manifest_files=str(yaml_file),
             manifest_rootpath=os.path.join(IDF_PATH, 'examples'),
         )
+        assert not capsys.readouterr().err
 
     def test_keyword_idf_target(self, tmpdir):
         test_dir = os.path.join(IDF_PATH, 'examples')

@@ -18,6 +18,7 @@ import re
 import typing as t
 from copy import deepcopy
 from dataclasses import InitVar, asdict, dataclass, field, fields
+from enum import Enum
 
 from . import SESSION_ARGS, setup_logging
 from .app import App
@@ -36,6 +37,10 @@ from .utils import (
 LOGGER = logging.getLogger(__name__)
 
 
+class _Field(Enum):
+    UNSET = 'UNSET'
+
+
 @dataclass
 class FieldMetadata:
     """
@@ -43,7 +48,7 @@ class FieldMetadata:
     Some fields are used in argparse while running :func:`add_args_to_parser`.
 
     :param description: description of the field
-    :param deprecated_by: name of the field that deprecates this field
+    :param deprecates: deprecates field names, used in argparse
     :param shorthand: shorthand for the argument, used in argparse
     :param action: action for the argument, used in argparse
     :param nargs: nargs for the argument, used in argparse
@@ -55,7 +60,7 @@ class FieldMetadata:
 
     description: t.Optional[str] = None
     # when deprecated, the field description will be copied from the deprecated_by field if not specified
-    deprecated_by: t.Optional[str] = None
+    deprecates: t.Optional[t.Dict[str, t.Dict[str, t.Any]]] = None
     shorthand: t.Optional[str] = None
     # argparse_kwargs
     action: t.Optional[str] = None
@@ -110,6 +115,17 @@ class GlobalArguments:
         ),
     )
 
+    _depr_name_to_new_name_dict: t.ClassVar[t.Dict[str, str]] = {}  # record deprecated field <-> new field
+
+    def __new__(cls, *args, **kwargs):  # noqa: ARG003
+        for f in fields(cls):
+            _metadata = FieldMetadata(**f.metadata)
+            if _metadata.deprecates:
+                for depr_name in _metadata.deprecates:
+                    cls._depr_name_to_new_name_dict[depr_name] = f.name
+
+        return super().__new__(cls)
+
     @classmethod
     def from_dict(cls, d: t.Dict[str, t.Any]) -> Self:
         """
@@ -118,50 +134,44 @@ class GlobalArguments:
         :param d: dictionary
         :return: instance
         """
-        return cls(**{k: v for k, v in d.items() if k in {f.name for f in fields(cls)}})
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
     def __post_init__(self):
         self.apply_config()
-
-    def __setattr__(self, key, value):
-        if value == getattr(self, key, None):
-            return
-
-        _new_name_deprecated_name_dict = {}
-        _deprecated_name_new_name_dict = {}
-        for _n, _f in {f.name: f for f in fields(self)}.items():
-            _meta = FieldMetadata(**_f.metadata)
-            if _meta.deprecated_by:
-                _new_name_deprecated_name_dict[_meta.deprecated_by] = _n
-                _deprecated_name_new_name_dict[_n] = _meta.deprecated_by
-
-        if key in _new_name_deprecated_name_dict:
-            super().__setattr__(key, value)
-            # set together with the deprecated field
-            super().__setattr__(_new_name_deprecated_name_dict[key], value)
-        elif key in _deprecated_name_new_name_dict:
-            LOGGER.warning(
-                'Field %s is deprecated by %s. Will be removed in the future.',
-                key,
-                _deprecated_name_new_name_dict[key],
-            )
-            super().__setattr__(key, value)
-            # set together with the new field
-            super().__setattr__(_deprecated_name_new_name_dict[key], value)
-        else:
-            super().__setattr__(key, value)
 
     def apply_config(self) -> None:
         """
         Apply the configuration file to the arguments
         """
-        config_dict = get_valid_config(custom_path=self.config_file)
+        config_dict = get_valid_config(custom_path=self.config_file) or {}
+
+        # set log fields first
+        self.verbose = config_dict.pop('verbose', self.verbose)
+        self.log_file = config_dict.pop('log_file', self.log_file)
+        self.no_color = config_dict.pop('no_color', self.no_color)
+        setup_logging(self.verbose, self.log_file, not self.no_color)
+
         if config_dict:
             for name, value in config_dict.items():
                 if hasattr(self, name):
                     setattr(self, name, value)
 
-        setup_logging(self.verbose, self.log_file, not self.no_color)
+                if name in self._depr_name_to_new_name_dict:
+                    self.set_deprecated_field(self._depr_name_to_new_name_dict[name], name, value)
+
+    def set_deprecated_field(self, new_k: str, depr_k: str, depr_v: t.Any) -> None:
+        if depr_v == _Field.UNSET:
+            return
+
+        LOGGER.warning(
+            f'Field `{depr_k}` is deprecated. Will be removed in the next major release. '
+            f'Use field `{new_k}` instead.'
+        )
+        if getattr(self, new_k) is not None:
+            LOGGER.warning(f'Field `{new_k}` is already set. Ignoring deprecated field `{depr_k}`')
+            return
+
+        setattr(self, new_k, depr_v)
 
 
 @dataclass
@@ -170,19 +180,16 @@ class DependencyDrivenBuildArguments(GlobalArguments):
     Arguments used in the dependency-driven build feature.
     """
 
-    manifest_file: t.Optional[t.List[str]] = field(
-        default=None,
-        metadata=asdict(
-            FieldMetadata(
-                deprecated_by='manifest_files',
-                nargs='+',
-            )
-        ),
-    )
+    manifest_file: InitVar[t.Optional[t.List[str]]] = _Field.UNSET
     manifest_files: t.Optional[t.List[str]] = field(
         default=None,
         metadata=asdict(
             FieldMetadata(
+                deprecates={
+                    'manifest_file': {
+                        'nargs': '+',
+                    },
+                },
                 description='Path to the manifest files which contains the build test rules of the apps',
                 nargs='+',
             )
@@ -215,20 +222,17 @@ class DependencyDrivenBuildArguments(GlobalArguments):
             )
         ),
     )
-    ignore_app_dependencies_components: t.Optional[t.List[str]] = field(
-        default=None,
-        metadata=asdict(
-            FieldMetadata(
-                deprecated_by='deactivate_dependency_driven_build_by_components',
-                type=semicolon_separated_str_to_list,
-                shorthand='-ic',
-            )
-        ),
-    )
+    ignore_app_dependencies_components: InitVar[t.Optional[t.List[str]]] = _Field.UNSET
     deactivate_dependency_driven_build_by_components: t.Optional[t.List[str]] = field(
         default=None,
         metadata=asdict(
             FieldMetadata(
+                deprecates={
+                    'ignore_app_dependencies_components': {
+                        'type': semicolon_separated_str_to_list,
+                        'shorthand': '-ic',
+                    }
+                },
                 description='semicolon-separated list of components. '
                 'dependency-driven build feature will be deactivated when any of these components are modified',
                 type=semicolon_separated_str_to_list,
@@ -236,20 +240,17 @@ class DependencyDrivenBuildArguments(GlobalArguments):
             )
         ),
     )
-    ignore_app_dependencies_filepatterns: t.Optional[t.List[str]] = field(
-        default=None,
-        metadata=asdict(
-            FieldMetadata(
-                deprecated_by='deactivate_dependency_driven_build_by_filepatterns',
-                type=semicolon_separated_str_to_list,
-                shorthand='-if',
-            )
-        ),
-    )
+    ignore_app_dependencies_filepatterns: InitVar[t.Optional[t.List[str]]] = _Field.UNSET
     deactivate_dependency_driven_build_by_filepatterns: t.Optional[t.List[str]] = field(
         default=None,
         metadata=asdict(
             FieldMetadata(
+                deprecates={
+                    'ignore_app_dependencies_filepatterns': {
+                        'type': semicolon_separated_str_to_list,
+                        'shorthand': '-if',
+                    }
+                },
                 description='semicolon-separated list of file patterns. '
                 'dependency-driven build feature will be deactivated when any of matched files are modified',
                 type=semicolon_separated_str_to_list,
@@ -277,8 +278,25 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         ),
     )
 
-    def __post_init__(self):
+    def __post_init__(
+        self,
+        manifest_file: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        ignore_app_dependencies_components: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        ignore_app_dependencies_filepatterns: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+    ):
         super().__post_init__()
+
+        self.set_deprecated_field('manifest_files', 'manifest_file', manifest_file)
+        self.set_deprecated_field(
+            'deactivate_dependency_driven_build_by_components',
+            'ignore_app_dependencies_components',
+            ignore_app_dependencies_components,
+        )
+        self.set_deprecated_field(
+            'deactivate_dependency_driven_build_by_filepatterns',
+            'ignore_app_dependencies_filepatterns',
+            ignore_app_dependencies_filepatterns,
+        )
 
         self.manifest_files = to_list(self.manifest_files)
         self.modified_components = to_list(self.modified_components)
@@ -408,7 +426,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
             )
         ),
     )
-    exclude_list: InitVar[t.Optional[t.List[str]]] = None
+    exclude_list: InitVar[t.Optional[t.List[str]]] = _Field.UNSET
     exclude: t.Optional[t.List[str]] = field(
         default=None,
         metadata=asdict(
@@ -437,53 +455,36 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
             )
         ),
     )
-    build_log: t.Optional[str] = field(
-        default=None,
-        metadata=asdict(
-            FieldMetadata(
-                deprecated_by='build_log_filename',
-            )
-        ),
-    )
+    build_log: InitVar[t.Optional[str]] = _Field.UNSET
     build_log_filename: t.Optional[str] = field(
         default=None,
         metadata=asdict(
             FieldMetadata(
+                deprecates={'build_log': {}},
                 description='Log filename under the build directory instead of stdout. Can expand placeholders',
             )
         ),
     )
-    size_file: t.Optional[str] = field(
-        default=None,
-        metadata=asdict(
-            FieldMetadata(
-                deprecated_by='size_json_filename',
-            )
-        ),
-    )
+    size_file: InitVar[t.Optional[str]] = _Field.UNSET
     size_json_filename: t.Optional[str] = field(
         default=None,
         metadata=asdict(
             FieldMetadata(
+                deprecates={'size_file': {}},
                 description='`idf.py size` output file under the build directory when specified. '
                 'Can expand placeholders',
             )
         ),
     )
-    config: t.Optional[t.List[str]] = field(
-        default=None,
-        metadata=asdict(
-            FieldMetadata(
-                deprecated_by='config_rules',
-                nargs='+',
-            )
-        ),
-    )
-    config_rules_str: InitVar[t.Union[t.List[str], str, None]] = None
+    config: InitVar[t.Union[t.List[str], str, None]] = _Field.UNSET  # cli  # type: ignore
+    config_rules_str: InitVar[t.Union[t.List[str], str, None]] = _Field.UNSET  # func  # type: ignore
     config_rules: t.Optional[t.List[str]] = field(
         default=None,
         metadata=asdict(
             FieldMetadata(
+                deprecates={
+                    'config': {'nargs': '+'},
+                },
                 description='Defines the rules of building the project with pre-set sdkconfig files. '
                 'Supports FILENAME[=NAME] or FILEPATTERN format. '
                 'FILENAME is the filename of the sdkconfig file, relative to the app directory. '
@@ -577,16 +578,32 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         ),
     )
 
-    def __post_init__(
+    def __post_init__(  # type: ignore
         self,
-        exclude_list: t.Optional[t.List[str]] = None,
-        config_rules_str: t.Union[t.List[str], str, None] = None,
+        manifest_file: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        ignore_app_dependencies_components: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        ignore_app_dependencies_filepatterns: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        exclude_list: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        build_log: t.Optional[str] = _Field.UNSET,  # type: ignore
+        size_file: t.Optional[str] = _Field.UNSET,  # type: ignore
+        config: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        config_rules_str: t.Union[t.List[str], str, None] = _Field.UNSET,  # type: ignore
     ):
-        super().__post_init__()
+        super().__post_init__(
+            manifest_file=manifest_file,
+            ignore_app_dependencies_components=ignore_app_dependencies_components,
+            ignore_app_dependencies_filepatterns=ignore_app_dependencies_filepatterns,
+        )
+
+        self.set_deprecated_field('exclude', 'exclude_list', exclude_list)
+        self.set_deprecated_field('build_log_filename', 'build_log', build_log)
+        self.set_deprecated_field('size_json_filename', 'size_file', size_file)
+        self.set_deprecated_field('config_rules', 'config', config)
+        self.set_deprecated_field('config_rules', 'config_rules_str', config_rules_str)
 
         self.paths = to_list(self.paths)
-        self.config_rules = to_list(self.config_rules) or to_list(config_rules_str)
-        self.exclude = self.exclude or exclude_list or []
+        self.config_rules = to_list(self.config_rules)
+        self.exclude = to_list(self.exclude)
 
         # Validation
         if not self.paths:
@@ -645,12 +662,27 @@ class FindArguments(FindBuildArguments):
         ),
     )
 
-    def __post_init__(
+    def __post_init__(  # type: ignore
         self,
-        exclude_list: t.Optional[t.List[str]] = None,
-        config_rules_str: t.Union[t.List[str], str, None] = None,
+        manifest_file: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        ignore_app_dependencies_components: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        ignore_app_dependencies_filepatterns: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        exclude_list: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        build_log: t.Optional[str] = _Field.UNSET,  # type: ignore
+        size_file: t.Optional[str] = _Field.UNSET,  # type: ignore
+        config: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        config_rules_str: t.Union[t.List[str], str, None] = _Field.UNSET,  # type: ignore
     ):
-        super().__post_init__(exclude_list, config_rules_str)
+        super().__post_init__(
+            manifest_file=manifest_file,
+            ignore_app_dependencies_components=ignore_app_dependencies_components,
+            ignore_app_dependencies_filepatterns=ignore_app_dependencies_filepatterns,
+            exclude_list=exclude_list,
+            build_log=build_log,
+            size_file=size_file,
+            config=config,
+            config_rules_str=config_rules_str,
+        )
 
         if self.include_all_apps:
             self.include_skipped_apps = True
@@ -741,38 +773,26 @@ class BuildArguments(FindBuildArguments):
             )
         ),
     )
-    ignore_warning_str: t.Optional[t.List[str]] = field(
-        default=None,
-        metadata=asdict(
-            FieldMetadata(
-                deprecated_by='ignore_warning_strings',
-                nargs='+',
-            )
-        ),
-    )
+    ignore_warning_str: InitVar[t.Optional[t.List[str]]] = _Field.UNSET
     ignore_warning_strings: t.Optional[t.List[str]] = field(
         default=None,
         metadata=asdict(
             FieldMetadata(
+                deprecates={
+                    'ignore_warning_str': {'nargs': '+'},
+                },
                 description='space-separated list of patterns. '
                 'Ignore the warnings in the build output that match the patterns',
                 nargs='+',
             )
         ),
     )
-    ignore_warning_file: t.Optional[str] = field(
-        default=None,
-        metadata=asdict(
-            FieldMetadata(
-                description='Path to the file containing the patterns to ignore the warnings in the build output',
-                deprecated_by='ignore_warning_files',
-            )
-        ),
-    )
+    ignore_warning_file: InitVar[t.Optional[str]] = _Field.UNSET
     ignore_warning_files: t.Optional[t.List[str]] = field(
         default=None,
         metadata=asdict(
             FieldMetadata(
+                deprecates={'ignore_warning_file': {}},
                 description='Path to the files containing the patterns to ignore the warnings in the build output',
                 nargs='+',
             )
@@ -796,12 +816,34 @@ class BuildArguments(FindBuildArguments):
         ),
     )
 
-    def __post_init__(
+    def __post_init__(  # type: ignore
         self,
-        exclude_list: t.Optional[t.List[str]] = None,
-        config_rules_str: t.Union[t.List[str], str, None] = None,
+        manifest_file: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        ignore_app_dependencies_components: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        ignore_app_dependencies_filepatterns: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        exclude_list: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        build_log: t.Optional[str] = _Field.UNSET,  # type: ignore
+        size_file: t.Optional[str] = _Field.UNSET,  # type: ignore
+        config: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        config_rules_str: t.Union[t.List[str], str, None] = _Field.UNSET,  # type: ignore
+        ignore_warning_str: t.Optional[t.List[str]] = _Field.UNSET,  # type: ignore
+        ignore_warning_file: t.Optional[str] = _Field.UNSET,  # type: ignore
     ):
-        super().__post_init__(exclude_list, config_rules_str)
+        super().__post_init__(
+            manifest_file=manifest_file,
+            ignore_app_dependencies_components=ignore_app_dependencies_components,
+            ignore_app_dependencies_filepatterns=ignore_app_dependencies_filepatterns,
+            exclude_list=exclude_list,
+            build_log=build_log,
+            size_file=size_file,
+            config=config,
+            config_rules_str=config_rules_str,
+        )
+
+        self.set_deprecated_field('ignore_warning_strings', 'ignore_warning_str', ignore_warning_str)
+        self.set_deprecated_field('ignore_warning_files', 'ignore_warning_file', ignore_warning_file)
+
+        self.ignore_warning_strings = to_list(self.ignore_warning_strings) or []
 
         ignore_warnings_regexes = []
         if self.ignore_warning_strings:
@@ -872,13 +914,15 @@ def add_arguments_to_parser(argument_cls: t.Type[GlobalArguments], parser: argpa
         _meta = FieldMetadata(**f.metadata)
 
         desp = _meta.description
-        if _meta.deprecated_by:
-            if _meta.deprecated_by not in name_fields_dict:
-                raise ValueError(f'{_meta.deprecated_by} not found in {argument_cls}')
-
-            deprecated_by_field = name_fields_dict[_meta.deprecated_by]
-            desp = desp or deprecated_by_field.metadata['description']
-            desp = f'[DEPRECATED by {_snake_case_to_cli_arg_name(_meta.deprecated_by)}] {desp}'
+        # add deprecated fields
+        if _meta.deprecates:
+            for depr_k, depr_kwargs in _meta.deprecates.items():
+                depr_kwargs['help'] = f'[DEPRECATED by {_snake_case_to_cli_arg_name(name)}] {desp}'
+                short_name = depr_kwargs.pop('shorthand', None)
+                _names = [_snake_case_to_cli_arg_name(depr_k)]
+                if short_name:
+                    _names.append(short_name)
+                parser.add_argument(*_names, **depr_kwargs)
 
         # args
         args = [_snake_case_to_cli_arg_name(name)]
