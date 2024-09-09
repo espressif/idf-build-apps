@@ -49,3 +49,7 @@
       font-weight: bold;
       font-style: italic;
   }
+
+pre {
+    white-space: pre-wrap !important;
+}

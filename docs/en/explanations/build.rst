@@ -8,6 +8,10 @@
 
 This page explains the process of build apps, and how to use the ``idf-build-apps build`` command to build apps in the projects.
 
+.. note::
+
+   For detailed list of arguments, please refer to the :class:`~idf_build_apps.args.FindArguments` reference.
+
 *************************
  Basic ``build`` Command
 *************************

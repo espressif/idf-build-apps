@@ -409,13 +409,17 @@ def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = 
         You can pass extra_cls to support custom App class. A custom App class must be a subclass of App, and have a
         different value of `build_system`. For example, a custom CMake app
 
-        >>> class CustomApp(CMakeApp):
-        >>>    build_system: Literal['custom_cmake'] = 'custom_cmake'
+        .. code:: python
 
-        Then you can pass the CustomApp class to the `extra_cls` argument
+           class CustomApp(CMakeApp):
+               build_system: Literal['custom_cmake'] = 'custom_cmake'
 
-        >>> json_str = CustomApp('.', 'esp32').to_json()
-        >>> json_to_app(json_str, extra_classes=[CustomApp])
+        Then you can pass the :class:`CustomApp` class to the :attr:`extra_cls` argument
+
+        .. code:: python
+
+           json_str = CustomApp('.', 'esp32').to_json()
+           json_to_app(json_str, extra_classes=[CustomApp])
 
     :param json_str: json string
     :param extra_classes: extra App class
