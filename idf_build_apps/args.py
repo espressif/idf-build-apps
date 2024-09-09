@@ -59,7 +59,7 @@ class FieldMetadata:
     """
 
     description: t.Optional[str] = None
-    # when deprecated, the field description will be copied from the deprecated_by field if not specified
+    # the field description will be copied from the deprecates field if not specified
     deprecates: t.Optional[t.Dict[str, t.Dict[str, t.Any]]] = None
     shorthand: t.Optional[str] = None
     # argparse_kwargs
@@ -958,9 +958,6 @@ def add_arguments_to_obj_doc_as_params(argument_cls: t.Type[GlobalArguments], ob
     _docs_s += '\n'
 
     for f in fields(argument_cls):
-        if f.metadata.get('deprecated_by'):
-            continue
-
         # typing generic alias is not a class
         _annotation = f.type.__name__ if inspect.isclass(f.type) else f.type
 
