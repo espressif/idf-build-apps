@@ -28,6 +28,7 @@ from .manifest.manifest import FolderRule, Manifest
 from .utils import (
     InvalidCommand,
     Self,
+    drop_none_kwargs,
     files_matches_patterns,
     semicolon_separated_str_to_list,
     to_absolute_path,
@@ -907,9 +908,6 @@ def add_arguments_to_parser(argument_cls: t.Type[GlobalArguments], parser: argpa
     def _snake_case_to_cli_arg_name(s: str) -> str:
         return f'--{s.replace("_", "-")}'
 
-    def _drop_none(d: dict) -> dict:
-        return {k: v for k, v in d.items() if v is not None}
-
     for name, f in name_fields_dict.items():
         _meta = FieldMetadata(**f.metadata)
 
@@ -930,7 +928,7 @@ def add_arguments_to_parser(argument_cls: t.Type[GlobalArguments], parser: argpa
             args.append(_meta.shorthand)
 
         # kwargs passed to add_argument
-        kwargs = _drop_none(
+        kwargs = drop_none_kwargs(
             {
                 'help': desp,
                 'action': _meta.action,

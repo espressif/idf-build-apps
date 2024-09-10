@@ -47,9 +47,6 @@ html_theme = 'sphinx_rtd_theme'
 # use fixed version instead
 mermaid_version = '10.6.1'
 
-# building docs
-os.environ['BUILDING_DOCS'] = '1'
-
 autodoc_default_options = {
     'members': True,
     'member-order': 'bysource',

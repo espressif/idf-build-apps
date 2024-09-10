@@ -42,6 +42,7 @@ from .manifest.manifest import (
 from .utils import (
     AutocompleteActivationError,
     InvalidCommand,
+    drop_none_kwargs,
     get_parallel_start_stop,
     to_list,
 )
@@ -343,14 +344,14 @@ def main():
         sys.exit(0)
 
     if args.action == 'dump-manifest-sha':
-        arguments = DumpManifestShaArguments.from_dict(vars(args))
+        arguments = DumpManifestShaArguments.from_dict(drop_none_kwargs(vars(args)))
         Manifest.from_files(arguments.manifest_files).dump_sha_values(arguments.output)
         sys.exit(0)
 
     if args.action == 'find':
-        arguments = FindArguments.from_dict(vars(args))
+        arguments = FindArguments.from_dict(drop_none_kwargs(vars(args)))
     else:
-        arguments = BuildArguments.from_dict(vars(args))
+        arguments = BuildArguments.from_dict(drop_none_kwargs(vars(args)))
 
     # real call starts here
     # build also needs to find first
