@@ -607,14 +607,7 @@ class App(BaseModel):
                         self._logger.warning('%s', line)
                         has_unignored_warning = True
 
-        # correct build status for originally successful builds
-        if self.build_status == BuildStatus.SUCCESS:
-            if self.check_warnings and has_unignored_warning:
-                self.build_status = BuildStatus.FAILED
-                self.build_comment = 'build succeeded with warnings'
-            elif has_unignored_warning:
-                self.build_comment = 'build succeeded with warnings'
-
+        # for failed builds, print last few lines to help debug
         if self.build_status == BuildStatus.FAILED:
             # print last few lines to help debug
             self._logger.error(
@@ -624,6 +617,13 @@ class App(BaseModel):
             )
             for line in lines[-self.LOG_DEBUG_LINES :]:
                 self._logger.error('%s', line)
+        # correct build status for originally successful builds
+        elif self.build_status == BuildStatus.SUCCESS:
+            if self.check_warnings and has_unignored_warning:
+                self.build_status = BuildStatus.FAILED
+                self.build_comment = 'build succeeded with warnings'
+            elif has_unignored_warning:
+                self.build_comment = 'build succeeded with warnings'
 
     def _finalize(self) -> None:
         """
