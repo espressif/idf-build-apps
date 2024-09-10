@@ -383,3 +383,7 @@ class BaseModel(_BaseModel):
                 hash_list.append(v)
 
         return hash((type(self), *tuple(hash_list)))
+
+
+def drop_none_kwargs(d: dict) -> dict:
+    return {k: v for k, v in d.items() if v is not None}
