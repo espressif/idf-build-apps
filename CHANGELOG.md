@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.5.0rc0 (2024-09-10)
+
+### Feat
+
+- support `idf-build-apps find` with checking modified manfiest files
+- support `idf-build-apps dump-manifest-sha`
+
+### Fix
+
+- loose env var requirements. IDF_PATH not required
+- stop print build log as error when build with warning-as-error
+- requires typing-extensions below 3.11
+- temp build log got wrongly created/deleted
+
+### Refactor
+
+- declare argument once. used in both function, cli, and docs
+- move Manifest.ROOTPATH to params
+
 ## v2.4.3 (2024-08-07)
 
 ### Feat
