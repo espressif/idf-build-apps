@@ -74,7 +74,6 @@ class App(BaseModel):
     NAME_PLACEHOLDER: t.ClassVar[str] = '@n'  # replace it with self.name
     FULL_NAME_PLACEHOLDER: t.ClassVar[str] = '@f'  # replace it with escaped self.app_dir
     IDF_VERSION_PLACEHOLDER: t.ClassVar[str] = '@v'  # replace it with the IDF version
-    PARALLEL_INDEX_PLACEHOLDER: t.ClassVar[str] = '@p'  # replace it with the parallel index
     INDEX_PLACEHOLDER: t.ClassVar[str] = '@i'  # replace it with the build index (while build_apps)
 
     SDKCONFIG_LINE_REGEX: t.ClassVar[t.Pattern] = re.compile(r'^([^=]+)=\"?([^\"\n]*)\"?\n*$')
@@ -115,7 +114,6 @@ class App(BaseModel):
     copy_sdkconfig: bool = False
 
     # build_apps() related
-    parallel_index: t.Optional[int] = None  # used for expand
     index: t.Optional[int] = None
 
     # build status related
@@ -244,8 +242,6 @@ class App(BaseModel):
 
         if self.index is not None:
             path = path.replace(self.INDEX_PLACEHOLDER, str(self.index))
-        if self.parallel_index:
-            path = path.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
         path = path.replace(
             self.IDF_VERSION_PLACEHOLDER, f'{IDF_VERSION_MAJOR}_{IDF_VERSION_MINOR}_{IDF_VERSION_PATCH}'
         )
