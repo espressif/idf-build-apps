@@ -777,7 +777,7 @@ class BuildArguments(FindBuildArguments):
     )
     _collect_app_info: t.Optional[str] = field(init=False, repr=False, default=None)
     ignore_warning_str: InitVar[t.Optional[t.List[str]]] = _Field.UNSET
-    ignore_warning_strings: t.Optional[t.List[str]] = field(
+    ignore_warning_strs: t.Optional[t.List[str]] = field(
         default=None,
         metadata=asdict(
             FieldMetadata(
@@ -847,14 +847,14 @@ class BuildArguments(FindBuildArguments):
             config_rules_str=config_rules_str,
         )
 
-        self.set_deprecated_field('ignore_warning_strings', 'ignore_warning_str', ignore_warning_str)
+        self.set_deprecated_field('ignore_warning_strs', 'ignore_warning_str', ignore_warning_str)
         self.set_deprecated_field('ignore_warning_files', 'ignore_warning_file', ignore_warning_file)
 
-        self.ignore_warning_strings = to_list(self.ignore_warning_strings) or []
+        self.ignore_warning_strs = to_list(self.ignore_warning_strs) or []
 
         ignore_warnings_regexes = []
-        if self.ignore_warning_strings:
-            for s in self.ignore_warning_strings:
+        if self.ignore_warning_strs:
+            for s in self.ignore_warning_strs:
                 ignore_warnings_regexes.append(re.compile(s))
         if self.ignore_warning_files:
             for s in self.ignore_warning_files:
