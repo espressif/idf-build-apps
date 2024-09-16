@@ -760,20 +760,22 @@ class BuildArguments(FindBuildArguments):
         default=None,
         metadata=asdict(
             FieldMetadata(
-                description='[INTERNAL CI USE] record size json filepath of the built apps to the specified file. '
+                description='Record size json filepath of the built apps to the specified file. '
                 'Each line is a json string. Can expand placeholders @p',
             )
         ),
     )
+    _collect_size_info: t.Optional[str] = field(init=False, repr=False, default=None)
     collect_app_info: t.Optional[str] = field(
         default=None,
         metadata=asdict(
             FieldMetadata(
-                description='[INTERNAL CI USE] record serialized app model of the built apps to the specified file. '
+                description='Record serialized app model of the built apps to the specified file. '
                 'Each line is a json string. Can expand placeholders @p',
             )
         ),
     )
+    _collect_app_info: t.Optional[str] = field(init=False, repr=False, default=None)
     ignore_warning_str: InitVar[t.Optional[t.List[str]]] = _Field.UNSET
     ignore_warning_strings: t.Optional[t.List[str]] = field(
         default=None,
@@ -816,6 +818,10 @@ class BuildArguments(FindBuildArguments):
             )
         ),
     )
+    _junitxml: t.Optional[str] = field(init=False, repr=False, default=None)
+
+    # used for expanding placeholders
+    PARALLEL_INDEX_PLACEHOLDER: t.ClassVar[str] = '@p'  # replace it with the parallel index
 
     def __post_init__(  # type: ignore
         self,
@@ -854,6 +860,57 @@ class BuildArguments(FindBuildArguments):
             for s in self.ignore_warning_files:
                 ignore_warnings_regexes.append(re.compile(s.strip()))
         App.IGNORE_WARNS_REGEXES = ignore_warnings_regexes
+
+        if not isinstance(BuildArguments.collect_size_info, property):
+            self._collect_size_info = self.collect_size_info
+            BuildArguments.collect_size_info = property(  # type: ignore
+                BuildArguments._get_collect_size_info,
+                BuildArguments._set_collect_size_info,
+            )
+
+        if not isinstance(BuildArguments.collect_app_info, property):
+            self._collect_app_info = self.collect_app_info
+            BuildArguments.collect_app_info = property(  # type: ignore
+                BuildArguments._get_collect_app_info,
+                BuildArguments._set_collect_app_info,
+            )
+
+        if not isinstance(BuildArguments.junitxml, property):
+            self._junitxml = self.junitxml
+            BuildArguments.junitxml = property(  # type: ignore
+                BuildArguments._get_junitxml,
+                BuildArguments._set_junitxml,
+            )
+
+    def _get_collect_size_info(self) -> t.Optional[str]:
+        return (
+            self._collect_size_info.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
+            if self._collect_size_info
+            else None
+        )
+
+    def _set_collect_size_info(self, k: str) -> None:
+        self._collect_size_info = k
+
+    def _get_collect_app_info(self) -> t.Optional[str]:
+        return (
+            self._collect_app_info.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
+            if self._collect_app_info
+            else None
+        )
+
+    def _set_collect_app_info(self, k: str) -> None:
+        self._collect_app_info = k
+
+    def _get_junitxml(self) -> t.Optional[str]:
+        return (
+            self._junitxml.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
+            if self._junitxml
+            else None
+        )
+
+    def _set_junitxml(self, k: str) -> None:
+        self._junitxml = k
 
 
 @dataclass

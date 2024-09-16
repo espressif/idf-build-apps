@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from idf_build_apps.args import DependencyDrivenBuildArguments, FindArguments, FindBuildArguments
+from idf_build_apps.args import BuildArguments, DependencyDrivenBuildArguments, FindArguments, FindBuildArguments
 from idf_build_apps.config import IDF_BUILD_APPS_TOML_FN
 
 
@@ -64,3 +64,19 @@ no_color = true
 def test_empty_argument():
     args = FindArguments()
     assert args.config_rules is None
+
+
+def test_build_args_expansion():
+    args = BuildArguments(parallel_index=2)
+
+    args.collect_app_info = '@p.txt'
+    assert args.collect_app_info == '2.txt'
+
+    args.parallel_index = 3
+    assert args.collect_app_info == '3.txt'
+
+    args.junitxml = 'x_@p.txt'
+    assert args.junitxml == 'x_3.txt'
+
+    args.collect_size_info = '@p_@p.txt'
+    assert args.collect_size_info == '3_3.txt'

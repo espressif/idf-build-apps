@@ -125,9 +125,6 @@ def build_apps(
     start, stop = get_parallel_start_stop(len(apps), build_arguments.parallel_count, build_arguments.parallel_index)
     LOGGER.info('Total %s apps. running build for app %s-%s', len(apps), start, stop)
 
-    for app in apps[start - 1 : stop]:  # we use 1-based
-        app.parallel_index = build_arguments.parallel_index
-
     # cleanup collect files if exists at this early-stage
     for f in (build_arguments.collect_app_info, build_arguments.collect_size_info, build_arguments.junitxml):
         if f and os.path.isfile(f):
