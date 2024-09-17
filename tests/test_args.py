@@ -38,7 +38,7 @@ def test_init_attr_override(capsys):
     assert (
         'Field `config` is deprecated. Will be removed in the next major release. ' 'Use field `config_rules` instead'
     ) in err_list[0]
-    assert ('Field `config_rules` is already set. Ignoring deprecated field `config`') in err_list[1]
+    assert 'Field `config_rules` is already set. Ignoring deprecated field `config`' in err_list[1]
     assert (
         'Field `config_rules_str` is deprecated. Will be removed in the next major release. '
         'Use field `config_rules` instead'

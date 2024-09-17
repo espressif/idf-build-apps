@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.5.0rc1 (2024-09-17)
+
+### Fix
+
+- build_arguments expand @p placeholders
+
+### Refactor
+
+- rename BuildArguments.ignore_warning_strings to ignore_warning_strs
+
 ## v2.5.0rc0 (2024-09-10)
 
 ### Feat
