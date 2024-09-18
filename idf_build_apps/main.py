@@ -112,6 +112,13 @@ def build_apps(
     :return: exit code
     """
     apps = to_list(apps)
+    if 'check_app_dependencies' in kwargs:
+        LOGGER.warning(
+            'Passing "check_app_dependencies" directly is deprecated. '
+            'Pass "modified_components" instead to enable dependency-driven build feature'
+        )
+        kwargs.pop('check_app_dependencies')
+
     if build_arguments is None:
         build_arguments = BuildArguments(
             **kwargs,
