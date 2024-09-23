@@ -145,7 +145,7 @@ class FolderRule:
             self.depends_components,
             self.depends_filepatterns,
         ]:
-            sha.update(pickle.dumps(obj))
+            sha.update(pickle.dumps(obj, protocol=4))  # protocol 4 by default is set in Python 3.8
 
         return sha.hexdigest()
 
