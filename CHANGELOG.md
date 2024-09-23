@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.5.0rc2 (2024-09-23)
+
+### Fix
+
+- chdir to tmp_path at the beginning of each test case
+- load config before cli args and func args
+- pickle dump default protocal different in python 3.7
+- keep backward compatibility in build_apps function
+
 ## v2.5.0rc1 (2024-09-17)
 
 ### Fix
