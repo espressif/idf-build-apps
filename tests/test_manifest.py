@@ -50,7 +50,6 @@ test2:
         encoding='utf8',
     )
 
-    os.chdir(tmp_path)
     manifest = Manifest.from_file(yaml_file, root_path=tmp_path)
     captured_err = capsys.readouterr().err.splitlines()
     msg_fmt = 'Folder "{}" does not exist. Please check your manifest file {}'
@@ -123,7 +122,6 @@ test5:
         encoding='utf8',
     )
 
-    os.chdir(tmp_path)
     manifest = Manifest.from_file(yaml_file)
 
     assert manifest.depends_components('test1', None, None) == ['VVV']
@@ -175,7 +173,6 @@ test1:
 """,
         encoding='utf8',
     )
-    os.chdir(tmp_path)
     manifest = Manifest.from_file(yaml_file, root_path=tmp_path)
 
     assert manifest.depends_components('test1', None, None) == ['DF']
@@ -479,7 +476,7 @@ bar:
 
     Manifest.from_file(yaml_file).dump_sha_values(str(tmp_path / '.sha'))
 
-    with open(tmp_path / '.sha') as f:
+    with open('.sha') as f:
         assert f.readline() == f'bar:{sha_of_enable_only_esp32}\n'
         assert f.readline() == f'foo:{sha_of_enable_only_esp32}\n'
 
@@ -502,7 +499,7 @@ baz:
         encoding='utf8',
     )
 
-    with open(tmp_path / '.sha', 'w') as fw:
+    with open('.sha', 'w') as fw:
         fw.write(f'bar:{sha_of_enable_only_esp32}\n')
         fw.write('\n')  # test empty line
         fw.write('       ')  # test spaces

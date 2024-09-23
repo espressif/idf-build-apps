@@ -120,7 +120,7 @@ class TestBuild:
 
         build_apps(deepcopy(apps), dry_run=True, junitxml=str(tmp_path / 'test.xml'))
 
-        with open(tmp_path / 'test.xml') as f:
+        with open('test.xml') as f:
             xml = ElementTree.fromstring(f.read())
 
         test_suite = xml.findall('testsuite')[0]
@@ -144,7 +144,7 @@ class TestBuild:
 
         build_apps(deepcopy(apps), junitxml=str(tmp_path / 'test.xml'))
 
-        with open(tmp_path / 'test.xml') as f:
+        with open('test.xml') as f:
             xml = ElementTree.fromstring(f.read())
 
         test_suite = xml.findall('testsuite')[0]
@@ -188,16 +188,17 @@ class TestBuild:
         ret_code = build_apps(
             target='esp32',
             work_dir=os.path.join('foo', 'bar'),
-            junitxml=str(tmp_path / 'test.xml'),
+            junitxml='test.xml',
         )
         assert ret_code == 0
 
-        with open(tmp_path / 'test.xml') as f:
+        with open('test.xml') as f:
             xml = ElementTree.fromstring(f.read())
 
-        assert xml.findall('testsuite')[0].attrib['tests'] == '1'
-        assert xml.findall('testsuite')[0].attrib['failures'] == '0'
-        assert xml.findall('testsuite')[0].attrib['errors'] == '0'
-        assert xml.findall('testsuite')[0].attrib['skipped'] == '0'
+        test_suite = xml.findall('testsuite')[0]
+        assert test_suite.attrib['tests'] == '1'
+        assert test_suite.attrib['failures'] == '0'
+        assert test_suite.attrib['errors'] == '0'
+        assert test_suite.attrib['skipped'] == '0'
 
-        assert xml.findall('.//testcase')[0].attrib['name'] == 'foo/bar/build'
+        assert test_suite.findall('testcase')[0].attrib['name'] == 'foo/bar/build'

@@ -26,17 +26,17 @@ def test_serialization():
     assert a == b
 
 
-def test_deserialization(tmp_path):
+def test_deserialization():
     a = CMakeApp('foo', 'bar', size_json_filename='size.json')
     b = MakeApp('foo', 'bar', build_log_filename='build.log')
 
     assert a != b
 
-    with open(tmp_path / 'test.txt', 'w') as fw:
+    with open('test.txt', 'w') as fw:
         fw.write(a.to_json() + '\n')
         fw.write(b.to_json() + '\n')
 
-    with open(tmp_path / 'test.txt') as fr:
+    with open('test.txt') as fr:
         a_s = AppDeserializer.from_json(fr.readline())
         b_s = AppDeserializer.from_json(fr.readline())
 

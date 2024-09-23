@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import sys
 from pathlib import Path
 
@@ -27,8 +26,7 @@ class FakeArgs:
         (['--manifest-files', 'test.yml', '--output', 'test.sha1'], None),
     ],
 )
-def test_manifest_dump_sha_values(tmp_path, args, expected_error, sha_of_enable_only_esp32, capsys, monkeypatch):
-    os.chdir(tmp_path)
+def test_manifest_dump_sha_values(args, expected_error, sha_of_enable_only_esp32, capsys, monkeypatch):
     Path('test.yml').write_text(
         """
 foo:

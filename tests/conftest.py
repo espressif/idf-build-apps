@@ -15,10 +15,11 @@ from idf_build_apps.manifest.manifest import FolderRule
 
 
 @pytest.fixture(autouse=True)
-def clean_cls_attr():
+def clean_cls_attr(tmp_path):
     App.MANIFEST = None
     idf_build_apps.SESSION_ARGS.clean()
     apply_config_file(IDF_BUILD_APPS_TOML_FN)
+    os.chdir(tmp_path)
 
 
 @pytest.fixture(autouse=True)

@@ -407,7 +407,6 @@ foo:
         sha_abspath = os.path.abspath('.sha')
 
         # chdir, and modify bar, should not be found
-        os.chdir(tmp_path)
         apps = find_apps(
             'foo',
             'esp32',
@@ -531,7 +530,6 @@ class TestFindWithSdkconfigFiles:
         assert Path(apps[0].sdkconfig_files[0]).parts[-3:] == ('expanded_sdkconfig_files', 'build', 'sdkconfig.ci.foo')
 
         # test relative paths
-        os.chdir(str(tmp_path))
         apps = find_apps('test1', 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=', build_dir='build_@t_@w')
         assert len(apps) == 1
         assert Path(apps[0].sdkconfig_files[0]).parts[-3:] == (
@@ -733,7 +731,6 @@ def test_find_apps_with_exclude(tmp_path, exclude_list, apps_count):
     create_project('test2', tmp_path / 'folder1')
     create_project('test2', tmp_path / 'folder2')
 
-    os.chdir(tmp_path)
     apps = find_apps(str(tmp_path), 'esp32', recursive=True, exclude_list=exclude_list)
     assert len(apps) == apps_count
 

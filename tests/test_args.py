@@ -1,6 +1,5 @@
 # SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-import os
 
 import pytest
 
@@ -9,7 +8,6 @@ from idf_build_apps.args import (
     DependencyDrivenBuildArguments,
     FindArguments,
     FindBuildArguments,
-    apply_config_file,
 )
 from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN
 
@@ -43,15 +41,14 @@ def test_init_attr_override(kwargs, expected):
     assert args.config_rules == expected
 
 
-def test_apply_config_with_deprecated_names(tmp_path):
-    with open(tmp_path / IDF_BUILD_APPS_TOML_FN, 'w') as fw:
+def test_apply_config_with_deprecated_names():
+    with open(IDF_BUILD_APPS_TOML_FN, 'w') as fw:
         fw.write("""config = [
     "foo"
 ]
 no_color = true
 """)
 
-    apply_config_file(tmp_path / IDF_BUILD_APPS_TOML_FN)
     args = FindBuildArguments()
     assert args.config_rules == ['foo']
 
@@ -74,8 +71,8 @@ def test_build_args_expansion():
     assert args.collect_size_info == '3_3.txt'
 
 
-def test_func_overwrite_config(tmp_path):
-    with open(tmp_path / IDF_BUILD_APPS_TOML_FN, 'w') as fw:
+def test_func_overwrite_config():
+    with open(IDF_BUILD_APPS_TOML_FN, 'w') as fw:
         fw.write("""config = [
         "foo"
     ]
@@ -85,7 +82,6 @@ def test_func_overwrite_config(tmp_path):
     no_color = true
     """)
 
-    apply_config_file(tmp_path / IDF_BUILD_APPS_TOML_FN)
     args = FindArguments(
         config=['bar'],
     )
@@ -95,8 +91,8 @@ def test_func_overwrite_config(tmp_path):
     assert args.modified_files is None
 
 
-def test_func_overwrite_toml_overwrite_pyproject_toml(tmp_path):
-    with open(tmp_path / 'pyproject.toml', 'w') as fw:
+def test_func_overwrite_toml_overwrite_pyproject_toml():
+    with open('pyproject.toml', 'w') as fw:
         fw.write("""[tool.idf-build-apps]
 config = [
     "foo"
@@ -110,7 +106,7 @@ ignore_app_dependencies_components = [
 verbose=3
     """)
 
-    with open(tmp_path / IDF_BUILD_APPS_TOML_FN, 'w') as fw:
+    with open(IDF_BUILD_APPS_TOML_FN, 'w') as fw:
         fw.write("""config = [
     "bar"
 ]
@@ -118,8 +114,6 @@ modified_files = [
     'file1',
 ]
         """)
-
-    os.chdir(tmp_path)
 
     args = FindArguments(
         modified_components=['comp2'],
