@@ -17,6 +17,7 @@ from ..constants import (
 from ..utils import (
     InvalidIfClause,
     InvalidManifest,
+    PathLike,
     to_absolute_path,
 )
 from ..yaml import (
@@ -145,7 +146,7 @@ class FolderRule:
             self.depends_components,
             self.depends_filepatterns,
         ]:
-            sha.update(pickle.dumps(obj))
+            sha.update(pickle.dumps(obj, protocol=4))  # protocol 4 by default is set in Python 3.8
 
         return sha.hexdigest()
 
@@ -235,7 +236,7 @@ class Manifest:
         self._root_path = to_absolute_path(root_path)
 
     @classmethod
-    def from_files(cls, paths: t.Iterable[str], *, root_path: str = os.curdir) -> 'Manifest':
+    def from_files(cls, paths: t.Iterable[PathLike], *, root_path: str = os.curdir) -> 'Manifest':
         """
         Create a Manifest instance from multiple manifest files
 
@@ -244,7 +245,7 @@ class Manifest:
         :return: Manifest instance
         """
         # folder, defined as dict
-        _known_folders: t.Dict[str, str] = dict()
+        _known_folders: t.Dict[str, PathLike] = dict()
 
         rules: t.List[FolderRule] = []
         for path in paths:
@@ -265,7 +266,7 @@ class Manifest:
         return Manifest(rules, root_path=root_path)
 
     @classmethod
-    def from_file(cls, path: str, *, root_path: str = os.curdir) -> 'Manifest':
+    def from_file(cls, path: PathLike, *, root_path: str = os.curdir) -> 'Manifest':
         """
         Create a Manifest instance from a manifest file
 

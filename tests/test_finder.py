@@ -74,12 +74,12 @@ get-started:
         )
         assert not capsys.readouterr().err
 
-    def test_keyword_idf_target(self, tmpdir):
+    def test_keyword_idf_target(self, tmp_path):
         test_dir = os.path.join(IDF_PATH, 'examples')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
 
-        yaml_file = tmpdir / 'test.yml'
+        yaml_file = tmp_path / 'test.yml'
         yaml_file.write_text(
             f"""
 {test_dir}:
@@ -111,9 +111,9 @@ examples/get-started:
             == apps
         )
 
-    def test_include_disabled_apps(self, tmpdir):
+    def test_include_disabled_apps(self, tmp_path):
         test_dir = Path(IDF_PATH) / 'examples' / 'get-started'
-        yaml_file = tmpdir / 'test.yml'
+        yaml_file = tmp_path / 'test.yml'
         yaml_file.write_text(
             f"""
         {test_dir}:
@@ -150,12 +150,12 @@ class TestFindWithModifiedFilesComponents:
             (['soc', 'fake'], True),
         ],
     )
-    def test_with_depends_and_modified_components(self, tmpdir, modified_components, could_find_apps):
+    def test_with_depends_and_modified_components(self, tmp_path, modified_components, could_find_apps):
         test_dir = str(Path(IDF_PATH) / 'examples')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
 
-        yaml_file = tmpdir / 'test.yml'
+        yaml_file = tmp_path / 'test.yml'
         yaml_file.write_text(
             f"""
 {test_dir}:
@@ -407,7 +407,6 @@ foo:
         sha_abspath = os.path.abspath('.sha')
 
         # chdir, and modify bar, should not be found
-        os.chdir(tmp_path)
         apps = find_apps(
             'foo',
             'esp32',
@@ -531,7 +530,6 @@ class TestFindWithSdkconfigFiles:
         assert Path(apps[0].sdkconfig_files[0]).parts[-3:] == ('expanded_sdkconfig_files', 'build', 'sdkconfig.ci.foo')
 
         # test relative paths
-        os.chdir(str(tmp_path))
         apps = find_apps('test1', 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=', build_dir='build_@t_@w')
         assert len(apps) == 1
         assert Path(apps[0].sdkconfig_files[0]).parts[-3:] == (
@@ -733,7 +731,6 @@ def test_find_apps_with_exclude(tmp_path, exclude_list, apps_count):
     create_project('test2', tmp_path / 'folder1')
     create_project('test2', tmp_path / 'folder2')
 
-    os.chdir(tmp_path)
     apps = find_apps(str(tmp_path), 'esp32', recursive=True, exclude_list=exclude_list)
     assert len(apps) == apps_count
 

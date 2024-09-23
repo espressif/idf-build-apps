@@ -15,6 +15,7 @@ repos:
           - --license-filepath
           - license_header.txt        # defaults to: LICENSE.txt
           - --use-current-year
+        exclude: 'idf_build_apps/vendors/'
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: 'v0.6.2'
     hooks:
@@ -28,6 +29,7 @@ repos:
         args: ['--warn-unused-ignores']
         additional_dependencies:
           - pydantic
+          - pydantic-settings
           - packaging
           - toml
           - pyparsing

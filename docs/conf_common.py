@@ -51,7 +51,7 @@ autodoc_default_options = {
     'members': True,
     'member-order': 'bysource',
     'show-inheritance': True,
-    'exclude-members': 'model_computed_fields,model_config,model_fields',
+    'exclude-members': 'model_computed_fields,model_config,model_fields,model_post_init',
 }
 
 
@@ -59,7 +59,7 @@ def generate_api_docs(language):
     from idf_build_apps.args import (
         BuildArguments,
         FindArguments,
-        add_arguments_to_obj_doc_as_params,
+        add_args_to_obj_doc_as_params,
     )
     from idf_build_apps.main import build_apps, find_apps
 
@@ -69,10 +69,10 @@ def generate_api_docs(language):
         shutil.rmtree(api_dir)
 
     # --- MOCK DOCSTRINGS By Arguments ---
-    add_arguments_to_obj_doc_as_params(FindArguments)
-    add_arguments_to_obj_doc_as_params(BuildArguments)
-    add_arguments_to_obj_doc_as_params(FindArguments, find_apps)
-    add_arguments_to_obj_doc_as_params(BuildArguments, build_apps)
+    add_args_to_obj_doc_as_params(FindArguments)
+    add_args_to_obj_doc_as_params(BuildArguments)
+    add_args_to_obj_doc_as_params(FindArguments, find_apps)
+    add_args_to_obj_doc_as_params(BuildArguments, build_apps)
     # --- MOCK DOCSTRINGS FINISHED ---
 
     subprocess.run(
