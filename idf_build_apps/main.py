@@ -10,7 +10,6 @@ import os
 import sys
 import textwrap
 import typing as t
-from dataclasses import asdict
 
 import argcomplete
 from pydantic import (
@@ -18,7 +17,13 @@ from pydantic import (
     create_model,
 )
 
-from idf_build_apps.args import BuildArguments, DumpManifestShaArguments, FindArguments, add_arguments_to_parser
+from idf_build_apps.args import (
+    BuildArguments,
+    DumpManifestShaArguments,
+    FindArguments,
+    add_args_to_parser,
+    apply_config_file,
+)
 
 from .app import (
     App,
@@ -55,6 +60,7 @@ def find_apps(
     target: t.Optional[str] = None,
     *,
     find_arguments: t.Optional[FindArguments] = None,
+    config_file: t.Optional[str] = None,
     **kwargs,
 ) -> t.List[App]:
     """
@@ -62,6 +68,8 @@ def find_apps(
 
     :return: list of found apps
     """
+    apply_config_file(config_file)
+
     if find_arguments is None:
         find_arguments = FindArguments(
             paths=to_list(paths),  # type: ignore
@@ -104,13 +112,19 @@ def find_apps(
 
 
 def build_apps(
-    apps: t.Union[t.List[App], App, None] = None, *, build_arguments: t.Optional[BuildArguments] = None, **kwargs
+    apps: t.Union[t.List[App], App, None] = None,
+    *,
+    build_arguments: t.Optional[BuildArguments] = None,
+    config_file: t.Optional[str] = None,
+    **kwargs,
 ) -> int:
     """
     Build all the specified apps. For all kwargs, please refer to `BuildArguments`
 
     :return: exit code
     """
+    apply_config_file(config_file)
+
     apps = to_list(apps)
     if 'check_app_dependencies' in kwargs:
         LOGGER.warning(
@@ -125,7 +139,11 @@ def build_apps(
         )
 
     if apps is None:
-        apps = find_apps(find_arguments=FindArguments.from_dict(asdict(build_arguments)))
+        apps = find_apps(
+            find_arguments=FindArguments(
+                **{k: v for k, v in build_arguments.model_dump().items() if k in FindArguments.model_fields}
+            )
+        )
 
     test_suite = TestSuite('build_apps')
 
@@ -262,6 +280,9 @@ def get_parser() -> argparse.ArgumentParser:
     )
     actions = parser.add_subparsers(dest='action', required=True)
 
+    common_args = argparse.ArgumentParser(add_help=False)
+    common_args.add_argument('--config-file', help='Path to the config file')
+
     ########
     # Find #
     ########
@@ -273,8 +294,9 @@ def get_parser() -> argparse.ArgumentParser:
         'By default, print the found apps in stdout. '
         'To find apps for all chips use the `--target` option with the `all` argument.',
         formatter_class=IdfBuildAppsCliFormatter,
+        parents=[common_args],
     )
-    add_arguments_to_parser(FindArguments, find_parser)
+    add_args_to_parser(FindArguments, find_parser)
 
     #########
     # Build #
@@ -285,8 +307,9 @@ def get_parser() -> argparse.ArgumentParser:
         description='Build the application in the given path or paths for specified chips. '
         '`--path` and `--target` options must be provided.',
         formatter_class=IdfBuildAppsCliFormatter,
+        parents=[common_args],
     )
-    add_arguments_to_parser(BuildArguments, build_parser)
+    add_args_to_parser(BuildArguments, build_parser)
 
     ###############
     # Completions #
@@ -321,8 +344,9 @@ def get_parser() -> argparse.ArgumentParser:
         'dump-manifest-sha',
         help='Dump the manifest files SHA values. '
         'This could be useful in CI to check if the manifest files are changed.',
+        parents=[common_args],
     )
-    add_arguments_to_parser(DumpManifestShaArguments, dump_manifest_parser)
+    add_args_to_parser(DumpManifestShaArguments, dump_manifest_parser)
 
     return parser
 
@@ -347,15 +371,20 @@ def main():
         handle_completions(args)
         sys.exit(0)
 
-    if args.action == 'dump-manifest-sha':
-        arguments = DumpManifestShaArguments.from_dict(drop_none_kwargs(vars(args)))
+    kwargs = vars(args)
+    action = kwargs.pop('action')
+    config_file = kwargs.pop('config_file')
+
+    apply_config_file(config_file)
+
+    if action == 'dump-manifest-sha':
+        arguments = DumpManifestShaArguments(**drop_none_kwargs(kwargs))
         Manifest.from_files(arguments.manifest_files).dump_sha_values(arguments.output)
         sys.exit(0)
-
-    if args.action == 'find':
-        arguments = FindArguments.from_dict(drop_none_kwargs(vars(args)))
+    elif action == 'find':
+        arguments = FindArguments(**drop_none_kwargs(kwargs))
     else:
-        arguments = BuildArguments.from_dict(drop_none_kwargs(vars(args)))
+        arguments = BuildArguments(**drop_none_kwargs(kwargs))
 
     # real call starts here
     # build also needs to find first

@@ -28,6 +28,7 @@ dependencies = [
     "packaging",
     "toml; python_version < '3.11'",
     "pydantic~=2.0",
+    "pydantic_settings",
     "argcomplete>=3",
     "typing-extensions; python_version < '3.11'",
 ]

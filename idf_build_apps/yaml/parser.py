@@ -5,6 +5,8 @@ import typing as t
 
 import yaml
 
+from ..utils import PathLike
+
 
 def parse_postfixes(manifest_dict: t.Dict):
     for folder, folder_rule in manifest_dict.items():
@@ -60,7 +62,7 @@ def parse_postfixes(manifest_dict: t.Dict):
         manifest_dict[folder] = updated_folder
 
 
-def parse(path: str) -> t.Dict:
+def parse(path: PathLike) -> t.Dict:
     with open(path) as f:
         manifest_dict = yaml.safe_load(f) or {}
     parse_postfixes(manifest_dict)

@@ -30,10 +30,10 @@ from idf_build_apps.yaml import (
 )
 
 
-def test_manifest_from_file_warning(tmpdir, capsys, monkeypatch):
+def test_manifest_from_file_warning(tmp_path, capsys, monkeypatch):
     setup_logging()
 
-    yaml_file = tmpdir / 'test.yml'
+    yaml_file = tmp_path / 'test.yml'
     yaml_file.write_text(
         """
 test1:
@@ -50,14 +50,14 @@ test2:
         encoding='utf8',
     )
 
-    os.chdir(tmpdir)
-    manifest = Manifest.from_file(yaml_file, root_path=tmpdir)
+    os.chdir(tmp_path)
+    manifest = Manifest.from_file(yaml_file, root_path=tmp_path)
     captured_err = capsys.readouterr().err.splitlines()
     msg_fmt = 'Folder "{}" does not exist. Please check your manifest file {}'
     # two warnings warn test1 test2 not exists
     assert len(captured_err) == 2
-    assert msg_fmt.format(os.path.join(tmpdir, 'test1'), yaml_file) in captured_err[0]
-    assert msg_fmt.format(os.path.join(tmpdir, 'test2'), yaml_file) in captured_err[1]
+    assert msg_fmt.format(os.path.join(tmp_path, 'test1'), yaml_file) in captured_err[0]
+    assert msg_fmt.format(os.path.join(tmp_path, 'test2'), yaml_file) in captured_err[1]
 
     assert manifest.enable_build_targets('test1') == ['esp32', 'esp32c3', 'esp32s2']
     assert manifest.enable_test_targets('test1') == ['esp32', 'esp32s2']
@@ -65,15 +65,15 @@ test2:
     assert manifest.enable_test_targets('test2') == ['linux']
 
     monkeypatch.setattr(idf_build_apps.manifest.manifest.Manifest, 'CHECK_MANIFEST_RULES', True)
-    with pytest.raises(InvalidManifest, match=msg_fmt.format(os.path.join(tmpdir, 'test1'), yaml_file)):
-        Manifest.from_file(yaml_file, root_path=tmpdir)
+    with pytest.raises(InvalidManifest, match=msg_fmt.format(os.path.join(tmp_path, 'test1'), yaml_file)):
+        Manifest.from_file(yaml_file, root_path=tmp_path)
 
     # test with folder that has the same prefix as one of the folders in the manifest
     assert manifest.enable_build_targets('test23') == sorted(SUPPORTED_TARGETS)
 
 
-def test_manifest_switch_clause(tmpdir):
-    yaml_file = tmpdir / 'test.yml'
+def test_manifest_switch_clause(tmp_path):
+    yaml_file = tmp_path / 'test.yml'
     from idf_build_apps.constants import (
         IDF_VERSION,
     )
@@ -123,7 +123,7 @@ test5:
         encoding='utf8',
     )
 
-    os.chdir(tmpdir)
+    os.chdir(tmp_path)
     manifest = Manifest.from_file(yaml_file)
 
     assert manifest.depends_components('test1', None, None) == ['VVV']
@@ -150,8 +150,8 @@ test5:
     assert manifest.depends_components('test5', None, None) == ['some_1', 'some_2', 'some_3']
 
 
-def test_manifest_switch_clause_with_postfix(tmpdir):
-    yaml_file = tmpdir / 'test.yml'
+def test_manifest_switch_clause_with_postfix(tmp_path):
+    yaml_file = tmp_path / 'test.yml'
 
     yaml_file.write_text(
         """
@@ -175,8 +175,8 @@ test1:
 """,
         encoding='utf8',
     )
-    os.chdir(tmpdir)
-    manifest = Manifest.from_file(yaml_file, root_path=tmpdir)
+    os.chdir(tmp_path)
+    manifest = Manifest.from_file(yaml_file, root_path=tmp_path)
 
     assert manifest.depends_components('test1', None, None) == ['DF']
     assert manifest.depends_components('test1', None, 'CCC') == ['DF']
@@ -184,8 +184,8 @@ test1:
     assert manifest.depends_components('test1', None, 'BBB') == ['NEW_BBB']
 
 
-def test_manifest_switch_clause_wrong_manifest_format(tmpdir):
-    yaml_file = tmpdir / 'test.yml'
+def test_manifest_switch_clause_wrong_manifest_format(tmp_path):
+    yaml_file = tmp_path / 'test.yml'
     from idf_build_apps.constants import (
         IDF_VERSION,
     )
@@ -226,8 +226,8 @@ def test_manifest_switch_clause_wrong_manifest_format(tmpdir):
         assert str(e) == 'Current manifest format has to fit either the switch format or the list format.'
 
 
-def test_manifest_with_anchor(tmpdir, monkeypatch):
-    yaml_file = tmpdir / 'test.yml'
+def test_manifest_with_anchor(tmp_path, monkeypatch):
+    yaml_file = tmp_path / 'test.yml'
     yaml_file.write_text(
         """
 .base: &base
@@ -250,8 +250,8 @@ bar:
     assert manifest.enable_build_targets('bar') == []
 
 
-def test_manifest_with_anchor_and_postfix(tmpdir):
-    yaml_file = tmpdir / 'test.yml'
+def test_manifest_with_anchor_and_postfix(tmp_path):
+    yaml_file = tmp_path / 'test.yml'
 
     yaml_file.write_text(
         """
@@ -409,8 +409,8 @@ bar:
     print(s_manifest_dict)
 
 
-def test_manifest_postfix_order(tmpdir):
-    yaml_file = tmpdir / 'test.yml'
+def test_manifest_postfix_order(tmp_path):
+    yaml_file = tmp_path / 'test.yml'
     yaml_file.write_text(
         """
 .base_depends_components: &base-depends-components
@@ -463,8 +463,8 @@ foo:
     Manifest.from_files([str(yaml_file_1), str(yaml_file_2)])
 
 
-def test_manifest_dump_sha(tmpdir, sha_of_enable_only_esp32):
-    yaml_file = tmpdir / 'test.yml'
+def test_manifest_dump_sha(tmp_path, sha_of_enable_only_esp32):
+    yaml_file = tmp_path / 'test.yml'
     yaml_file.write_text(
         """
 foo:
@@ -477,15 +477,15 @@ bar:
         encoding='utf8',
     )
 
-    Manifest.from_file(yaml_file).dump_sha_values(str(tmpdir / '.sha'))
+    Manifest.from_file(yaml_file).dump_sha_values(str(tmp_path / '.sha'))
 
-    with open(tmpdir / '.sha') as f:
+    with open(tmp_path / '.sha') as f:
         assert f.readline() == f'bar:{sha_of_enable_only_esp32}\n'
         assert f.readline() == f'foo:{sha_of_enable_only_esp32}\n'
 
 
-def test_manifest_diff_sha(tmpdir, sha_of_enable_only_esp32):
-    yaml_file = tmpdir / 'test.yml'
+def test_manifest_diff_sha(tmp_path, sha_of_enable_only_esp32):
+    yaml_file = tmp_path / 'test.yml'
     yaml_file.write_text(
         """
 foo:
@@ -502,13 +502,13 @@ baz:
         encoding='utf8',
     )
 
-    with open(tmpdir / '.sha', 'w') as fw:
+    with open(tmp_path / '.sha', 'w') as fw:
         fw.write(f'bar:{sha_of_enable_only_esp32}\n')
         fw.write('\n')  # test empty line
         fw.write('       ')  # test spaces
         fw.write(f'foo:{sha_of_enable_only_esp32}\n')
 
-    assert Manifest.from_file(yaml_file).diff_sha_with_filepath(str(tmpdir / '.sha')) == {
+    assert Manifest.from_file(yaml_file).diff_sha_with_filepath(str(tmp_path / '.sha')) == {
         'baz',
         'foo',
     }

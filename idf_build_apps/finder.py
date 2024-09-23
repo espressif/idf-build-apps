@@ -31,7 +31,7 @@ def _get_apps_from_path(
     target: str,
     *,
     app_cls: t.Type[App] = CMakeApp,
-    args: FindArguments = FindArguments(),
+    args: FindArguments,
 ) -> t.List[App]:
     def _validate_app(_app: App) -> bool:
         if target not in _app.supported_targets:
@@ -133,7 +133,7 @@ def _find_apps(
     target: str,
     *,
     app_cls: t.Type[App] = CMakeApp,
-    args: FindArguments = FindArguments(),
+    args: FindArguments,
 ) -> t.List[App]:
     LOGGER.debug(
         'Looking for %s apps in %s%s with target %s',

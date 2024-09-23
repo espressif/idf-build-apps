@@ -13,6 +13,7 @@ import typing as t
 from copy import (
     deepcopy,
 )
+from pathlib import Path
 
 from packaging.version import (
     Version,
@@ -124,7 +125,7 @@ class InvalidManifest(SystemExit):
     """Invalid manifest file"""
 
 
-def rmdir(path: str, exclude_file_patterns: t.Union[t.List[str], str, None] = None) -> None:
+def rmdir(path: t.Union[Path, str], exclude_file_patterns: t.Union[t.List[str], str, None] = None) -> None:
     if not exclude_file_patterns:
         shutil.rmtree(path, ignore_errors=True)
         return
@@ -387,3 +388,6 @@ class BaseModel(_BaseModel):
 
 def drop_none_kwargs(d: dict) -> dict:
     return {k: v for k, v in d.items() if v is not None}
+
+
+PathLike = t.Union[str, Path]

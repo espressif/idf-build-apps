@@ -119,3 +119,4 @@ fish:
     # Not required to be in the config file, only run once
     register-python-argcomplete --shell fish idf-build-apps >~/.config/fish/completions/idf-build-apps.fish
 """
+IDF_BUILD_APPS_TOML_FN = '.idf_build_apps.toml'

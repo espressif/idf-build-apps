@@ -31,10 +31,12 @@ from idf_build_apps.utils import (
         ),
     ],
 )
-def test_rmdir(tmpdir, patterns, expected):
-    test_dir = tmpdir.mkdir('test')
-    dir1 = test_dir.mkdir('inner')
-    test_dir.mkdir('inner2')
+def test_rmdir(tmp_path, patterns, expected):
+    test_dir = tmp_path / 'test'
+    test_dir.mkdir()
+    dir1 = test_dir / 'inner'
+    dir1.mkdir()
+    (test_dir / 'inner2').mkdir()
 
     Path(dir1 / 'test.txt').touch()
     Path(dir1 / 'build.log').touch()
@@ -42,7 +44,7 @@ def test_rmdir(tmpdir, patterns, expected):
 
     rmdir(test_dir, exclude_file_patterns=patterns)
 
-    assert sorted(Path(test_dir).glob('**/*')) == [Path(tmpdir / i) for i in expected]
+    assert sorted(Path(test_dir).glob('**/*')) == [Path(tmp_path / i) for i in expected]
 
 
 @pytest.mark.parametrize(
@@ -64,16 +66,22 @@ def test_get_parallel_start_stop(total, parallel_count, parallel_index, start, s
     assert (start, stop) == get_parallel_start_stop(total, parallel_count, parallel_index)
 
 
-def test_files_matches_patterns(tmpdir):
+def test_files_matches_patterns(tmp_path):
     # used for testing absolute paths
-    temp_dir = tmpdir.mkdir('temp')
+    temp_dir = tmp_path / 'temp'
+    temp_dir.mkdir()
     os.chdir(temp_dir)
 
     # create real files
-    test_dir = tmpdir.mkdir('test')
-    a_dir = test_dir.mkdir('a')
-    b_dir = a_dir.mkdir('b')
-    c_dir = b_dir.mkdir('c')
+    test_dir = tmp_path / 'test'
+    test_dir.mkdir()
+
+    a_dir = test_dir / 'a'
+    a_dir.mkdir()
+    b_dir = a_dir / 'b'
+    b_dir.mkdir()
+    c_dir = b_dir / 'c'
+    c_dir.mkdir()
     b_py = Path(a_dir / 'b.py')
     c_py = Path(b_dir / 'c.py')
     d_py = Path(c_dir / 'd.py')

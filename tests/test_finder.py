@@ -74,12 +74,12 @@ get-started:
         )
         assert not capsys.readouterr().err
 
-    def test_keyword_idf_target(self, tmpdir):
+    def test_keyword_idf_target(self, tmp_path):
         test_dir = os.path.join(IDF_PATH, 'examples')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
 
-        yaml_file = tmpdir / 'test.yml'
+        yaml_file = tmp_path / 'test.yml'
         yaml_file.write_text(
             f"""
 {test_dir}:
@@ -111,9 +111,9 @@ examples/get-started:
             == apps
         )
 
-    def test_include_disabled_apps(self, tmpdir):
+    def test_include_disabled_apps(self, tmp_path):
         test_dir = Path(IDF_PATH) / 'examples' / 'get-started'
-        yaml_file = tmpdir / 'test.yml'
+        yaml_file = tmp_path / 'test.yml'
         yaml_file.write_text(
             f"""
         {test_dir}:
@@ -150,12 +150,12 @@ class TestFindWithModifiedFilesComponents:
             (['soc', 'fake'], True),
         ],
     )
-    def test_with_depends_and_modified_components(self, tmpdir, modified_components, could_find_apps):
+    def test_with_depends_and_modified_components(self, tmp_path, modified_components, could_find_apps):
         test_dir = str(Path(IDF_PATH) / 'examples')
         apps = find_apps(test_dir, 'esp32', recursive=True)
         assert apps
 
-        yaml_file = tmpdir / 'test.yml'
+        yaml_file = tmp_path / 'test.yml'
         yaml_file.write_text(
             f"""
 {test_dir}:

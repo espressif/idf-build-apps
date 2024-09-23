@@ -9,6 +9,8 @@ from idf_build_apps import (
     App,
     setup_logging,
 )
+from idf_build_apps.args import apply_config_file
+from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN
 from idf_build_apps.manifest.manifest import FolderRule
 
 
@@ -16,6 +18,7 @@ from idf_build_apps.manifest.manifest import FolderRule
 def clean_cls_attr():
     App.MANIFEST = None
     idf_build_apps.SESSION_ARGS.clean()
+    apply_config_file(IDF_BUILD_APPS_TOML_FN)
 
 
 @pytest.fixture(autouse=True)
