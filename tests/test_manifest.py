@@ -1,6 +1,5 @@
 # SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
 import os
 
 import pytest
@@ -522,9 +521,17 @@ class TestIfParser:
 
     def test_invalid_if_statement(self):
         statement = '1'
-        with pytest.raises(InvalidIfClause, match='Invalid if statement: 1'):
+        with pytest.raises(InvalidIfClause, match='Invalid if clause: 1'):
             IfClause(statement)
 
     def test_temporary_must_with_reason(self):
         with pytest.raises(InvalidIfClause, match='"reason" must be set when "temporary: true"'):
             IfClause(stmt='IDF_TARGET == "esp32"', temporary=True)
+
+
+def test_consecutive_or_and_stml_manifest():
+    with pytest.raises(InvalidIfClause, match='Chaining "and"/"or" is not allowed'):
+        IfClause(stmt='IDF_TARGET == "esp32" or IDF_TARGET == "esp32c3" or IDF_TARGET == "esp32s3"')
+
+    with pytest.raises(InvalidIfClause, match='Chaining "and"/"or" is not allowed'):
+        IfClause(stmt='IDF_TARGET == "esp32" or IDF_TARGET == "esp32c3" and IDF_TARGET == "esp32s3"')

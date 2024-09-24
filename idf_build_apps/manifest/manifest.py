@@ -35,14 +35,21 @@ class IfClause:
     def __init__(self, stmt: str, temporary: bool = False, reason: t.Optional[str] = None) -> None:
         try:
             self.stmt: BoolStmt = BOOL_EXPR.parseString(stmt)[0]
-        except ParseException:
-            raise InvalidIfClause(f'Invalid if statement: {stmt}')
+        except (ParseException, InvalidIfClause) as ex:
+            raise InvalidIfClause(f'Invalid if clause: {stmt}. {ex}')
 
         self.temporary = temporary
         self.reason = reason
 
         if self.temporary is True and not self.reason:
-            raise InvalidIfClause('"reason" must be set when "temporary: true"')
+            raise InvalidIfClause(
+                f'Invalid if clause "{stmt}". '
+                f'"reason" must be set when "temporary: true". '
+                f'For example:\n'
+                f'  - if: {stmt}\n'
+                f'    temporary: true\n'
+                f'    reason: lack of ci runners'
+            )
 
     def get_value(self, target: str, config_name: str) -> t.Any:
         return self.stmt.get_value(target, config_name)
