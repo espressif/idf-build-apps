@@ -70,6 +70,15 @@ def find_apps(
     """
     apply_config_file(config_file)
 
+    # compatible with old usage
+    ## `preserve`
+    if 'preserve' in kwargs:
+        LOGGER.warning(
+            'Passing "preserve" directly is deprecated. '
+            'Pass "no_preserve" instead to disable preserving the build directory'
+        )
+        kwargs['no_preserve'] = not kwargs.pop('preserve')
+
     if find_arguments is None:
         find_arguments = FindArguments(
             paths=to_list(paths),  # type: ignore
@@ -125,7 +134,8 @@ def build_apps(
     """
     apply_config_file(config_file)
 
-    apps = to_list(apps)
+    # compatible with old usage
+    ## `check_app_dependencies`
     if 'check_app_dependencies' in kwargs:
         LOGGER.warning(
             'Passing "check_app_dependencies" directly is deprecated. '
@@ -138,6 +148,7 @@ def build_apps(
             **kwargs,
         )
 
+    apps = to_list(apps)
     if apps is None:
         apps = find_apps(
             find_arguments=FindArguments(
@@ -431,7 +442,8 @@ def main():
         for app in failed_apps:
             print(f'  {app}')
 
-    sys.exit(ret_code)
+    if ret_code != 0:
+        sys.exit(ret_code)
 
 
 def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = None) -> App:

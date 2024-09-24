@@ -11,6 +11,7 @@ import sys
 import typing as t
 from copy import deepcopy
 from dataclasses import dataclass
+from io import TextIOWrapper
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +52,8 @@ class FieldMetadata:
     :param choices: choices for the argument, used in argparse
     :param type: type for the argument, used in argparse
     :param required: whether the argument is required, used in argparse
+    :param default: default value for the argument, used in argparse
+    :param hidden: whether the argument is hidden, used in argparse
     """
 
     # validate method
@@ -66,6 +69,8 @@ class FieldMetadata:
     required: bool = False
     # usually default is not needed. only set it when different from the default value of the field
     default: t.Any = None
+    # hidden field, use deprecated instead, or hide it in the argparse
+    hidden: bool = False
 
 
 P = ParamSpec('P')
@@ -195,7 +200,9 @@ class DependencyDrivenBuildArguments(GlobalArguments):
             validate_method=[ValidateMethod.TO_LIST],
             type=semicolon_separated_str_to_list,
         ),
-        description='semicolon-separated list of modified components',
+        description='semicolon-separated list of modified components. '
+        'If set to "", the value would be considered as None. '
+        'If set to ";", the value would be considered as an empty list.',
         default=None,
     )
     modified_files: t.Optional[t.List[str]] = field(
@@ -203,7 +210,9 @@ class DependencyDrivenBuildArguments(GlobalArguments):
             validate_method=[ValidateMethod.TO_LIST],
             type=semicolon_separated_str_to_list,
         ),
-        description='semicolon-separated list of modified files',
+        description='semicolon-separated list of modified files. '
+        'If set to "", the value would be considered as None. '
+        'If set to ";", the value would be considered as an empty list.',
         default=None,
     )
     deactivate_dependency_driven_build_by_components: t.Optional[t.List[str]] = field(
@@ -219,7 +228,10 @@ class DependencyDrivenBuildArguments(GlobalArguments):
             shorthand='-dc',
         ),
         description='semicolon-separated list of components. '
-        'dependency-driven build feature will be deactivated when any of these components are modified',
+        'dependency-driven build feature will be deactivated when any of these components are modified. '
+        'Must be specified together with --modified-components. '
+        'If set to "", the value would be considered as None. '
+        'If set to ";", the value would be considered as an empty list.',
         validation_alias=AliasChoices(
             'deactivate_dependency_driven_build_by_components', 'ignore_app_dependencies_components'
         ),
@@ -238,7 +250,10 @@ class DependencyDrivenBuildArguments(GlobalArguments):
             shorthand='-df',
         ),
         description='semicolon-separated list of file patterns. '
-        'dependency-driven build feature will be deactivated when any of matched files are modified',
+        'dependency-driven build feature will be deactivated when any of matched files are modified. '
+        'Must be specified together with --modified-files. '
+        'If set to "", the value would be considered as None. '
+        'If set to ";", the value would be considered as an empty list.',
         validation_alias=AliasChoices(
             'deactivate_dependency_driven_build_by_filepatterns', 'ignore_app_dependencies_filepatterns'
         ),
@@ -443,7 +458,10 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         default=False,
     )
     default_build_targets: t.Optional[t.List[str]] = field(
-        None,
+        FieldMetadata(
+            validate_method=[ValidateMethod.TO_LIST],
+            nargs='+',
+        ),
         description='space-separated list of the default enabled build targets for the apps. '
         'When not specified, the default value is the targets listed by `idf.py --list-targets`',
         default=None,
@@ -602,10 +620,16 @@ class BuildArguments(FindBuildArguments):
         validation_alias=AliasChoices('ignore_warning_strs', 'ignore_warning_str'),
         default=None,
     )
-    ignore_warning_files: t.Optional[t.List[str]] = field(
+    ignore_warning_files: t.Optional[t.List[t.Union[str, TextIOWrapper]]] = field(
         FieldMetadata(
-            deprecates={'ignore_warning_file': {}},
+            validate_method=[ValidateMethod.TO_LIST],
+            deprecates={
+                'ignore_warning_file': {
+                    'type': argparse.FileType('r'),
+                }
+            },
             nargs='+',
+            type=argparse.FileType('r'),
         ),
         description='Path to the files containing the patterns to ignore the warnings in the build output',
         validation_alias=AliasChoices('ignore_warning_files', 'ignore_warning_file'),
@@ -621,7 +645,10 @@ class BuildArguments(FindBuildArguments):
 
     # Attrs that support placeholders
     collect_size_info_filename: t.Optional[str] = field(
-        None,
+        FieldMetadata(
+            deprecates={'collect_size_info': {}},
+            hidden=True,
+        ),
         description='Record size json filepath of the built apps to the specified file. '
         'Each line is a json string. Can expand placeholders @p',
         validation_alias=AliasChoices('collect_size_info_filename', 'collect_size_info'),
@@ -629,7 +656,10 @@ class BuildArguments(FindBuildArguments):
         exclude=True,  # computed field is used
     )
     collect_app_info_filename: t.Optional[str] = field(
-        None,
+        FieldMetadata(
+            deprecates={'collect_app_info': {}},
+            hidden=True,
+        ),
         description='Record serialized app model of the built apps to the specified file. '
         'Each line is a json string. Can expand placeholders @p',
         validation_alias=AliasChoices('collect_app_info_filename', 'collect_app_info'),
@@ -637,7 +667,10 @@ class BuildArguments(FindBuildArguments):
         exclude=True,  # computed field is used
     )
     junitxml_filename: t.Optional[str] = field(
-        None,
+        FieldMetadata(
+            deprecates={'junitxml': {}},
+            hidden=True,
+        ),
         description='Path to the junitxml file to record the build results. Can expand placeholder @p',
         validation_alias=AliasChoices('junitxml_filename', 'junitxml'),
         default=None,
@@ -654,8 +687,14 @@ class BuildArguments(FindBuildArguments):
             for s in self.ignore_warning_strs:
                 ignore_warnings_regexes.append(re.compile(s))
         if self.ignore_warning_files:
-            for s in self.ignore_warning_files:
-                ignore_warnings_regexes.append(re.compile(s.strip()))
+            for f in self.ignore_warning_files:
+                if isinstance(f, str):
+                    with open(f) as fr:
+                        for s in fr:
+                            ignore_warnings_regexes.append(re.compile(s.strip()))
+                else:
+                    for s in f:
+                        ignore_warnings_regexes.append(re.compile(s.strip()))
         App.IGNORE_WARNS_REGEXES = ignore_warnings_regexes
 
     @computed_field  # type: ignore
@@ -734,11 +773,19 @@ def add_args_to_parser(argument_cls: t.Type[BaseArguments], parser: argparse.Arg
                 if _shorthand:
                     _names.append(_shorthand)
 
+                if f_meta.hidden:  # f is hidden, use deprecated field instead
+                    help_msg = f.description
+                else:
+                    help_msg = f'[Deprecated] Use {_snake_case_to_cli_arg_name(f_name)} instead'
+
                 parser.add_argument(
                     *_names,
                     **dep_f_kwargs,
-                    help=f'[Deprecated] Use {_snake_case_to_cli_arg_name(f_name)} instead',
+                    help=help_msg,
                 )
+
+        if f_meta and f_meta.hidden:
+            continue
 
         names = [_snake_case_to_cli_arg_name(f_name)]
         if f_meta and f_meta.shorthand:

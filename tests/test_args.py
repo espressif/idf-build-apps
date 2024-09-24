@@ -3,6 +3,7 @@
 
 import pytest
 
+from idf_build_apps import App
 from idf_build_apps.args import (
     BuildArguments,
     DependencyDrivenBuildArguments,
@@ -10,6 +11,7 @@ from idf_build_apps.args import (
     FindBuildArguments,
 )
 from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN
+from idf_build_apps.main import main
 
 
 def test_init_attr_deprecated_by():
@@ -123,3 +125,68 @@ modified_files = [
     assert args.modified_files == ['file1']
     assert args.verbose == 3
     assert args.deactivate_dependency_driven_build_by_components == ['baz']
+
+
+class TestIgnoreWarningFile:
+    def test_deprecated_cli(self, monkeypatch, capsys):
+        with open('foo.txt', 'w') as fw:
+            fw.write('warning:xxx')
+
+        with monkeypatch.context() as m:
+            m.setattr('sys.argv', ['idf-build-apps', 'build', '--ignore-warning-file', 'foo.txt'])
+            main()
+
+        assert len(App.IGNORE_WARNS_REGEXES) == 1
+        assert App.IGNORE_WARNS_REGEXES[0].pattern == 'warning:xxx'
+
+        with open('bar.txt', 'w') as fw:
+            fw.write('warning:yyy')
+
+        with monkeypatch.context() as m:
+            m.setattr('sys.argv', ['idf-build-apps', 'build', '--ignore-warning-file', 'foo.txt', 'bar.txt'])
+            with pytest.raises(SystemExit):
+                main()
+
+        assert 'unrecognized arguments: bar.txt' in capsys.readouterr().err
+
+    def test_new_cli(self, monkeypatch):
+        with open('foo.txt', 'w') as fw:
+            fw.write('warning:xxx')
+        with open('bar.txt', 'w') as fw:
+            fw.write('warning:yyy')
+
+        with monkeypatch.context() as m:
+            m.setattr('sys.argv', ['idf-build-apps', 'build', '--ignore-warning-files', 'foo.txt', 'bar.txt'])
+            main()
+
+        assert len(App.IGNORE_WARNS_REGEXES) == 2
+        assert App.IGNORE_WARNS_REGEXES[0].pattern == 'warning:xxx'
+        assert App.IGNORE_WARNS_REGEXES[1].pattern == 'warning:yyy'
+
+    def test_func_with_str(self):
+        with open('foo.txt', 'w') as fw:
+            fw.write('warning:xxx')
+        with open('bar.txt', 'w') as fw:
+            fw.write('warning:yyy')
+
+        BuildArguments(
+            ignore_warning_files=['foo.txt', 'bar.txt'],
+        )
+
+        assert len(App.IGNORE_WARNS_REGEXES) == 2
+        assert App.IGNORE_WARNS_REGEXES[0].pattern == 'warning:xxx'
+        assert App.IGNORE_WARNS_REGEXES[1].pattern == 'warning:yyy'
+
+    def test_func_with_fs(self):
+        with open('foo.txt', 'w') as fw:
+            fw.write('warning:xxx')
+        with open('bar.txt', 'w') as fw:
+            fw.write('warning:yyy')
+
+        BuildArguments(
+            ignore_warning_file=[open('foo.txt'), open('bar.txt')],
+        )
+
+        assert len(App.IGNORE_WARNS_REGEXES) == 2
+        assert App.IGNORE_WARNS_REGEXES[0].pattern == 'warning:xxx'
+        assert App.IGNORE_WARNS_REGEXES[1].pattern == 'warning:yyy'
