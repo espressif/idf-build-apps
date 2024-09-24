@@ -442,7 +442,8 @@ def main():
         for app in failed_apps:
             print(f'  {app}')
 
-    sys.exit(ret_code)
+    if ret_code != 0:
+        sys.exit(ret_code)
 
 
 def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = None) -> App:
