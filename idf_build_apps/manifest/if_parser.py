@@ -1,6 +1,5 @@
 # SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
 import operator
 import os
 from ast import (
@@ -16,6 +15,7 @@ from packaging.version import (
 from pyparsing import (
     Keyword,
     Literal,
+    MatchFirst,
     ParseResults,
     QuotedString,
     Suppress,
@@ -35,6 +35,7 @@ from ..constants import (
     IDF_VERSION_PATCH,
 )
 from ..utils import (
+    InvalidIfClause,
     InvalidInput,
     to_version,
 )
@@ -177,22 +178,23 @@ class BoolExpr(Stmt):
     pass
 
 
-class BoolAnd(BoolExpr):
+class BoolOrAnd(BoolExpr):
     def __init__(self, t: ParseResults):
+        if len(t[0]) > 3:
+            raise InvalidIfClause(
+                'Chaining "and"/"or" is not allowed. Please use paratheses instead. '
+                'For example: "a and b and c" should be "(a and b) and c".'
+            )
         self.left: BoolStmt = t[0][0]
         self.right: BoolStmt = t[0][2]
 
-    def get_value(self, target: str, config_name: str) -> Any:
-        return self.left.get_value(target, config_name) and self.right.get_value(target, config_name)
-
-
-class BoolOr(BoolExpr):
-    def __init__(self, t: ParseResults):
-        self.left: BoolStmt = t[0][0]
-        self.right: BoolStmt = t[0][2]
+        if t[0][1] == 'and':
+            self.operation = lambda l, r: l and r  # noqa: E741
+        if t[0][1] == 'or':
+            self.operation = lambda l, r: l or r  # noqa: E741
 
     def get_value(self, target: str, config_name: str) -> Any:
-        return self.left.get_value(target, config_name) or self.right.get_value(target, config_name)
+        return self.operation(self.left.get_value(target, config_name), self.right.get_value(target, config_name))
 
 
 CAP_WORD = Word(alphas.upper(), nums + alphas.upper() + '_').setParseAction(ChipAttr)
@@ -225,7 +227,6 @@ OR = Keyword('or')
 BOOL_EXPR = infixNotation(
     BOOL_STMT,
     [
-        (AND, 2, opAssoc.LEFT, BoolAnd),
-        (OR, 2, opAssoc.LEFT, BoolOr),
+        (MatchFirst((AND, OR)), 2, opAssoc.LEFT, BoolOrAnd),
     ],
 )

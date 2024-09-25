@@ -102,7 +102,7 @@ get-started:
             """
 examples/get-started:
     enable:
-        - if: IDF_VERSION_MAJOR > 0 and IDF_VERSION_MINOR < 999 and IDF_VERSION_PATCH in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        - if: IDF_VERSION_MAJOR > 0 and IDF_VERSION_MINOR < 999
 """,
             encoding='utf8',
         )
