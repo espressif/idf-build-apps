@@ -178,6 +178,14 @@ class BoolExpr(Stmt):
     pass
 
 
+def _and(_l, _r):
+    return _l and _r
+
+
+def _or(_l, _r):
+    return _l or _r
+
+
 class BoolOrAnd(BoolExpr):
     def __init__(self, t: ParseResults):
         if len(t[0]) > 3:
@@ -189,9 +197,9 @@ class BoolOrAnd(BoolExpr):
         self.right: BoolStmt = t[0][2]
 
         if t[0][1] == 'and':
-            self.operation = lambda l, r: l and r  # noqa: E741
+            self.operation = _and
         if t[0][1] == 'or':
-            self.operation = lambda l, r: l or r  # noqa: E741
+            self.operation = _or
 
     def get_value(self, target: str, config_name: str) -> Any:
         return self.operation(self.left.get_value(target, config_name), self.right.get_value(target, config_name))
