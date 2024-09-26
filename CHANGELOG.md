@@ -2,43 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
-## v2.5.0rc2 (2024-09-23)
-
-### Fix
-
-- chdir to tmp_path at the beginning of each test case
-- load config before cli args and func args
-- pickle dump default protocal different in python 3.7
-- keep backward compatibility in build_apps function
-
-## v2.5.0rc1 (2024-09-17)
-
-### Fix
-
-- build_arguments expand @p placeholders
-
-### Refactor
-
-- rename BuildArguments.ignore_warning_strings to ignore_warning_strs
-
-## v2.5.0rc0 (2024-09-10)
+## v2.5.0 (2024-09-26)
 
 ### Feat
 
-- support `idf-build-apps find` with checking modified manfiest files
+- raise exception when chaining `or`/`and` in manifest file if statements
+- support `idf-build-apps find` with checking modified manifest files
 - support `idf-build-apps dump-manifest-sha`
 
 ### Fix
 
-- loose env var requirements. IDF_PATH not required
-- stop print build log as error when build with warning-as-error
+- stop calling `sys.exit` when return code is 0
+- load config file before cli arguments and func arguments
+- pickle dump default protocol different in python 3.7
+- loose env var requirements. `IDF_PATH` not required
+- stop print build log as error when build failed due to `--warning-as-error`
 - requires typing-extensions below 3.11
-- temp build log got wrongly created/deleted
+- stop wrongly created/deleted temporary build log file
 
 ### Refactor
 
 - declare argument once. used in both function, cli, and docs
-- move Manifest.ROOTPATH to params
+- move Manifest.ROOTPATH to arguments
+- expand @p placeholders in `BuildArguments`
 
 ## v2.4.3 (2024-08-07)
 
