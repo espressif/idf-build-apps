@@ -256,6 +256,7 @@ class Manifest:
 
         rules: t.List[FolderRule] = []
         for path in paths:
+            LOGGER.debug('Loading manifest file %s', path)
             _manifest = cls.from_file(path, root_path=root_path)
 
             for rule in _manifest.rules:
@@ -351,11 +352,14 @@ class Manifest:
                 return x
 
         for folder, sha_value in recorded__rel_folder__sha__dict.items():
+            # removed
             if folder not in self__rel_folder__sha__dict:
                 diff_folders.add(_path(folder))
+            # modified
             elif sha_value != self__rel_folder__sha__dict[folder]:
                 diff_folders.add(_path(folder))
 
+        # new
         for folder in self__rel_folder__sha__dict:
             if folder not in recorded__rel_folder__sha__dict:
                 diff_folders.add(_path(folder))

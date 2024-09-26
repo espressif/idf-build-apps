@@ -66,3 +66,16 @@ def sha_of_enable_only_esp32():
     )
 
     return sha
+
+
+@pytest.fixture
+def sha_of_enable_esp32_or_esp32s2():
+    sha = FolderRule('test1', enable=[{'if': 'IDF_TARGET == "esp32" or IDF_TARGET == "esp32s2"'}]).sha
+
+    # !!! ONLY CHANGE IT WHEN NECESSARY !!!
+    assert (
+        sha
+        == 'f3408e9bf1d6b9a9e14559e6567917986678a3414229b29f96493aec4dc1bc3e6d0ecc4f79adced0d5c26bc1cd80a4d15fe6aaefa5d1e7033a58290374f4fc7f'  # noqa: E501
+    )
+
+    return sha

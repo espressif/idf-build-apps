@@ -19,7 +19,9 @@ from idf_build_apps.utils import InvalidCommand
         (['--manifest-files', 'test.yml', '--output', 'test.sha1'], None),
     ],
 )
-def test_manifest_dump_sha_values(args, expected_error, sha_of_enable_only_esp32, capsys, monkeypatch):
+def test_manifest_dump_sha_values(
+    args, expected_error, sha_of_enable_only_esp32, sha_of_enable_esp32_or_esp32s2, capsys, monkeypatch
+):
     Path('test.yml').write_text(
         """
 foo:
@@ -31,6 +33,9 @@ bar:
 baz:
   enable:
     - if: IDF_TARGET == "esp32"
+foobar:
+  enable:
+    - if: IDF_TARGET == "esp32" or IDF_TARGET == "esp32s2"
 """,
         encoding='utf8',
     )
@@ -60,4 +65,5 @@ baz:
                 f'bar:{sha_of_enable_only_esp32}\n'
                 f'baz:{sha_of_enable_only_esp32}\n'
                 f'foo:{sha_of_enable_only_esp32}\n'
+                f'foobar:{sha_of_enable_esp32_or_esp32s2}\n'
             )
