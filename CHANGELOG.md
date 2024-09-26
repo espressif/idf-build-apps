@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.5.1 (2024-09-26)
+
+### Fix
+
+- stop using lambda functions since they cannot be pickled
+
 ## v2.5.0 (2024-09-26)
 
 ### Feat
