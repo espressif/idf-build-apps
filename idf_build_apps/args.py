@@ -117,6 +117,7 @@ class BaseArguments(BaseSettings):
         toml_file='.idf_build_apps.toml',
         pyproject_toml_table_header=('tool', 'idf-build-apps'),
         pyproject_toml_depth=sys.maxsize,
+        extra='ignore',
     )
 
     @classmethod

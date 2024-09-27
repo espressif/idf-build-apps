@@ -190,3 +190,10 @@ class TestIgnoreWarningFile:
         assert len(App.IGNORE_WARNS_REGEXES) == 2
         assert App.IGNORE_WARNS_REGEXES[0].pattern == 'warning:xxx'
         assert App.IGNORE_WARNS_REGEXES[1].pattern == 'warning:yyy'
+
+    def test_ignore_extra_fields(self):
+        with open(IDF_BUILD_APPS_TOML_FN, 'w') as fw:
+            fw.write("""dry_run = true""")
+
+        args = FindArguments()
+        assert not hasattr(args, 'dry_run')
