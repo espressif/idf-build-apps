@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.5.2 (2024-09-27)
+
+### Fix
+
+- unset CLI argument wrongly overwrite config file settings with default value
+- allow unknown fields
+
 ## v2.5.1 (2024-09-26)
 
 ### Fix
