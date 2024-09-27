@@ -141,8 +141,9 @@ class BaseArguments(BaseSettings):
         if info.field_name and info.field_name in cls.model_fields:
             f = cls.model_fields[info.field_name]
             meta = get_meta(f)
-            if meta and meta.validate_method and ValidateMethod.TO_LIST in meta.validate_method:
-                return to_list(v)
+            if meta and meta.validate_method:
+                if ValidateMethod.TO_LIST in meta.validate_method:
+                    return to_list(v)
 
         return v
 
@@ -269,7 +270,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
     )
     compare_manifest_sha_filepath: t.Optional[str] = field(
         None,
-        description='Path to the file containing the sha256 hash of the manifest rules. '
+        description='Path to the file containing the hash of the manifest rules. '
         'Compare the hash with the current manifest rules. '
         'All matched apps will be built if the corresponding manifest rule is modified',
         default=None,
@@ -800,14 +801,19 @@ def add_args_to_parser(argument_cls: t.Type[BaseArguments], parser: argparse.Arg
                 kwargs['required'] = True
             if f_meta.action:
                 kwargs['action'] = f_meta.action
+                # to make the CLI override config file work
+                if f_meta.action == 'store_true':
+                    kwargs['default'] = None
+
             if f_meta.nargs:
                 kwargs['nargs'] = f_meta.nargs
             if f_meta.choices:
                 kwargs['choices'] = f_meta.choices
             if f_meta.default:
                 kwargs['default'] = f_meta.default
-        if 'default' not in kwargs:
-            kwargs['default'] = f.default
+
+        # here in CLI arguments, don't set the default to field.default
+        # otherwise it will override the config file settings
 
         parser.add_argument(
             *names,

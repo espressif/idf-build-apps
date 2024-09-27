@@ -1,7 +1,11 @@
 # SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+from xml.etree import ElementTree
 
 import pytest
+from conftest import (
+    create_project,
+)
 
 from idf_build_apps import App
 from idf_build_apps.args import (
@@ -197,3 +201,96 @@ class TestIgnoreWarningFile:
 
         args = FindArguments()
         assert not hasattr(args, 'dry_run')
+
+    def test_config_file(self, tmp_path, monkeypatch):
+        create_project('foo', tmp_path)
+
+        with open(IDF_BUILD_APPS_TOML_FN, 'w') as fw:
+            fw.write("""paths = ["foo"]
+target = "esp32"
+build_dir = "build_@t"
+junitxml = "test.xml"
+keep_going = true
+""")
+
+        # test basic config
+        with monkeypatch.context() as m:
+            m.setenv('PATH', 'foo')  # let build fail
+            m.setattr('sys.argv', ['idf-build-apps', 'build'])
+            with pytest.raises(SystemExit):
+                main()
+
+        with open('test.xml') as f:
+            xml = ElementTree.fromstring(f.read())
+        test_suite = xml.findall('testsuite')[0]
+        assert test_suite.attrib['failures'] == '1'
+        assert test_suite.attrib['errors'] == '0'
+        assert test_suite.attrib['skipped'] == '0'
+        assert test_suite.findall('testcase')[0].attrib['name'] == 'foo/build_esp32'
+
+        # test cli overrides config
+        with monkeypatch.context() as m:
+            m.setenv('PATH', 'foo')  # let build fail
+            m.setattr('sys.argv', ['idf-build-apps', 'build', '--build-dir', 'build_hi_@t'])
+            with pytest.raises(SystemExit):
+                main()
+
+        with open('test.xml') as f:
+            xml = ElementTree.fromstring(f.read())
+        test_suite = xml.findall('testsuite')[0]
+        assert test_suite.attrib['failures'] == '1'
+        assert test_suite.attrib['errors'] == '0'
+        assert test_suite.attrib['skipped'] == '0'
+        assert test_suite.findall('testcase')[0].attrib['name'] == 'foo/build_hi_esp32'
+
+        # test cli action_true
+        with monkeypatch.context() as m:
+            m.setattr('sys.argv', ['idf-build-apps', 'build', '--dry-run'])
+            main()
+
+        with open('test.xml') as f:
+            xml = ElementTree.fromstring(f.read())
+        test_suite = xml.findall('testsuite')[0]
+        assert test_suite.attrib['failures'] == '0'
+        assert test_suite.attrib['errors'] == '0'
+        assert test_suite.attrib['skipped'] == '1'
+        assert test_suite.findall('testcase')[0].attrib['name'] == 'foo/build_esp32'
+
+        # test config store_true set to true
+        with open(IDF_BUILD_APPS_TOML_FN, 'a') as fw:
+            fw.write('\ndry_run = true\n')
+
+        with monkeypatch.context() as m:
+            m.setattr('sys.argv', ['idf-build-apps', 'build'])
+            main()
+
+        with open('test.xml') as f:
+            xml = ElementTree.fromstring(f.read())
+        test_suite = xml.findall('testsuite')[0]
+        assert test_suite.attrib['failures'] == '0'
+        assert test_suite.attrib['errors'] == '0'
+        assert test_suite.attrib['skipped'] == '1'
+        assert test_suite.findall('testcase')[0].attrib['name'] == 'foo/build_esp32'
+
+        # test config store_true set to false, but CLI set to true
+        with open(IDF_BUILD_APPS_TOML_FN, 'w') as fw:
+            fw.write("""paths = ["foo"]
+build_dir = "build_@t"
+junitxml = "test.xml"
+dry_run = false
+""")
+
+        with monkeypatch.context() as m:
+            m.setattr(
+                'sys.argv', ['idf-build-apps', 'build', '--default-build-targets', 'esp32', 'esp32s2', '--dry-run']
+            )
+            main()
+
+        with open('test.xml') as f:
+            xml = ElementTree.fromstring(f.read())
+        test_suite = xml.findall('testsuite')[0]
+        assert test_suite.attrib['failures'] == '0'
+        assert test_suite.attrib['errors'] == '0'
+        assert test_suite.attrib['skipped'] == '2'
+        assert test_suite.findall('testcase')[0].attrib['name'] == 'foo/build_esp32'
+        assert test_suite.findall('testcase')[1].attrib['name'] == 'foo/build_esp32s2'
