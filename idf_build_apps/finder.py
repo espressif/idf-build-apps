@@ -33,6 +33,7 @@ def _get_apps_from_path(
     app_cls: t.Type[App] = CMakeApp,
     args: FindArguments,
 ) -> t.List[App]:
+    # trigger test
     def _validate_app(_app: App) -> bool:
         if target not in _app.supported_targets:
             LOGGER.debug('=> Ignored. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
