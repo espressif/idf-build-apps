@@ -76,7 +76,12 @@ jobs:
           python -m idf_build_apps build -vv -t esp32 \
             -p $IDF_PATH/examples/get-started/hello_world \
             --size-file size_info.json
-          pytest --cov idf_build_apps --cov-report term-missing --junit-xml report.xml
+          pytest --cov idf_build_apps --cov-report term-missing:skip-covered --junit-xml pytest.xml | tee pytest-coverage.txt
+      - name: Pytest coverage comment
+        uses: MishaKav/pytest-coverage-comment@main
+        with:
+          pytest-coverage-path: pytest-coverage.txt
+          junitxml-path: pytest.xml
 
   build-apps-on-idf-8266:
     runs-on: ubuntu-latest
