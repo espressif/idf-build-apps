@@ -1,3 +1,5 @@
+default_install_hook_types: [pre-commit, pre-push]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
@@ -46,3 +48,9 @@ repos:
         additional_dependencies:
           - sphinx-argparse
           - sphinxcontrib-mermaid
+  - repo: https://github.com/espressif/cz-plugin-espressif
+    rev: fix/pre-commit-entry
+    hooks:
+      - id: update-changelog
+        args: ['--incremental']
+        stages: [pre-push]
