@@ -8,7 +8,7 @@ Tools for building ESP-IDF related apps.
 # ruff: noqa: E402
 # avoid circular imports
 
-__version__ = '2.5.2'
+__version__ = '2.5.3'
 
 from .session_args import (
     SessionArgs,

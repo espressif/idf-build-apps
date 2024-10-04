@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.5.3 (2024-10-04)
+
+### Feat
+
+- support --manifest-filepatterns
+
 ## v2.5.2 (2024-09-27)
 
 ### Fix
