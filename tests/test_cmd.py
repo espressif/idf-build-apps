@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
+import os
 import sys
 from pathlib import Path
 
@@ -67,3 +67,31 @@ foobar:
                 f'foo:{sha_of_enable_only_esp32}\n'
                 f'foobar:{sha_of_enable_esp32_or_esp32s2}\n'
             )
+
+
+def test_manifest_patterns(tmp_path, monkeypatch, capsys):
+    manifest = tmp_path / 'manifest.yml'
+    manifest.write_text(
+        """foo:
+  enable:
+    - if: IDF_TARGET == "esp32"
+bar:
+  enable:
+    - if: IDF_TARGET == "esp32"
+        """
+    )
+
+    with pytest.raises(SystemExit) as e:
+        with monkeypatch.context() as m:
+            m.setattr(
+                sys,
+                'argv',
+                ['idf-build-apps', 'find', '--manifest-filepatterns', '**.whatever', '**/manifest.yml', '-vv'],
+            )
+            main()
+        assert e.retcode == 0
+
+    _, err = capsys.readouterr()
+    assert f'Loading manifest file {os.path.join(tmp_path, "manifest.yml")}' in err
+    assert f'"{os.path.join(tmp_path, "foo")}" does not exist' in err
+    assert f'"{os.path.join(tmp_path, "bar")}" does not exist' in err

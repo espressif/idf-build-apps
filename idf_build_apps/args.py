@@ -3,6 +3,7 @@
 
 import argparse
 import enum
+import glob
 import inspect
 import logging
 import os
@@ -191,6 +192,15 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         validation_alias=AliasChoices('manifest_files', 'manifest_file'),
         default=None,
     )
+    manifest_filepatterns: t.Optional[t.List[str]] = field(
+        FieldMetadata(
+            validate_method=[ValidateMethod.TO_LIST],
+            nargs='+',
+        ),
+        description='space-separated list of file patterns to search for the manifest files. '
+        'The matched files will be loaded as the manifest files.',
+        default=None,
+    )
     manifest_rootpath: str = field(
         None,
         description='Root path to resolve the relative paths defined in the manifest files. '
@@ -278,6 +288,17 @@ class DependencyDrivenBuildArguments(GlobalArguments):
 
     def model_post_init(self, __context: Any) -> None:
         super().model_post_init(__context)
+
+        if self.manifest_filepatterns:
+            matched_paths = set()
+            for pat in [to_absolute_path(p, self.manifest_rootpath) for p in self.manifest_filepatterns]:
+                matched_paths.update(glob.glob(str(pat), recursive=True))
+
+            if matched_paths:
+                if self.manifest_files:
+                    self.manifest_files.extend(matched_paths)
+                else:
+                    self.manifest_files = list(matched_paths)
 
         Manifest.CHECK_MANIFEST_RULES = self.check_manifest_rules
         if self.manifest_files:
