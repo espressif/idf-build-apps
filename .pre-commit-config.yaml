@@ -45,4 +45,5 @@ repos:
         files: "docs\/.+rst$"
         additional_dependencies:
           - sphinx-argparse
+          - sphinx-tabs
           - sphinxcontrib-mermaid

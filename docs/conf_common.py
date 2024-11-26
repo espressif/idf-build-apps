@@ -30,6 +30,7 @@ extensions = [
     'myst_parser',
     'sphinxcontrib.mermaid',
     'sphinxarg.ext',
+    'sphinx_tabs.tabs',
 ]
 
 templates_path = ['_templates']

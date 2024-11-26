@@ -47,6 +47,7 @@ doc = [
     "myst-parser",              # markdown support
     "sphinxcontrib-mermaid",    # mermaid graph support
     "sphinx-argparse",          # auto-generate cli help message
+    "sphinx-tabs",              # tabs
 ]
 
 [project.urls]
