@@ -14,6 +14,7 @@ Modifications:
 - use toml instead of tomli when python < 3.11
 - stop using global variables
 - fix some warnings
+- recursively find TOML file.
 """
 
 import os
@@ -25,8 +26,10 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 from pydantic_settings import InitSettingsSource
 from pydantic_settings.main import BaseSettings
 
+from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN
+
 PathType = Union[Path, str, List[Union[Path, str]], Tuple[Union[Path, str], ...]]
-DEFAULT_PATH: PathType = Path('')
+DEFAULT_PATH = Path('')
 
 
 class ConfigFileSourceMixin(ABC):
@@ -43,7 +46,7 @@ class ConfigFileSourceMixin(ABC):
         return kwargs
 
     @abstractmethod
-    def _read_file(self, path: Path) -> Dict[str, Any]:
+    def _read_file(self, path: Optional[Path]) -> Dict[str, Any]:
         pass
 
 
@@ -55,23 +58,58 @@ class TomlConfigSettingsSource(InitSettingsSource, ConfigFileSourceMixin):
     def __init__(
         self,
         settings_cls: Type[BaseSettings],
-        toml_file: Optional[PathType] = DEFAULT_PATH,
+        toml_file: Optional[Path] = DEFAULT_PATH,
     ):
-        self.toml_file_path = toml_file if toml_file != DEFAULT_PATH else settings_cls.model_config.get('toml_file')
+        self.toml_file_path = self._pick_toml_file(
+            toml_file,
+            settings_cls.model_config.get('pyproject_toml_depth', sys.maxsize),  # type: ignore
+            IDF_BUILD_APPS_TOML_FN,
+        )
         self.toml_data = self._read_files(self.toml_file_path)
         super().__init__(settings_cls, self.toml_data)
 
-    def _read_file(self, file_path: Path) -> Dict[str, Any]:
+    def _read_file(self, path: Optional[Path]) -> Dict[str, Any]:
+        if not path or not path.is_file():
+            return {}
+
         if sys.version_info < (3, 11):
             import toml
 
-            with open(file_path) as toml_file:
+            with open(path) as toml_file:
                 return toml.load(toml_file)
         else:
             import tomllib
 
-            with open(file_path, 'rb') as toml_file:
+            with open(path, 'rb') as toml_file:
                 return tomllib.load(toml_file)
+
+    @staticmethod
+    def _pick_toml_file(provided: Optional[Path], depth: int, filename: str) -> Optional[Path]:
+        """
+        Pick a file path to use. If a file path is provided, use it. Otherwise, search up the directory tree for a
+        file with the given name.
+
+        :param provided: Explicit path provided when instantiating this class.
+        :param depth: Number of directories up the tree to check of a pyproject.toml.
+        """
+        if provided and Path(provided).is_file():
+            return provided.resolve()
+
+        rv = Path.cwd()
+        count = -1
+        while count < depth:
+            if str(rv) == rv.root:
+                break
+
+            fp = rv / filename
+            if fp.is_file():
+                print(f'Loading config file: {fp}')
+                return fp
+
+            rv = rv.parent
+            count += 1
+
+        return None
 
 
 class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSource):
@@ -84,37 +122,16 @@ class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSource):
         settings_cls: Type[BaseSettings],
         toml_file: Optional[Path] = None,
     ) -> None:
-        self.toml_file_path = self._pick_pyproject_toml_file(
-            toml_file, settings_cls.model_config.get('pyproject_toml_depth', 0)
+        self.toml_file_path = self._pick_toml_file(
+            toml_file,
+            settings_cls.model_config.get('pyproject_toml_depth', sys.maxsize),  # type: ignore
+            'pyproject.toml',
         )
         self.toml_table_header: Tuple[str, ...] = settings_cls.model_config.get(
-            'pyproject_toml_table_header', ('tool', 'pydantic-settings')
+            'pyproject_toml_table_header',
+            ('tool', 'idf-build-apps'),  # type: ignore
         )
         self.toml_data = self._read_files(self.toml_file_path)
         for key in self.toml_table_header:
             self.toml_data = self.toml_data.get(key, {})
         super(TomlConfigSettingsSource, self).__init__(settings_cls, self.toml_data)
-
-    @staticmethod
-    def _pick_pyproject_toml_file(provided: Optional[Path], depth: int) -> Path:
-        """Pick a `pyproject.toml` file path to use.
-
-        Args:
-            provided: Explicit path provided when instantiating this class.
-            depth: Number of directories up the tree to check of a pyproject.toml.
-
-        """
-        if provided:
-            return provided.resolve()
-        rv = Path.cwd() / 'pyproject.toml'
-        count = 0
-        if not rv.is_file():
-            child = rv.parent.parent / 'pyproject.toml'
-            while count < depth:
-                if child.is_file():
-                    return child
-                if str(child.parent) == rv.root:
-                    break  # end discovery after checking system root once
-                child = child.parent.parent / 'pyproject.toml'
-                count += 1
-        return rv

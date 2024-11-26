@@ -27,7 +27,7 @@ from pydantic_settings import (
 from typing_extensions import Concatenate, ParamSpec
 
 from . import SESSION_ARGS, App, setup_logging
-from .constants import ALL_TARGETS
+from .constants import ALL_TARGETS, IDF_BUILD_APPS_TOML_FN
 from .manifest.manifest import FolderRule, Manifest
 from .utils import InvalidCommand, files_matches_patterns, semicolon_separated_str_to_list, to_absolute_path, to_list
 from .vendors.pydantic_sources import PyprojectTomlConfigSettingsSource, TomlConfigSettingsSource
@@ -116,10 +116,11 @@ class BaseArguments(BaseSettings):
     """Base settings class for all settings classes"""
 
     model_config = SettingsConfigDict(
-        toml_file='.idf_build_apps.toml',
-        pyproject_toml_table_header=('tool', 'idf-build-apps'),
+        toml_file=IDF_BUILD_APPS_TOML_FN,
+        # these below two are supported in pydantic 2.6
+        pyproject_toml_table_header=('tool', 'idf-build-apps'),  # type: ignore
         pyproject_toml_depth=sys.maxsize,
-        extra='ignore',
+        extra='ignore',  # we're supporting pydantic <2.6 as well, so we ignore extra fields
     )
 
     @classmethod
