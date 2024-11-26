@@ -37,6 +37,7 @@ LOGGER = logging.getLogger(__name__)
 
 class ValidateMethod(str, enum.Enum):
     TO_LIST = 'to_list'
+    EXPAND_VARS = 'expand_vars'
 
 
 @dataclass
@@ -143,8 +144,15 @@ class BaseArguments(BaseSettings):
             f = cls.model_fields[info.field_name]
             meta = get_meta(f)
             if meta and meta.validate_method:
-                if ValidateMethod.TO_LIST in meta.validate_method:
-                    return to_list(v)
+                for method in meta.validate_method:
+                    if method == ValidateMethod.TO_LIST:
+                        v = to_list(v)
+                    elif method == ValidateMethod.EXPAND_VARS:
+                        v = os.path.expandvars(v)
+                    else:
+                        raise NotImplementedError(f'Unknown validate method: {method}')
+
+                return v
 
         return v
 
@@ -202,9 +210,11 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         default=None,
     )
     manifest_rootpath: str = field(
-        None,
+        FieldMetadata(
+            validate_method=[ValidateMethod.EXPAND_VARS],
+        ),
         description='Root path to resolve the relative paths defined in the manifest files. '
-        'By default set to the current directory',
+        'By default set to the current directory. Support environment variables.',
         default=os.curdir,
     )
     modified_components: t.Optional[t.List[str]] = field(
