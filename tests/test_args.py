@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+import os
 from xml.etree import ElementTree
 
 import pytest
@@ -52,11 +53,39 @@ def test_apply_config_with_deprecated_names():
         fw.write("""config = [
     "foo"
 ]
-no_color = true
 """)
 
     args = FindBuildArguments()
     assert args.config_rules == ['foo']
+
+
+def test_apply_config_in_parent_dir(tmp_path):
+    test_under = tmp_path / 'test_under'
+    test_under.mkdir()
+    os.chdir(test_under)
+
+    with open(tmp_path / IDF_BUILD_APPS_TOML_FN, 'w') as fw:
+        fw.write('target = "esp32"')
+
+    assert FindArguments().target == 'esp32'
+
+
+def test_apply_config_over_pyproject_toml(tmp_path):
+    test_under = tmp_path / 'test_under'
+    test_under.mkdir()
+    os.chdir(test_under)
+
+    with open(test_under / 'pyproject.toml', 'w') as fw:
+        fw.write("""[tool.idf-build-apps]
+target = "esp32s2"
+""")
+
+    assert FindArguments().target == 'esp32s2'
+
+    with open(tmp_path / IDF_BUILD_APPS_TOML_FN, 'w') as fw:
+        fw.write('target = "esp32"')
+
+    assert FindArguments().target == 'esp32'
 
 
 def test_empty_argument():

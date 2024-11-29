@@ -27,7 +27,7 @@ from pydantic_settings import (
 from typing_extensions import Concatenate, ParamSpec
 
 from . import SESSION_ARGS, App, setup_logging
-from .constants import ALL_TARGETS
+from .constants import ALL_TARGETS, IDF_BUILD_APPS_TOML_FN
 from .manifest.manifest import FolderRule, Manifest
 from .utils import InvalidCommand, files_matches_patterns, semicolon_separated_str_to_list, to_absolute_path, to_list
 from .vendors.pydantic_sources import PyprojectTomlConfigSettingsSource, TomlConfigSettingsSource
@@ -37,6 +37,7 @@ LOGGER = logging.getLogger(__name__)
 
 class ValidateMethod(str, enum.Enum):
     TO_LIST = 'to_list'
+    EXPAND_VARS = 'expand_vars'
 
 
 @dataclass
@@ -115,10 +116,11 @@ class BaseArguments(BaseSettings):
     """Base settings class for all settings classes"""
 
     model_config = SettingsConfigDict(
-        toml_file='.idf_build_apps.toml',
-        pyproject_toml_table_header=('tool', 'idf-build-apps'),
+        toml_file=IDF_BUILD_APPS_TOML_FN,
+        # these below two are supported in pydantic 2.6
+        pyproject_toml_table_header=('tool', 'idf-build-apps'),  # type: ignore
         pyproject_toml_depth=sys.maxsize,
-        extra='ignore',
+        extra='ignore',  # we're supporting pydantic <2.6 as well, so we ignore extra fields
     )
 
     @classmethod
@@ -143,8 +145,15 @@ class BaseArguments(BaseSettings):
             f = cls.model_fields[info.field_name]
             meta = get_meta(f)
             if meta and meta.validate_method:
-                if ValidateMethod.TO_LIST in meta.validate_method:
-                    return to_list(v)
+                for method in meta.validate_method:
+                    if method == ValidateMethod.TO_LIST:
+                        v = to_list(v)
+                    elif method == ValidateMethod.EXPAND_VARS:
+                        v = os.path.expandvars(v)
+                    else:
+                        raise NotImplementedError(f'Unknown validate method: {method}')
+
+                return v
 
         return v
 
@@ -202,9 +211,11 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         default=None,
     )
     manifest_rootpath: str = field(
-        None,
+        FieldMetadata(
+            validate_method=[ValidateMethod.EXPAND_VARS],
+        ),
         description='Root path to resolve the relative paths defined in the manifest files. '
-        'By default set to the current directory',
+        'By default set to the current directory. Support environment variables.',
         default=os.curdir,
     )
     modified_components: t.Optional[t.List[str]] = field(

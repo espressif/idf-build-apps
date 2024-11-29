@@ -50,6 +50,7 @@ def _get_apps_from_path(
 
         # for unknown ones, we keep them to the build stage to judge
         if _app.build_status == BuildStatus.SKIPPED:
+            LOGGER.debug('=> Skipped. Reason: %s', _app.build_comment or 'Unknown')
             return args.include_skipped_apps
 
         return True
