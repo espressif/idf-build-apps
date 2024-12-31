@@ -28,7 +28,7 @@ def get_processor_name():
             with open('/proc/cpuinfo') as f:
                 for line in f:
                     if 'model name' in line:
-                        return re.sub('.*model name.*:', '', line, 1).strip()
+                        return re.sub('.*model name.*:', '', line, count=1).strip()
         except Exception:
             pass
 
