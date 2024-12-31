@@ -118,7 +118,7 @@ class BaseArguments(BaseSettings):
     model_config = SettingsConfigDict(
         toml_file=IDF_BUILD_APPS_TOML_FN,
         # these below two are supported in pydantic 2.6
-        pyproject_toml_table_header=('tool', 'idf-build-apps'),  # type: ignore
+        pyproject_toml_table_header=('tool', 'idf-build-apps'),
         pyproject_toml_depth=sys.maxsize,
         extra='ignore',  # we're supporting pydantic <2.6 as well, so we ignore extra fields
     )
@@ -165,19 +165,19 @@ class GlobalArguments(BaseArguments):
             action='count',
         ),
         description='Verbosity level. By default set to WARNING. Specify -v for INFO, -vv for DEBUG',
-        default=0,
+        default=0,  # type: ignore
     )
     log_file: t.Optional[str] = field(
         None,
         description='Path to the log file, if not specified logs will be printed to stderr',
-        default=None,
+        default=None,  # type: ignore
     )
     no_color: bool = field(
         FieldMetadata(
             action='store_true',
         ),
         description='Disable colored output',
-        default=False,
+        default=False,  # type: ignore
     )
 
     def model_post_init(self, __context: Any) -> None:
@@ -199,7 +199,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         ),
         description='Path to the manifest files which contains the build test rules of the apps',
         validation_alias=AliasChoices('manifest_files', 'manifest_file'),
-        default=None,
+        default=None,  # type: ignore
     )
     manifest_filepatterns: t.Optional[t.List[str]] = field(
         FieldMetadata(
@@ -208,7 +208,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         ),
         description='space-separated list of file patterns to search for the manifest files. '
         'The matched files will be loaded as the manifest files.',
-        default=None,
+        default=None,  # type: ignore
     )
     manifest_rootpath: str = field(
         FieldMetadata(
@@ -216,7 +216,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         ),
         description='Root path to resolve the relative paths defined in the manifest files. '
         'By default set to the current directory. Support environment variables.',
-        default=os.curdir,
+        default=os.curdir,  # type: ignore
     )
     modified_components: t.Optional[t.List[str]] = field(
         FieldMetadata(
@@ -226,7 +226,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         description='semicolon-separated list of modified components. '
         'If set to "", the value would be considered as None. '
         'If set to ";", the value would be considered as an empty list.',
-        default=None,
+        default=None,  # type: ignore
     )
     modified_files: t.Optional[t.List[str]] = field(
         FieldMetadata(
@@ -236,7 +236,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         description='semicolon-separated list of modified files. '
         'If set to "", the value would be considered as None. '
         'If set to ";", the value would be considered as an empty list.',
-        default=None,
+        default=None,  # type: ignore
     )
     deactivate_dependency_driven_build_by_components: t.Optional[t.List[str]] = field(
         FieldMetadata(
@@ -258,7 +258,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         validation_alias=AliasChoices(
             'deactivate_dependency_driven_build_by_components', 'ignore_app_dependencies_components'
         ),
-        default=None,
+        default=None,  # type: ignore
     )
     deactivate_dependency_driven_build_by_filepatterns: t.Optional[t.List[str]] = field(
         FieldMetadata(
@@ -280,21 +280,21 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         validation_alias=AliasChoices(
             'deactivate_dependency_driven_build_by_filepatterns', 'ignore_app_dependencies_filepatterns'
         ),
-        default=None,
+        default=None,  # type: ignore
     )
     check_manifest_rules: bool = field(
         FieldMetadata(
             action='store_true',
         ),
         description='Check if all folders defined in the manifest files exist. Fail if not',
-        default=False,
+        default=False,  # type: ignore
     )
     compare_manifest_sha_filepath: t.Optional[str] = field(
         None,
         description='Path to the file containing the hash of the manifest rules. '
         'Compare the hash with the current manifest rules. '
         'All matched apps will be built if the corresponding manifest rule is modified',
-        default=None,
+        default=None,  # type: ignore
     )
 
     def model_post_init(self, __context: Any) -> None:
@@ -388,28 +388,28 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
             nargs='*',
         ),
         description='Paths to the directories containing the apps. By default set to the current directory',
-        default=os.curdir,
+        default=os.curdir,  # type: ignore
     )
     target: str = field(
         FieldMetadata(
             shorthand='-t',
         ),
         description='Filter the apps by target. By default set to "all"',
-        default='all',
+        default='all',  # type: ignore
     )
     build_system: t.Union[str, t.Type[App]] = field(
         FieldMetadata(
             choices=['cmake', 'make'],
         ),
         description='Filter the apps by build system. By default set to "cmake"',
-        default='cmake',
+        default='cmake',  # type: ignore
     )
     recursive: bool = field(
         FieldMetadata(
             action='store_true',
         ),
         description='Search for apps recursively under the specified paths',
-        default=False,
+        default=False,  # type: ignore
     )
     exclude: t.Optional[t.List[str]] = field(
         FieldMetadata(
@@ -418,20 +418,20 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         ),
         description='Ignore the specified directories while searching recursively',
         validation_alias=AliasChoices('exclude', 'exclude_list'),
-        default=None,
+        default=None,  # type: ignore
     )
     work_dir: t.Optional[str] = field(
         None,
         description='Copy the app to this directory before building. '
         'By default set to the app directory. Can expand placeholders',
-        default=None,
+        default=None,  # type: ignore
     )
     build_dir: str = field(
         None,
         description='Build directory for the app. By default set to "build". '
         'When set to relative path, it will be treated as relative to the app directory. '
         'Can expand placeholders',
-        default='build',
+        default='build',  # type: ignore
     )
     build_log_filename: t.Optional[str] = field(
         FieldMetadata(
@@ -439,7 +439,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         ),
         description='Log filename under the build directory instead of stdout. Can expand placeholders',
         validation_alias=AliasChoices('build_log_filename', 'build_log'),
-        default=None,
+        default=None,  # type: ignore
     )
     size_json_filename: t.Optional[str] = field(
         FieldMetadata(
@@ -447,7 +447,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         ),
         description='`idf.py size` output file under the build directory when specified. ' 'Can expand placeholders',
         validation_alias=AliasChoices('size_json_filename', 'size_file'),
-        default=None,
+        default=None,  # type: ignore
     )
     config_rules: t.Optional[t.List[str]] = field(
         FieldMetadata(
@@ -465,31 +465,31 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         'FILEPATTERN is the filename of the sdkconfig file with a single wildcard character (*). '
         'The NAME is the value matched by the wildcard',
         validation_alias=AliasChoices('config_rules', 'config_rules_str', 'config'),
-        default=None,
+        default=None,  # type: ignore
     )
     override_sdkconfig_items: t.Optional[str] = field(
         None,
         description='A comma-separated list of key=value pairs to override the sdkconfig items',
-        default=None,
+        default=None,  # type: ignore
     )
     override_sdkconfig_files: t.Optional[str] = field(
         None,
         description='A comma-separated list of sdkconfig files to override the sdkconfig items. '
         'When set to relative path, it will be treated as relative to the current directory',
-        default=None,
+        default=None,  # type: ignore
     )
     sdkconfig_defaults: t.Optional[str] = field(
         None,
         description='A semicolon-separated list of sdkconfig files passed to `idf.py -DSDKCONFIG_DEFAULTS`. '
         'SDKCONFIG_DEFAULTS environment variable is used when not specified',
-        default=os.getenv('SDKCONFIG_DEFAULTS', None),
+        default=os.getenv('SDKCONFIG_DEFAULTS', None),  # type: ignore
     )
     check_warnings: bool = field(
         FieldMetadata(
             action='store_true',
         ),
         description='Check for warnings in the build output. Fail if any warnings are found',
-        default=False,
+        default=False,  # type: ignore
     )
     default_build_targets: t.Optional[t.List[str]] = field(
         FieldMetadata(
@@ -498,7 +498,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         ),
         description='space-separated list of the default enabled build targets for the apps. '
         'When not specified, the default value is the targets listed by `idf.py --list-targets`',
-        default=None,
+        default=None,  # type: ignore
     )
     enable_preview_targets: bool = field(
         FieldMetadata(
@@ -506,28 +506,28 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         ),
         description='When enabled, the default build targets will be set to all apps, '
         'including the preview targets. As the targets defined in `idf.py --list-targets --preview`',
-        default=False,
+        default=False,  # type: ignore
     )
     include_skipped_apps: bool = field(
         FieldMetadata(
             action='store_true',
         ),
         description='Include the skipped apps in the output, together with the enabled ones',
-        default=False,
+        default=False,  # type: ignore
     )
     include_disabled_apps: bool = field(
         FieldMetadata(
             action='store_true',
         ),
         description='Include the disabled apps in the output, together with the enabled ones',
-        default=False,
+        default=False,  # type: ignore
     )
     include_all_apps: bool = field(
         FieldMetadata(
             action='store_true',
         ),
         description='Include skipped, and disabled apps in the output, together with the enabled ones',
-        default=False,
+        default=False,  # type: ignore
     )
 
     def model_post_init(self, __context: Any) -> None:
@@ -568,7 +568,7 @@ class FindArguments(FindBuildArguments):
             shorthand='-o',
         ),
         description='Record the found apps to the specified file instead of stdout',
-        default=None,
+        default=None,  # type: ignore
     )
     output_format: str = field(
         FieldMetadata(
@@ -577,7 +577,7 @@ class FindArguments(FindBuildArguments):
         description='Output format of the found apps. '
         'In "raw" format, each line is a json string serialized from the app model. '
         'In "json" format, the output is a json list of the serialized app models',
-        default='raw',
+        default='raw',  # type: ignore
     )
 
     def model_post_init(self, __context: Any) -> None:
@@ -598,7 +598,7 @@ class BuildArguments(FindBuildArguments):
             action='store_true',
         ),
         description='Enable verbose output of the build system',
-        default=False,
+        default=False,  # type: ignore
     )
     parallel_count: int = field(
         FieldMetadata(
@@ -608,7 +608,7 @@ class BuildArguments(FindBuildArguments):
         'Specified together with --parallel-index. '
         'The given apps will be divided into parallel_count parts, '
         'and the current run will build the parallel_index-th part',
-        default=1,
+        default=1,  # type: ignore
     )
     parallel_index: int = field(
         FieldMetadata(
@@ -618,28 +618,28 @@ class BuildArguments(FindBuildArguments):
         'Specified together with --parallel-count. '
         'The given apps will be divided into parallel_count parts, '
         'and the current run will build the parallel_index-th part',
-        default=1,
+        default=1,  # type: ignore
     )
     dry_run: bool = field(
         FieldMetadata(
             action='store_true',
         ),
         description='Skip the actual build, only print the build process',
-        default=False,
+        default=False,  # type: ignore
     )
     keep_going: bool = field(
         FieldMetadata(
             action='store_true',
         ),
         description='Continue building the next app when the current build fails',
-        default=False,
+        default=False,  # type: ignore
     )
     no_preserve: bool = field(
         FieldMetadata(
             action='store_true',
         ),
         description='Do not preserve the build directory after a successful build',
-        default=False,
+        default=False,  # type: ignore
     )
     ignore_warning_strs: t.Optional[t.List[str]] = field(
         FieldMetadata(
@@ -652,7 +652,7 @@ class BuildArguments(FindBuildArguments):
         description='space-separated list of patterns. '
         'Ignore the warnings in the build output that match the patterns',
         validation_alias=AliasChoices('ignore_warning_strs', 'ignore_warning_str'),
-        default=None,
+        default=None,  # type: ignore
     )
     ignore_warning_files: t.Optional[t.List[t.Union[str, TextIOWrapper]]] = field(
         FieldMetadata(
@@ -667,14 +667,14 @@ class BuildArguments(FindBuildArguments):
         ),
         description='Path to the files containing the patterns to ignore the warnings in the build output',
         validation_alias=AliasChoices('ignore_warning_files', 'ignore_warning_file'),
-        default=None,
+        default=None,  # type: ignore
     )
     copy_sdkconfig: bool = field(
         FieldMetadata(
             action='store_true',
         ),
         description='Copy the sdkconfig file to the build directory',
-        default=False,
+        default=False,  # type: ignore
     )
 
     # Attrs that support placeholders
@@ -686,7 +686,7 @@ class BuildArguments(FindBuildArguments):
         description='Record size json filepath of the built apps to the specified file. '
         'Each line is a json string. Can expand placeholders @p',
         validation_alias=AliasChoices('collect_size_info_filename', 'collect_size_info'),
-        default=None,
+        default=None,  # type: ignore
         exclude=True,  # computed field is used
     )
     collect_app_info_filename: t.Optional[str] = field(
@@ -697,7 +697,7 @@ class BuildArguments(FindBuildArguments):
         description='Record serialized app model of the built apps to the specified file. '
         'Each line is a json string. Can expand placeholders @p',
         validation_alias=AliasChoices('collect_app_info_filename', 'collect_app_info'),
-        default=None,
+        default=None,  # type: ignore
         exclude=True,  # computed field is used
     )
     junitxml_filename: t.Optional[str] = field(
@@ -707,7 +707,7 @@ class BuildArguments(FindBuildArguments):
         ),
         description='Path to the junitxml file to record the build results. Can expand placeholder @p',
         validation_alias=AliasChoices('junitxml_filename', 'junitxml'),
-        default=None,
+        default=None,  # type: ignore
         exclude=True,  # computed field is used
     )
     # used for expanding placeholders
@@ -764,7 +764,7 @@ class DumpManifestShaArguments(GlobalArguments):
             required=True,
         ),
         description='Path to the manifest files which contains the build test rules of the apps',
-        default=None,
+        default=None,  # type: ignore
     )
 
     output: t.Optional[str] = field(
@@ -773,7 +773,7 @@ class DumpManifestShaArguments(GlobalArguments):
             required=True,
         ),
         description='Path to the output file to record the sha256 hash of the manifest rules',
-        default=None,
+        default=None,  # type: ignore
     )
 
     def model_post_init(self, __context: Any) -> None:
