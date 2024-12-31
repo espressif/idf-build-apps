@@ -28,7 +28,7 @@ repos:
       - id: mypy
         args: ['--warn-unused-ignores']
         additional_dependencies:
-          - pydantic<2.6
+          - pydantic
           - pydantic-settings
           - packaging
           - toml
