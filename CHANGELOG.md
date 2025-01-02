@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.6.0 (2025-01-02)
+
+### Feat
+
+- `manifest_rootpath` support env vars expansion
+
+### Fix
+
+- DeprecationWarning: 'count' is passed as positional argument when `re.sub`
+- add `py.typed` file to be used in mypy
+- negative value for soc caps integer
+- **config_file**: recursively load config file for TOML file
+
 ## v2.5.3 (2024-10-04)
 
 ### Feat
