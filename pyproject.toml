@@ -54,7 +54,7 @@ doc = [
 homepage = "https://github.com/espressif/idf-build-apps"
 repository = "https://github.com/espressif/idf-build-apps"
 documentation = "https://docs.espressif.com/projects/idf-build-apps"
-changelog = "https://github.com/espressif/idf-build-apps/blob/master/CHANGELOG.md"
+changelog = "https://github.com/espressif/idf-build-apps/blob/main/CHANGELOG.md"
 
 [project.scripts]
 idf-build-apps = "idf_build_apps:main.main"
