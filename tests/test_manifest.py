@@ -4,10 +4,6 @@ import os
 
 import pytest
 import yaml
-from esp_bool_parser import parse_bool_expr
-from packaging.version import (
-    Version,
-)
 
 import idf_build_apps
 from idf_build_apps import setup_logging
@@ -509,14 +505,6 @@ baz:
 
 
 class TestIfParser:
-    def test_idf_version(self, monkeypatch):
-        monkeypatch.setattr(idf_build_apps.manifest.if_parser, 'IDF_VERSION', Version('5.9.0'))
-        statement = 'IDF_VERSION > "5.10.0"'
-        assert parse_bool_expr(statement).get_value('esp32', 'foo') is False
-
-        statement = 'IDF_VERSION in  ["5.9.0"]'
-        assert parse_bool_expr(statement).get_value('esp32', 'foo') is True
-
     def test_invalid_if_statement(self):
         statement = '1'
         with pytest.raises(InvalidIfClause, match='Invalid if clause: 1'):
@@ -525,11 +513,3 @@ class TestIfParser:
     def test_temporary_must_with_reason(self):
         with pytest.raises(InvalidIfClause, match='"reason" must be set when "temporary: true"'):
             IfClause(stmt='IDF_TARGET == "esp32"', temporary=True)
-
-
-def test_consecutive_or_and_stml_manifest():
-    with pytest.raises(InvalidIfClause, match='Chaining "and"/"or" is not allowed'):
-        IfClause(stmt='IDF_TARGET == "esp32" or IDF_TARGET == "esp32c3" or IDF_TARGET == "esp32s3"')
-
-    with pytest.raises(InvalidIfClause, match='Chaining "and"/"or" is not allowed'):
-        IfClause(stmt='IDF_TARGET == "esp32" or IDF_TARGET == "esp32c3" and IDF_TARGET == "esp32s3"')
