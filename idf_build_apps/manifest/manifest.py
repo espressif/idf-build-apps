@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os
@@ -6,6 +6,7 @@ import pickle
 import typing as t
 from hashlib import sha512
 
+from esp_bool_parser import BoolStmt, parse_bool_expr
 from pyparsing import (
     ParseException,
 )
@@ -23,10 +24,6 @@ from ..utils import (
 from ..yaml import (
     parse,
 )
-from .if_parser import (
-    BOOL_EXPR,
-    BoolStmt,
-)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +31,7 @@ LOGGER = logging.getLogger(__name__)
 class IfClause:
     def __init__(self, stmt: str, temporary: bool = False, reason: t.Optional[str] = None) -> None:
         try:
-            self.stmt: BoolStmt = BOOL_EXPR.parseString(stmt)[0]
+            self.stmt: BoolStmt = parse_bool_expr(stmt)
         except (ParseException, InvalidIfClause) as ex:
             raise InvalidIfClause(f'Invalid if clause: {stmt}. {ex}')
 

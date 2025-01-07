@@ -1,9 +1,10 @@
-# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import os
 
 import pytest
 import yaml
+from esp_bool_parser import parse_bool_expr
 from packaging.version import (
     Version,
 )
@@ -12,9 +13,6 @@ import idf_build_apps
 from idf_build_apps import setup_logging
 from idf_build_apps.constants import (
     SUPPORTED_TARGETS,
-)
-from idf_build_apps.manifest.if_parser import (
-    BOOL_STMT,
 )
 from idf_build_apps.manifest.manifest import (
     IfClause,
@@ -514,10 +512,10 @@ class TestIfParser:
     def test_idf_version(self, monkeypatch):
         monkeypatch.setattr(idf_build_apps.manifest.if_parser, 'IDF_VERSION', Version('5.9.0'))
         statement = 'IDF_VERSION > "5.10.0"'
-        assert BOOL_STMT.parseString(statement)[0].get_value('esp32', 'foo') is False
+        assert parse_bool_expr(statement).get_value('esp32', 'foo') is False
 
         statement = 'IDF_VERSION in  ["5.9.0"]'
-        assert BOOL_STMT.parseString(statement)[0].get_value('esp32', 'foo') is True
+        assert parse_bool_expr(statement).get_value('esp32', 'foo') is True
 
     def test_invalid_if_statement(self):
         statement = '1'

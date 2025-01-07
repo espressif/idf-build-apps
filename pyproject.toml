@@ -31,6 +31,7 @@ dependencies = [
     "pydantic_settings",
     "argcomplete>=3",
     "typing-extensions; python_version < '3.11'",
+    "esp-bool-parser>=0.1.2,<1"
 ]
 
 [project.optional-dependencies]
@@ -155,6 +156,9 @@ typing-modules = [
 [tool.ruff.format]
 quote-style = "single"
 docstring-code-format = true
+
+[tool.ruff.lint.flake8-unused-arguments]
+ignore-variadic-names = true
 
 [tool.mypy]
 python_version = "3.8"
