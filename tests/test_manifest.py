@@ -64,6 +64,37 @@ test2:
     assert manifest.enable_build_targets('test23') == sorted(SUPPORTED_TARGETS)
 
 
+def test_repr(tmp_path):
+    yaml_file = tmp_path / 'test.yml'
+
+    yaml_file.write_text(
+        """
+test1:
+  enable:
+    - if: IDF_TARGET == "esp32c3"
+      reason: "None"
+  depends_components:
+    - if: IDF_VERSION == "1.2.3" or IDF_VERSION_MAJOR == 4
+      content: [ "VVV" ]
+    - if: CONFIG_NAME == "AAA"
+      content: [ "AAA" ]
+    - default: ["some_1", "some_2", "some_3"]
+
+""",
+        encoding='utf8',
+    )
+
+    manifest = Manifest.from_file(yaml_file)
+    manifest_rule = manifest.rules[0]
+    assert (
+        repr(manifest_rule.enable) == """[IfClause(stmt='IDF_TARGET == "esp32c3"', temporary=False, reason='None')]"""
+    )
+    assert (
+        repr(manifest_rule.depends_components)
+        == """SwitchClause(if_clauses=[IfClause(stmt='IDF_VERSION == "1.2.3" or IDF_VERSION_MAJOR == 4', temporary=False, reason=None), IfClause(stmt='CONFIG_NAME == "AAA"', temporary=False, reason=None)], contents=[['VVV'], ['AAA']], default_clause=['some_1', 'some_2', 'some_3'])"""  # noqa
+    )
+
+
 def test_manifest_switch_clause(tmp_path):
     yaml_file = tmp_path / 'test.yml'
     from idf_build_apps.constants import (
