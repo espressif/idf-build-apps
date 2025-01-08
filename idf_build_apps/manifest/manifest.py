@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os
-import pickle
 import typing as t
 from hashlib import sha512
 
@@ -32,6 +31,7 @@ class IfClause:
     def __init__(self, stmt: str, temporary: bool = False, reason: t.Optional[str] = None) -> None:
         try:
             self.stmt: BoolStmt = parse_bool_expr(stmt)
+            self._stmt: str = stmt
         except (ParseException, InvalidIfClause) as ex:
             raise InvalidIfClause(f'Invalid if clause: {stmt}. {ex}')
 
@@ -47,6 +47,9 @@ class IfClause:
                 f'    temporary: true\n'
                 f'    reason: lack of ci runners'
             )
+
+    def __repr__(self):
+        return f'IfClause(stmt={self._stmt!r}, temporary={self.temporary!r}, reason={self.reason!r})'
 
     def get_value(self, target: str, config_name: str) -> t.Any:
         return self.stmt.get_value(target, config_name)
@@ -65,6 +68,14 @@ class SwitchClause:
             if if_clause.get_value(target, config_name):
                 return content
         return self.default_clause
+
+    def __repr__(self) -> str:
+        return (
+            f'SwitchClause('
+            f'if_clauses={self.if_clauses!r}, '
+            f'contents={self.contents!r}, '
+            f'default_clause={self.default_clause!r})'
+        )
 
 
 class FolderRule:
@@ -150,7 +161,7 @@ class FolderRule:
             self.depends_components,
             self.depends_filepatterns,
         ]:
-            sha.update(pickle.dumps(obj, protocol=4))  # protocol 4 by default is set in Python 3.8
+            sha.update(repr(obj).encode())
 
         return sha.hexdigest()
 

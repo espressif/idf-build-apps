@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import os
 
@@ -63,7 +63,7 @@ def sha_of_enable_only_esp32():
     # !!! ONLY CHANGE IT WHEN NECESSARY !!!
     assert (
         sha
-        == '6fd3175a5068c46bccc411efadf3b98314210e775c25c62833998bff8b0cf1bc1daf738326f138f0d6629caa07338428f2aa122e2b830e6ad43662057c7ea0b1'  # noqa: E501
+        == 'bfc1c61176cfb76169eab6c4f00dbcc4d7886fee4b93ede5fac2c005dd85db640464e9b03986d3da3bfaa4d109b053862c07dc4d5a407e58f773a8f710ec60cb'  # noqa: E501
     )
 
     return sha
@@ -76,7 +76,7 @@ def sha_of_enable_esp32_or_esp32s2():
     # !!! ONLY CHANGE IT WHEN NECESSARY !!!
     assert (
         sha
-        == 'f3408e9bf1d6b9a9e14559e6567917986678a3414229b29f96493aec4dc1bc3e6d0ecc4f79adced0d5c26bc1cd80a4d15fe6aaefa5d1e7033a58290374f4fc7f'  # noqa: E501
+        == '9ab121a0d39bcb590465837091e82dfd798cd1ff9579e92c23e8bebaee127b46751108f0de3953993cb7993903e45d78851fc465d774a606b0ab1251fbe4b9f5'  # noqa: E501
     )
 
     return sha
