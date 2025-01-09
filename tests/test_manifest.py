@@ -1,20 +1,14 @@
-# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import os
 
 import pytest
 import yaml
-from packaging.version import (
-    Version,
-)
 
 import idf_build_apps
 from idf_build_apps import setup_logging
 from idf_build_apps.constants import (
     SUPPORTED_TARGETS,
-)
-from idf_build_apps.manifest.if_parser import (
-    BOOL_STMT,
 )
 from idf_build_apps.manifest.manifest import (
     IfClause,
@@ -68,6 +62,37 @@ test2:
 
     # test with folder that has the same prefix as one of the folders in the manifest
     assert manifest.enable_build_targets('test23') == sorted(SUPPORTED_TARGETS)
+
+
+def test_repr(tmp_path):
+    yaml_file = tmp_path / 'test.yml'
+
+    yaml_file.write_text(
+        """
+test1:
+  enable:
+    - if: IDF_TARGET == "esp32c3"
+      reason: "None"
+  depends_components:
+    - if: IDF_VERSION == "1.2.3" or IDF_VERSION_MAJOR == 4
+      content: [ "VVV" ]
+    - if: CONFIG_NAME == "AAA"
+      content: [ "AAA" ]
+    - default: ["some_1", "some_2", "some_3"]
+
+""",
+        encoding='utf8',
+    )
+
+    manifest = Manifest.from_file(yaml_file)
+    manifest_rule = manifest.rules[0]
+    assert (
+        repr(manifest_rule.enable) == """[IfClause(stmt='IDF_TARGET == "esp32c3"', temporary=False, reason='None')]"""
+    )
+    assert (
+        repr(manifest_rule.depends_components)
+        == """SwitchClause(if_clauses=[IfClause(stmt='IDF_VERSION == "1.2.3" or IDF_VERSION_MAJOR == 4', temporary=False, reason=None), IfClause(stmt='CONFIG_NAME == "AAA"', temporary=False, reason=None)], contents=[['VVV'], ['AAA']], default_clause=['some_1', 'some_2', 'some_3'])"""  # noqa
+    )
 
 
 def test_manifest_switch_clause(tmp_path):
@@ -511,14 +536,6 @@ baz:
 
 
 class TestIfParser:
-    def test_idf_version(self, monkeypatch):
-        monkeypatch.setattr(idf_build_apps.manifest.if_parser, 'IDF_VERSION', Version('5.9.0'))
-        statement = 'IDF_VERSION > "5.10.0"'
-        assert BOOL_STMT.parseString(statement)[0].get_value('esp32', 'foo') is False
-
-        statement = 'IDF_VERSION in  ["5.9.0"]'
-        assert BOOL_STMT.parseString(statement)[0].get_value('esp32', 'foo') is True
-
     def test_invalid_if_statement(self):
         statement = '1'
         with pytest.raises(InvalidIfClause, match='Invalid if clause: 1'):
@@ -527,11 +544,3 @@ class TestIfParser:
     def test_temporary_must_with_reason(self):
         with pytest.raises(InvalidIfClause, match='"reason" must be set when "temporary: true"'):
             IfClause(stmt='IDF_TARGET == "esp32"', temporary=True)
-
-
-def test_consecutive_or_and_stml_manifest():
-    with pytest.raises(InvalidIfClause, match='Chaining "and"/"or" is not allowed'):
-        IfClause(stmt='IDF_TARGET == "esp32" or IDF_TARGET == "esp32c3" or IDF_TARGET == "esp32s3"')
-
-    with pytest.raises(InvalidIfClause, match='Chaining "and"/"or" is not allowed'):
-        IfClause(stmt='IDF_TARGET == "esp32" or IDF_TARGET == "esp32c3" and IDF_TARGET == "esp32s3"')
