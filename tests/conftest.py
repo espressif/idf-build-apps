@@ -10,7 +10,7 @@ from idf_build_apps import (
     setup_logging,
 )
 from idf_build_apps.args import apply_config_file
-from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN, SUPPORTED_TARGETS
+from idf_build_apps.constants import SUPPORTED_TARGETS
 from idf_build_apps.manifest.manifest import FolderRule
 
 
@@ -19,7 +19,7 @@ def clean_cls_attr(tmp_path):
     App.MANIFEST = None
     FolderRule.DEFAULT_BUILD_TARGETS = SUPPORTED_TARGETS
     idf_build_apps.SESSION_ARGS.clean()
-    apply_config_file(IDF_BUILD_APPS_TOML_FN)
+    apply_config_file(reset=True)
     os.chdir(tmp_path)
 
 

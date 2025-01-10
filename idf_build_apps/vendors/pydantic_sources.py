@@ -93,7 +93,9 @@ class TomlConfigSettingsSource(InitSettingsSource, ConfigFileSourceMixin):
         :param depth: Number of directories up the tree to check of a pyproject.toml.
         """
         if provided and Path(provided).is_file():
-            return provided.resolve()
+            fp = provided.resolve()
+            print(f'Loading config file: {fp}')
+            return fp
 
         rv = Path.cwd()
         count = -1
