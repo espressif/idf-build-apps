@@ -1,6 +1,6 @@
 # PYTHON_ARGCOMPLETE_OK
 
-# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -68,7 +68,8 @@ def find_apps(
 
     :return: list of found apps
     """
-    apply_config_file(config_file)
+    if config_file:
+        apply_config_file(config_file)
 
     # compatible with old usage
     ## `preserve`
@@ -132,7 +133,8 @@ def build_apps(
 
     :return: exit code
     """
-    apply_config_file(config_file)
+    if config_file:
+        apply_config_file(config_file)
 
     # compatible with old usage
     ## `check_app_dependencies`
@@ -385,8 +387,8 @@ def main():
     kwargs = vars(args)
     action = kwargs.pop('action')
     config_file = kwargs.pop('config_file')
-
-    apply_config_file(config_file)
+    if config_file:
+        apply_config_file(config_file)
 
     if action == 'dump-manifest-sha':
         arguments = DumpManifestShaArguments(**drop_none_kwargs(kwargs))

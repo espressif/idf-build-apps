@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -115,8 +115,9 @@ def get_meta(f: FieldInfo) -> t.Optional[FieldMetadata]:
 class BaseArguments(BaseSettings):
     """Base settings class for all settings classes"""
 
+    CONFIG_FILE_PATH: t.ClassVar[t.Optional[Path]] = None
+
     model_config = SettingsConfigDict(
-        toml_file=IDF_BUILD_APPS_TOML_FN,
         # these below two are supported in pydantic 2.6
         pyproject_toml_table_header=('tool', 'idf-build-apps'),
         pyproject_toml_depth=sys.maxsize,
@@ -132,11 +133,15 @@ class BaseArguments(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,  # noqa: ARG003
         file_secret_settings: PydanticBaseSettingsSource,  # noqa: ARG003
     ) -> t.Tuple[PydanticBaseSettingsSource, ...]:
-        return (
-            init_settings,
-            TomlConfigSettingsSource(settings_cls),
-            PyprojectTomlConfigSettingsSource(settings_cls),
-        )
+        sources: t.Tuple[PydanticBaseSettingsSource, ...] = (init_settings,)
+        if cls.CONFIG_FILE_PATH is None:
+            sources += (TomlConfigSettingsSource(settings_cls, toml_file=Path(IDF_BUILD_APPS_TOML_FN)),)
+            sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=Path('pyproject.toml')),)
+        else:
+            sources += (TomlConfigSettingsSource(settings_cls, toml_file=Path(cls.CONFIG_FILE_PATH)),)
+            sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=Path(cls.CONFIG_FILE_PATH)),)
+
+        return sources
 
     @field_validator('*', mode='before')
     @classmethod
@@ -874,12 +879,20 @@ def add_args_to_obj_doc_as_params(argument_cls: t.Type[GlobalArguments], obj: t.
     _obj.__doc__ = _doc_str
 
 
-def apply_config_file(config_file: t.Optional[str]) -> None:
+def apply_config_file(config_file: t.Optional[str] = None, reset: bool = False) -> None:
     def _subclasses(klass: t.Type[T]) -> t.Set[t.Type[T]]:
         return set(klass.__subclasses__()).union([s for c in klass.__subclasses__() for s in _subclasses(c)])
 
-    if config_file:
-        BaseArguments.model_config['toml_file'] = str(config_file)
-        # modify all subclasses
+    if reset:
+        BaseArguments.CONFIG_FILE_PATH = None
         for cls in _subclasses(BaseArguments):
-            cls.model_config['toml_file'] = str(config_file)
+            cls.CONFIG_FILE_PATH = None
+
+    if config_file:
+        if os.path.isfile(config_file):
+            p = Path(config_file)
+            BaseArguments.CONFIG_FILE_PATH = p
+            for cls in _subclasses(BaseArguments):
+                cls.CONFIG_FILE_PATH = p
+        else:
+            LOGGER.warning(f'Config file {config_file} does not exist. Ignoring...')

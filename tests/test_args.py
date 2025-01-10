@@ -1,6 +1,7 @@
-# SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import os
+from tempfile import NamedTemporaryFile
 from xml.etree import ElementTree
 
 import pytest
@@ -323,3 +324,39 @@ dry_run = false
         assert test_suite.attrib['skipped'] == '2'
         assert test_suite.findall('testcase')[0].attrib['name'] == 'foo/build_esp32'
         assert test_suite.findall('testcase')[1].attrib['name'] == 'foo/build_esp32s2'
+
+    def test_config_file_by_cli(self, tmp_path, monkeypatch):
+        create_project('foo', tmp_path)
+        create_project('bar', tmp_path)
+
+        with open(IDF_BUILD_APPS_TOML_FN, 'w') as fw:
+            fw.write('paths = ["foo"]')
+
+        with NamedTemporaryFile(mode='w', suffix='.toml') as ft:
+            ft.write('paths = ["bar"]')
+            ft.flush()
+
+            with monkeypatch.context() as m:
+                m.setattr(
+                    'sys.argv',
+                    [
+                        'idf-build-apps',
+                        'build',
+                        '-t',
+                        'esp32',
+                        '--config-file',
+                        ft.name,
+                        '--junitxml',
+                        'test.xml',
+                        '--dry-run',
+                    ],
+                )
+                main()
+
+        with open('test.xml') as f:
+            xml = ElementTree.fromstring(f.read())
+        test_suite = xml.findall('testsuite')[0]
+        assert test_suite.attrib['failures'] == '0'
+        assert test_suite.attrib['errors'] == '0'
+        assert test_suite.attrib['skipped'] == '1'
+        assert test_suite.findall('testcase')[0].attrib['name'] == 'bar/build'
