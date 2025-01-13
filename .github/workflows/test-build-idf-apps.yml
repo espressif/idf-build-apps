@@ -78,6 +78,7 @@ jobs:
             --size-file size_info.json
           pytest --cov idf_build_apps --cov-report term-missing:skip-covered --junit-xml pytest.xml | tee pytest-coverage.txt
       - name: Pytest coverage comment
+        if: github.event_name == 'pull_request'
         uses: MishaKav/pytest-coverage-comment@main
         with:
           pytest-coverage-path: pytest-coverage.txt
