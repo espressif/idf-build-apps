@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.6.1 (2025-01-13)
+
+### Fix
+
+- --config-file not refreshed
+
 ## v2.6.0 (2025-01-02)
 
 ### Feat
