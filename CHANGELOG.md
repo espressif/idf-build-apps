@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.6.2 (2025-01-21)
+
+### Fix
+
+- windows root dir returns '\\' instead of the drive
+
 ## v2.6.1 (2025-01-13)
 
 ### Fix
