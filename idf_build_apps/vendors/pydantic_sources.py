@@ -17,6 +17,7 @@ Modifications:
 - recursively find TOML file.
 """
 
+import logging
 import os
 import sys
 from abc import ABC, abstractmethod
@@ -30,6 +31,7 @@ from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN
 
 PathType = Union[Path, str, List[Union[Path, str]], Tuple[Union[Path, str], ...]]
 DEFAULT_PATH = Path('')
+LOGGER = logging.getLogger(__name__)
 
 
 class ConfigFileSourceMixin(ABC):
@@ -94,18 +96,18 @@ class TomlConfigSettingsSource(InitSettingsSource, ConfigFileSourceMixin):
         """
         if provided and Path(provided).is_file():
             fp = provided.resolve()
-            print(f'Loading config file: {fp}')
+            LOGGER.debug(f'Loading config file: {fp}')
             return fp
 
         rv = Path.cwd()
         count = -1
         while count < depth:
-            if str(rv) == rv.root:
+            if len(rv.parts) == 1:
                 break
 
             fp = rv / filename
             if fp.is_file():
-                print(f'Loading config file: {fp}')
+                LOGGER.debug(f'Loading config file: {fp}')
                 return fp
 
             rv = rv.parent
