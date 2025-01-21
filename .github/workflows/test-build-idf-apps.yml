@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'idf_build_apps/**'
+      - '.github/workflows/test-build-idf-apps.yml'
   push:
     branches:
       - main
@@ -60,7 +61,10 @@ jobs:
           test ! -f build_esp32s2/hello_world.bin
 
   build-apps-on-idf-master:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     container:
       image: espressif/idf:latest
     env:
@@ -78,7 +82,7 @@ jobs:
             --size-file size_info.json
           pytest --cov idf_build_apps --cov-report term-missing:skip-covered --junit-xml pytest.xml | tee pytest-coverage.txt
       - name: Pytest coverage comment
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && matrix.os == 'ubuntu-latest'
         uses: MishaKav/pytest-coverage-comment@main
         with:
           pytest-coverage-path: pytest-coverage.txt
