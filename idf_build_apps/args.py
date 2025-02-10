@@ -323,19 +323,6 @@ class DependencyDrivenBuildArguments(GlobalArguments):
                 root_path=to_absolute_path(self.manifest_rootpath),
             )
 
-        if self.deactivate_dependency_driven_build_by_components is not None:
-            if self.modified_components is None:
-                raise InvalidCommand(
-                    'Must specify --deactivate-dependency-driven-build-by-components '
-                    'together with --modified-components'
-                )
-
-        if self.deactivate_dependency_driven_build_by_filepatterns is not None:
-            if self.modified_files is None:
-                raise InvalidCommand(
-                    'Must specify --deactivate-dependency-driven-build-by-filepatterns together with --modified-files'
-                )
-
     @property
     def dependency_driven_build_enabled(self) -> bool:
         """
@@ -450,7 +437,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         FieldMetadata(
             deprecates={'size_file': {}},
         ),
-        description='`idf.py size` output file under the build directory when specified. ' 'Can expand placeholders',
+        description='`idf.py size` output file under the build directory when specified. Can expand placeholders',
         validation_alias=AliasChoices('size_json_filename', 'size_file'),
         default=None,  # type: ignore
     )
@@ -654,8 +641,7 @@ class BuildArguments(FindBuildArguments):
             },
             nargs='+',
         ),
-        description='space-separated list of patterns. '
-        'Ignore the warnings in the build output that match the patterns',
+        description='space-separated list of patterns. Ignore the warnings in the build output that match the patterns',
         validation_alias=AliasChoices('ignore_warning_strs', 'ignore_warning_str'),
         default=None,  # type: ignore
     )
