@@ -1,6 +1,7 @@
-# SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-
+import contextlib
+import os
 
 import pytest
 from pydantic import (
@@ -95,3 +96,18 @@ def test_app_init_from_another():
     assert b.target == 'esp32c3'
     assert 'build_esp32_' == a.build_dir
     assert 'build_esp32c3_' == b.build_dir
+
+
+def test_app_hash():
+    a = CMakeApp('foo', 'esp32')
+    b = CMakeApp('foo/', 'esp32')
+    assert a == b
+    assert hash(a) == hash(b)
+    assert len(list({a, b})) == 1
+
+    with contextlib.chdir(os.path.expanduser('~')):
+        a = CMakeApp('foo', 'esp32')
+        b = CMakeApp(os.path.join('~', 'foo'), 'esp32')
+        assert a == b
+        assert hash(a) == hash(b)
+        assert len(list({a, b})) == 1

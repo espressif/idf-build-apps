@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -127,6 +127,11 @@ class App(BaseModel):
     __EQ_IGNORE_FIELDS__ = [
         'build_comment',
     ]
+    __EQ_TUNE_FIELDS__ = {
+        'app_dir': lambda x: (os.path.realpath(os.path.expanduser(x))),
+        'work_dir': lambda x: (os.path.realpath(os.path.expanduser(x))),
+        'build_dir': lambda x: (os.path.realpath(os.path.expanduser(x))),
+    }
 
     def __init__(
         self,

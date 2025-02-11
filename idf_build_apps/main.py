@@ -99,7 +99,7 @@ def find_apps(
     else:
         app_cls = find_arguments.build_system
 
-    apps = []
+    apps: t.Set[App] = set()
     if find_arguments.target == 'all':
         targets = ALL_TARGETS
     else:
@@ -107,7 +107,7 @@ def find_apps(
 
     for _t in targets:
         for _p in find_arguments.paths:
-            apps.extend(
+            apps.update(
                 _find_apps(
                     _p,
                     _t,
