@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -740,3 +740,21 @@ def test_find_apps_with_exclude(tmp_path, exclude_list, apps_count):
     os.chdir(tempfile.tempdir)
     apps = find_apps(str(tmp_path), 'esp32', recursive=True, exclude_list=exclude_list)
     assert len(apps) == apps_count
+
+
+def test_find_apps_with_duplicated_paths(tmp_path):
+    (tmp_path / 'folder1').mkdir()
+    create_project('test1', tmp_path / 'folder1')
+    create_project('test2', tmp_path / 'folder1')
+
+    assert (
+        len(
+            find_apps(
+                [str(tmp_path / 'folder1' / 'test1'), str(tmp_path / 'folder1')],
+                'esp32',
+                recursive=True,
+            )
+        )
+        == len(find_apps(str(tmp_path / 'folder1'), 'esp32', recursive=True))
+        == 2
+    )
