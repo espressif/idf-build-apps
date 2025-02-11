@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import fnmatch
@@ -340,6 +340,7 @@ class BaseModel(_BaseModel):
     """
 
     __EQ_IGNORE_FIELDS__: t.List[str] = []
+    __EQ_TUNE_FIELDS__: t.Dict[str, t.Callable[[t.Any], t.Any]] = {}
 
     def __lt__(self, other: t.Any) -> bool:
         if isinstance(other, self.__class__):
@@ -349,6 +350,10 @@ class BaseModel(_BaseModel):
 
                 self_attr = getattr(self, k, '') or ''
                 other_attr = getattr(other, k, '') or ''
+
+                if k in self.__EQ_TUNE_FIELDS__:
+                    self_attr = str(self.__EQ_TUNE_FIELDS__[k](self_attr))
+                    other_attr = str(self.__EQ_TUNE_FIELDS__[k](other_attr))
 
                 if self_attr != other_attr:
                     return self_attr < other_attr
@@ -369,13 +374,22 @@ class BaseModel(_BaseModel):
                 self_model_dump.pop(_field, None)
                 other_model_dump.pop(_field, None)
 
+            for _field in self.__EQ_TUNE_FIELDS__:
+                self_model_dump[_field] = self.__EQ_TUNE_FIELDS__[_field](self_model_dump[_field])
+                other_model_dump[_field] = self.__EQ_TUNE_FIELDS__[_field](other_model_dump[_field])
+
             return self_model_dump == other_model_dump
 
         return NotImplemented
 
     def __hash__(self) -> int:
         hash_list = []
-        for v in self.model_dump().values():
+
+        self_model_dump = self.model_dump()
+        for _field in self.__EQ_TUNE_FIELDS__:
+            self_model_dump[_field] = self.__EQ_TUNE_FIELDS__[_field](self_model_dump[_field])
+
+        for v in self_model_dump.values():
             if isinstance(v, list):
                 hash_list.append(tuple(v))
             elif isinstance(v, dict):
