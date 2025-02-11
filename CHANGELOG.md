@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.6.3 (2025-02-11)
+
+### Fix
+
+- stop returning duplicated apps in `find_apps`
+- compare app based on normalized paths
+- remove unnecessary check args in dependency-driven-build
+
 ## v2.6.2 (2025-01-21)
 
 ### Fix
