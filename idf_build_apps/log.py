@@ -1,61 +1,13 @@
-# SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import os
 import sys
 import typing as t
 
-from .constants import (
-    BuildStage,
-)
-
-
-class ColoredFormatter(logging.Formatter):
-    grey: str = '\x1b[37;20m'
-    yellow: str = '\x1b[33;20m'
-    red: str = '\x1b[31;20m'
-    bold_red: str = '\x1b[31;1m'
-
-    reset: str = '\x1b[0m'
-
-    fmt: str = '%(asctime)s %(levelname)8s %(message)s'
-    app_fmt: str = f'%(asctime)s %(levelname)8s [%(build_stage){BuildStage.max_length()}s] %(message)s'
-
-    datefmt: str = '%Y-%m-%d %H:%M:%S'
-
-    FORMATS: t.Dict[int, str] = {
-        logging.DEBUG: f'{grey}{{}}{reset}',
-        logging.INFO: '{}',
-        logging.WARNING: f'{yellow}{{}}{reset}',
-        logging.ERROR: f'{red}{{}}{reset}',
-        logging.CRITICAL: f'{bold_red}{{}}{reset}',
-    }
-
-    def __init__(self, colored: bool = True) -> None:
-        self.colored = colored
-        if sys.platform == 'win32':  # does not support it
-            self.colored = False
-
-        super().__init__(datefmt=self.datefmt)
-
-    def format(self, record: logging.LogRecord) -> str:
-        if getattr(record, 'build_stage', None):
-            base_fmt = self.app_fmt
-        else:
-            base_fmt = self.fmt
-
-        if self.colored:
-            log_fmt = self.FORMATS[record.levelno].format(base_fmt)
-        else:
-            log_fmt = base_fmt
-
-        if record.levelno in [logging.WARNING, logging.ERROR]:
-            record.msg = '>>> ' + str(record.msg)
-        elif record.levelno == logging.CRITICAL:
-            record.msg = '!!! ' + str(record.msg)
-
-        formatter = logging.Formatter(log_fmt, datefmt=self.datefmt)
-        return formatter.format(record)
+from rich import get_console
+from rich.logging import RichHandler
 
 
 def setup_logging(verbose: int = 0, log_file: t.Optional[str] = None, colored: bool = True) -> None:
@@ -74,13 +26,24 @@ def setup_logging(verbose: int = 0, log_file: t.Optional[str] = None, colored: b
     else:
         level = logging.DEBUG
 
+    console = get_console()
+    console.no_color = not colored
+    console.stderr = True
+    # no line break while testing
+    if os.getenv('__IS_TESTING'):
+        console.width = sys.maxsize
+
     package_logger = logging.getLogger(__package__)
     package_logger.setLevel(level)
     if log_file:
         handler: logging.Handler = logging.FileHandler(log_file)
     else:
-        handler = logging.StreamHandler(sys.stderr)
-    handler.setFormatter(ColoredFormatter(colored))
+        handler = RichHandler(
+            level,
+            console,
+            show_path=False,
+            omit_repeated_times=False,
+        )
 
     if package_logger.hasHandlers():
         package_logger.handlers.clear()

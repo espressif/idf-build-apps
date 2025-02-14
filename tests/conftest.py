@@ -14,6 +14,13 @@ from idf_build_apps.constants import SUPPORTED_TARGETS
 from idf_build_apps.manifest.manifest import FolderRule
 
 
+@pytest.fixture(scope='session', autouse=True)
+def set_testing_env_vars():
+    os.environ['__IS_TESTING'] = '1'
+    yield
+    del os.environ['__IS_TESTING']
+
+
 @pytest.fixture(autouse=True)
 def clean_cls_attr(tmp_path):
     App.MANIFEST = None
