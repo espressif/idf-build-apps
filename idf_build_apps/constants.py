@@ -31,17 +31,6 @@ class BuildStatus(str, enum.Enum):
     SUCCESS = 'build success'
 
 
-class BuildStage(str, enum.Enum):
-    DRY_RUN = 'Dry Run'
-    PRE_BUILD = 'Pre Build'
-    BUILD = 'Build'
-    POST_BUILD = 'Post Build'
-
-    @classmethod
-    def max_length(cls) -> int:
-        return max(len(v.value) for v in cls.__members__.values())
-
-
 completion_instructions = """
 With the `--activate` option, detect your shell type and add the appropriate commands to your shell's config file
 so that it runs on startup. You will likely have to restart.

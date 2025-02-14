@@ -36,7 +36,6 @@ from .constants import (
     IDF_VERSION_PATCH,
     PREVIEW_TARGETS,
     PROJECT_DESCRIPTION_JSON,
-    BuildStage,
     BuildStatus,
 )
 from .manifest.manifest import (
@@ -55,17 +54,7 @@ from .utils import (
     to_list,
 )
 
-
-class _AppBuildStageFilter(logging.Filter):
-    def __init__(self, *args, app, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.app = app
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        if self.app._build_stage:
-            record.build_stage = self.app._build_stage.value
-
-        return True
+LOGGER = logging.getLogger(__name__)
 
 
 class App(BaseModel):
@@ -120,7 +109,6 @@ class App(BaseModel):
     build_status: BuildStatus = BuildStatus.UNKNOWN
     build_comment: t.Optional[str] = None
 
-    _build_stage: t.Optional[BuildStage] = None
     _build_duration: float = 0
     _build_timestamp: t.Optional[datetime] = None
 
@@ -175,9 +163,6 @@ class App(BaseModel):
 
         # private attrs, won't be dumped to json
         self._checked_should_build = False
-
-        self._logger = logging.getLogger(f'{__name__}.{hash(self)}')
-        self._logger.addFilter(_AppBuildStageFilter(app=self))
 
         self._sdkconfig_files, self._sdkconfig_files_defined_target = self._process_sdkconfig_files()
 
@@ -346,10 +331,10 @@ class App(BaseModel):
             # use filepath if abs/rel already point to itself
             if not os.path.isfile(f):
                 # find it in the app_dir
-                self._logger.debug('sdkconfig file %s not found, checking under app_dir...', f)
+                LOGGER.debug('sdkconfig file %s not found, checking under app_dir...', f)
                 f = os.path.join(self.app_dir, f)
                 if not os.path.isfile(f):
-                    self._logger.debug('sdkconfig file %s not found, skipping...', f)
+                    LOGGER.debug('sdkconfig file %s not found, skipping...', f)
                     continue
 
             expanded_fp = os.path.join(expanded_dir, os.path.basename(f))
@@ -377,14 +362,14 @@ class App(BaseModel):
             with open(f) as fr:
                 with open(expanded_fp) as new_fr:
                     if fr.read() == new_fr.read():
-                        self._logger.debug('Use sdkconfig file %s', f)
+                        LOGGER.debug('Use sdkconfig file %s', f)
                         try:
                             os.unlink(expanded_fp)
                         except OSError:
-                            self._logger.debug('Failed to remove file %s', expanded_fp)
+                            LOGGER.debug('Failed to remove file %s', expanded_fp)
                         real_sdkconfig_files.append(f)
                     else:
-                        self._logger.debug('Expand sdkconfig file %s to %s', f, expanded_fp)
+                        LOGGER.debug('Expand sdkconfig file %s to %s', f, expanded_fp)
                         real_sdkconfig_files.append(expanded_fp)
                         # copy the related target-specific sdkconfig files
                         par_dir = os.path.abspath(os.path.join(f, '..'))
@@ -392,7 +377,7 @@ class App(BaseModel):
                             os.path.join(par_dir, str(p))
                             for p in Path(par_dir).glob(os.path.basename(f) + f'.{self.target}')
                         ):
-                            self._logger.debug(
+                            LOGGER.debug(
                                 'Copy target-specific sdkconfig file %s to %s', target_specific_file, expanded_dir
                             )
                             shutil.copy(target_specific_file, expanded_dir)
@@ -474,21 +459,16 @@ class App(BaseModel):
         return wrapper
 
     def _pre_build(self) -> None:
-        if self.dry_run:
-            self._build_stage = BuildStage.DRY_RUN
-        else:
-            self._build_stage = BuildStage.PRE_BUILD
-
         if self.build_status == BuildStatus.SKIPPED:
             return
 
         if self.work_dir != self.app_dir:
             if os.path.exists(self.work_dir):
-                self._logger.debug('Removed existing work dir: %s', self.work_dir)
+                LOGGER.debug('Removed existing work dir: %s', self.work_dir)
                 if not self.dry_run:
                     shutil.rmtree(self.work_dir)
 
-            self._logger.debug('Copied app from %s to %s', self.app_dir, self.work_dir)
+            LOGGER.debug('Copied app from %s to %s', self.app_dir, self.work_dir)
             if not self.dry_run:
                 # if the new directory inside the original directory,
                 # make sure not to go into recursion.
@@ -502,7 +482,7 @@ class App(BaseModel):
                 shutil.copytree(self.app_dir, self.work_dir, ignore=ignore, symlinks=True)
 
         if os.path.exists(self.build_path):
-            self._logger.debug('Removed existing build dir: %s', self.build_path)
+            LOGGER.debug('Removed existing build dir: %s', self.build_path)
             if not self.dry_run:
                 shutil.rmtree(self.build_path)
 
@@ -511,17 +491,17 @@ class App(BaseModel):
 
         sdkconfig_file = os.path.join(self.work_dir, 'sdkconfig')
         if os.path.exists(sdkconfig_file):
-            self._logger.debug('Removed existing sdkconfig file: %s', sdkconfig_file)
+            LOGGER.debug('Removed existing sdkconfig file: %s', sdkconfig_file)
             if not self.dry_run:
                 os.unlink(sdkconfig_file)
 
         if os.path.isfile(self.build_log_path):
-            self._logger.debug('Removed existing build log file: %s', self.build_log_path)
+            LOGGER.debug('Removed existing build log file: %s', self.build_log_path)
             if not self.dry_run:
                 os.unlink(self.build_log_path)
         elif not self.dry_run:
             os.makedirs(os.path.dirname(self.build_log_path), exist_ok=True)
-        self._logger.info('Writing build log to %s', self.build_log_path)
+        LOGGER.info('Writing build log to %s', self.build_log_path)
 
         if self.dry_run:
             self.build_status = BuildStatus.SKIPPED
@@ -570,8 +550,6 @@ class App(BaseModel):
         ):
             return
 
-        self._build_stage = BuildStage.POST_BUILD
-
         # both status applied
         if self.copy_sdkconfig:
             try:
@@ -580,9 +558,9 @@ class App(BaseModel):
                     os.path.join(self.build_path, 'sdkconfig'),
                 )
             except Exception as e:
-                self._logger.warning('Copy sdkconfig file from failed: %s', e)
+                LOGGER.warning('Copy sdkconfig file from failed: %s', e)
             else:
-                self._logger.debug('Copied sdkconfig file from %s to %s', self.work_dir, self.build_path)
+                LOGGER.debug('Copied sdkconfig file from %s to %s', self.work_dir, self.build_path)
 
         # for originally success builds generate size.json if enabled
         #
@@ -592,7 +570,7 @@ class App(BaseModel):
             self.write_size_json()
 
         if not os.path.isfile(self.build_log_path):
-            self._logger.warning(f'{self.build_log_path} does not exist. Skipping post build actions...')
+            LOGGER.warning(f'{self.build_log_path} does not exist. Skipping post build actions...')
             return
 
         # check warnings
@@ -603,21 +581,21 @@ class App(BaseModel):
                 is_error_or_warning, ignored = self.is_error_or_warning(line)
                 if is_error_or_warning:
                     if ignored:
-                        self._logger.info('[Ignored warning] %s', line)
+                        LOGGER.info('[Ignored warning] %s', line)
                     else:
-                        self._logger.warning('%s', line)
+                        LOGGER.warning('%s', line)
                         has_unignored_warning = True
 
         # for failed builds, print last few lines to help debug
         if self.build_status == BuildStatus.FAILED:
             # print last few lines to help debug
-            self._logger.error(
+            LOGGER.error(
                 'Last %s lines from the build log "%s":',
                 self.LOG_DEBUG_LINES,
                 self.build_log_path,
             )
             for line in lines[-self.LOG_DEBUG_LINES :]:
-                self._logger.error('%s', line)
+                LOGGER.error('%s', line)
         # correct build status for originally successful builds
         elif self.build_status == BuildStatus.SUCCESS:
             if self.check_warnings and has_unignored_warning:
@@ -636,7 +614,7 @@ class App(BaseModel):
         # remove temp log file
         if self._is_build_log_path_temp:
             os.unlink(self.build_log_path)
-            self._logger.debug('Removed success build temporary log file: %s', self.build_log_path)
+            LOGGER.debug('Removed success build temporary log file: %s', self.build_log_path)
 
         # Cleanup build directory if not preserving
         if not self.preserve:
@@ -649,17 +627,17 @@ class App(BaseModel):
                 self.build_path,
                 exclude_file_patterns=exclude_list,
             )
-            self._logger.debug('Removed built binaries under: %s', self.build_path)
+            LOGGER.debug('Removed built binaries under: %s', self.build_path)
 
     def _build(
         self,
         *,
-        manifest_rootpath: t.Optional[str] = None,  # noqa: ARG002
-        modified_components: t.Optional[t.List[str]] = None,  # noqa: ARG002
-        modified_files: t.Optional[t.List[str]] = None,  # noqa: ARG002
-        check_app_dependencies: bool = False,  # noqa: ARG002
+        manifest_rootpath: t.Optional[str] = None,
+        modified_components: t.Optional[t.List[str]] = None,
+        modified_files: t.Optional[t.List[str]] = None,
+        check_app_dependencies: bool = False,
     ) -> None:
-        self._build_stage = BuildStage.BUILD
+        pass
 
     def _write_size_json(self) -> None:
         if not self.size_json_path:
@@ -667,7 +645,7 @@ class App(BaseModel):
 
         map_file = find_first_match('*.map', self.build_path)
         if not map_file:
-            self._logger.warning(
+            LOGGER.warning(
                 '.map file not found. Cannot write size json to file: %s',
                 self.size_json_path,
             )
@@ -703,18 +681,18 @@ class App(BaseModel):
                     check=True,
                 )
 
-        self._logger.debug('Generated size info to %s', self.size_json_path)
+        LOGGER.debug('Generated size info to %s', self.size_json_path)
 
     def write_size_json(self) -> None:
         if self.target in PREVIEW_TARGETS:
             # targets in preview may not yet have support in esp-idf-size
-            self._logger.info('Skipping generation of size json for target %s as it is in preview.', self.target)
+            LOGGER.info('Skipping generation of size json for target %s as it is in preview.', self.target)
             return
 
         try:
             self._write_size_json()
         except Exception as e:
-            self._logger.warning('Failed to generate size json: %s', e)
+            LOGGER.warning('Failed to generate size json: %s', e)
 
     def to_json(self) -> str:
         return self.model_dump_json()
@@ -969,7 +947,7 @@ class CMakeApp(App):
                 check=True,
                 additional_env_dict=additional_env_dict,
             )
-            self._logger.debug('generated project_description.json to check app dependencies')
+            LOGGER.debug('generated project_description.json to check app dependencies')
 
             with open(os.path.join(self.build_path, PROJECT_DESCRIPTION_JSON)) as fr:
                 build_components = {item for item in json.load(fr)['build_components'] if item}
