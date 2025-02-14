@@ -1,61 +1,92 @@
-# SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import sys
 import typing as t
+from datetime import datetime
 
-from .constants import (
-    BuildStage,
-)
+from rich import get_console
+from rich._log_render import LogRender
+from rich.console import Console, ConsoleRenderable
+from rich.containers import Renderables
+from rich.logging import RichHandler
+from rich.text import Text, TextType
 
 
-class ColoredFormatter(logging.Formatter):
-    grey: str = '\x1b[37;20m'
-    yellow: str = '\x1b[33;20m'
-    red: str = '\x1b[31;20m'
-    bold_red: str = '\x1b[31;1m'
+class _OneLineLogRender(LogRender):
+    def __call__(  # type: ignore # the original method returns Table instead of Text
+        self,
+        console: Console,
+        renderables: t.Iterable[ConsoleRenderable],
+        log_time: t.Optional[datetime] = None,
+        time_format: t.Optional[t.Union[str, t.Callable[[datetime], Text]]] = None,
+        level: TextType = '',
+        path: t.Optional[str] = None,
+        line_no: t.Optional[int] = None,
+        link_path: t.Optional[str] = None,
+    ) -> Text:
+        output = Text(no_wrap=True)
+        if self.show_time:
+            log_time = log_time or console.get_datetime()
+            time_format = time_format or self.time_format
+            if callable(time_format):
+                log_time_display = time_format(log_time)
+            else:
+                log_time_display = Text(log_time.strftime(time_format), style='log.time')
+            if log_time_display == self._last_time and self.omit_repeated_times:
+                output.append(' ' * len(log_time_display), style='log.time')
+            else:
+                output.append(log_time_display)
+                self._last_time = log_time_display
+            output.pad_right(1)
 
-    reset: str = '\x1b[0m'
+        if self.show_level:
+            output.append(level)
+            if self.level_width:
+                output.pad_right(max(1, self.level_width - len(level)))
+            else:
+                output.pad_right(1)
 
-    fmt: str = '%(asctime)s %(levelname)8s %(message)s'
-    app_fmt: str = f'%(asctime)s %(levelname)8s [%(build_stage){BuildStage.max_length()}s] %(message)s'
+        for renderable in Renderables(renderables):  # type: ignore
+            if isinstance(renderable, Text):
+                renderable.stylize('log.message')
 
-    datefmt: str = '%Y-%m-%d %H:%M:%S'
+            output.append(renderable)
+            output.pad_right(1)
 
-    FORMATS: t.Dict[int, str] = {
-        logging.DEBUG: f'{grey}{{}}{reset}',
-        logging.INFO: '{}',
-        logging.WARNING: f'{yellow}{{}}{reset}',
-        logging.ERROR: f'{red}{{}}{reset}',
-        logging.CRITICAL: f'{bold_red}{{}}{reset}',
-    }
+        if self.show_path and path:
+            path_text = Text(style='log.path')
+            path_text.append(path, style=f'link file://{link_path}' if link_path else '')
+            if line_no:
+                path_text.append(':')
+                path_text.append(
+                    f'{line_no}',
+                    style=f'link file://{link_path}#{line_no}' if link_path else '',
+                )
+            output.append(path_text)
+            output.pad_right(1)
 
-    def __init__(self, colored: bool = True) -> None:
-        self.colored = colored
-        if sys.platform == 'win32':  # does not support it
-            self.colored = False
+        output.rstrip()
+        return output
 
-        super().__init__(datefmt=self.datefmt)
 
-    def format(self, record: logging.LogRecord) -> str:
-        if getattr(record, 'build_stage', None):
-            base_fmt = self.app_fmt
-        else:
-            base_fmt = self.fmt
+def get_rich_log_handler(level: int = logging.WARNING, no_color: bool = False) -> RichHandler:
+    console = get_console()
+    console.soft_wrap = True
+    console.no_color = no_color
+    console.stderr = True
 
-        if self.colored:
-            log_fmt = self.FORMATS[record.levelno].format(base_fmt)
-        else:
-            log_fmt = base_fmt
+    handler = RichHandler(
+        level,
+        console,
+    )
+    handler._log_render = _OneLineLogRender(
+        show_level=True,
+        show_path=False,
+        omit_repeated_times=False,
+    )
 
-        if record.levelno in [logging.WARNING, logging.ERROR]:
-            record.msg = '>>> ' + str(record.msg)
-        elif record.levelno == logging.CRITICAL:
-            record.msg = '!!! ' + str(record.msg)
-
-        formatter = logging.Formatter(log_fmt, datefmt=self.datefmt)
-        return formatter.format(record)
+    return handler
 
 
 def setup_logging(verbose: int = 0, log_file: t.Optional[str] = None, colored: bool = True) -> None:
@@ -76,13 +107,13 @@ def setup_logging(verbose: int = 0, log_file: t.Optional[str] = None, colored: b
 
     package_logger = logging.getLogger(__package__)
     package_logger.setLevel(level)
+
     if log_file:
         handler: logging.Handler = logging.FileHandler(log_file)
     else:
-        handler = logging.StreamHandler(sys.stderr)
-    handler.setFormatter(ColoredFormatter(colored))
-
+        handler = get_rich_log_handler(level, not colored)
     if package_logger.hasHandlers():
         package_logger.handlers.clear()
     package_logger.addHandler(handler)
+
     package_logger.propagate = False  # don't propagate to root logger

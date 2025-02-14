@@ -38,6 +38,7 @@ repos:
           - pytest
           - argcomplete>=3
           - esp-bool-parser>=0.1.2,<1
+          - rich
   - repo: https://github.com/hfudev/rstfmt
     rev: v0.1.4
     hooks:
