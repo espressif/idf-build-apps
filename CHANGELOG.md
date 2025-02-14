@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.6.4 (2025-02-14)
+
+### Fix
+
+- collect file not created when no apps built
+
 ## v2.6.3 (2025-02-11)
 
 ### Fix
