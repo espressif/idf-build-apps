@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -22,6 +22,7 @@ from idf_build_apps import (
 from idf_build_apps.app import (
     CMakeApp,
 )
+from idf_build_apps.args import BuildArguments
 from idf_build_apps.constants import (
     IDF_PATH,
     BuildStatus,
@@ -202,3 +203,18 @@ class TestBuild:
         assert test_suite.attrib['skipped'] == '0'
 
         assert test_suite.findall('testcase')[0].attrib['name'] == 'foo/bar/build'
+
+
+def test_build_apps_collect_files_when_no_apps_built(tmp_path):
+    os.chdir(tmp_path)
+
+    build_apps(
+        build_arguments=BuildArguments(
+            target='esp32',
+            collect_app_info_filename='app_info.txt',
+            collect_size_info_filename='size_info.txt',
+        )
+    )
+
+    assert os.path.exists('app_info.txt')
+    assert os.path.exists('size_info.txt')

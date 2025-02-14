@@ -10,6 +10,7 @@ import os
 import sys
 import textwrap
 import typing as t
+from pathlib import Path
 
 import argcomplete
 from pydantic import (
@@ -170,6 +171,13 @@ def build_apps(
             LOGGER.debug('Remove existing collect file %s', f)
 
     exit_code = 0
+
+    # create empty files, avoid no file when no app is built
+    if build_arguments.collect_app_info:
+        Path(build_arguments.collect_app_info).touch()
+    if build_arguments.collect_size_info:
+        Path(build_arguments.collect_size_info).touch()
+
     for i, app in enumerate(apps):
         index = i + 1  # we use 1-based
         if index < start or index > stop:
