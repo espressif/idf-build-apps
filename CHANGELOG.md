@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.7.0 (2025-02-18)
+
+### Feat
+
+- improve debug info with rich
+
 ## v2.6.4 (2025-02-14)
 
 ### Fix
