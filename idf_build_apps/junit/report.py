@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -211,4 +211,4 @@ class TestReport:
             xml.append(test_suite.to_xml_elem())
 
         ElementTree.ElementTree(xml).write(self.filepath, encoding='utf-8')
-        LOGGER.info('Test report written to %s', self.filepath)
+        LOGGER.info('Generated build junit report at: %s', self.filepath)

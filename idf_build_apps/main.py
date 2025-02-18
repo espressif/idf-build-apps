@@ -76,7 +76,7 @@ def find_apps(
     ## `preserve`
     if 'preserve' in kwargs:
         LOGGER.warning(
-            'Passing "preserve" directly is deprecated. '
+            'DEPRECATED: Passing "preserve" directly is deprecated. '
             'Pass "no_preserve" instead to disable preserving the build directory'
         )
         kwargs['no_preserve'] = not kwargs.pop('preserve')
@@ -103,11 +103,14 @@ def find_apps(
     apps: t.Set[App] = set()
     if find_arguments.target == 'all':
         targets = ALL_TARGETS
+        LOGGER.info('Searching for apps by all targets')
     else:
         targets = [find_arguments.target]
+        LOGGER.info('Searching for apps by target: %s', find_arguments.target)
 
     for _t in targets:
         for _p in find_arguments.paths:
+            LOGGER.debug('Searching for apps in path %s for target %s', _p, _t)
             apps.update(
                 _find_apps(
                     _p,
@@ -117,7 +120,7 @@ def find_apps(
                 )
             )
 
-    LOGGER.info(f'Found {len(apps)} apps in total')
+    LOGGER.info('Found %d apps in total', len(apps))
 
     return sorted(apps)
 
@@ -141,7 +144,7 @@ def build_apps(
     ## `check_app_dependencies`
     if 'check_app_dependencies' in kwargs:
         LOGGER.warning(
-            'Passing "check_app_dependencies" directly is deprecated. '
+            'DEPRECATED: Passing "check_app_dependencies" directly is deprecated. '
             'Pass "modified_components" instead to enable dependency-driven build feature'
         )
         kwargs.pop('check_app_dependencies')
@@ -162,20 +165,22 @@ def build_apps(
     test_suite = TestSuite('build_apps')
 
     start, stop = get_parallel_start_stop(len(apps), build_arguments.parallel_count, build_arguments.parallel_index)
-    LOGGER.info('Total %s apps. running build for app %s-%s', len(apps), start, stop)
+    LOGGER.info('Processing %d total apps: building apps %d-%d', len(apps), start, stop)
 
     # cleanup collect files if exists at this early-stage
     for f in (build_arguments.collect_app_info, build_arguments.collect_size_info, build_arguments.junitxml):
         if f and os.path.isfile(f):
+            LOGGER.debug('Removing existing collect file: %s', f)
             os.remove(f)
-            LOGGER.debug('Remove existing collect file %s', f)
 
     exit_code = 0
 
     # create empty files, avoid no file when no app is built
     if build_arguments.collect_app_info:
+        LOGGER.debug('Creating empty app info file: %s', build_arguments.collect_app_info)
         Path(build_arguments.collect_app_info).touch()
     if build_arguments.collect_size_info:
+        LOGGER.debug('Creating empty size info file: %s', build_arguments.collect_size_info)
         Path(build_arguments.collect_size_info).touch()
 
     for i, app in enumerate(apps):
@@ -189,7 +194,7 @@ def build_apps(
         app.verbose = build_arguments.build_verbose
         app.copy_sdkconfig = build_arguments.copy_sdkconfig
 
-        LOGGER.info('(%s/%s) Building app: %s', index, len(apps), app)
+        LOGGER.info('(%d/%d) Building app: %s', index, len(apps), app)
 
         app.build(
             manifest_rootpath=build_arguments.manifest_rootpath,
@@ -207,12 +212,14 @@ def build_apps(
         if build_arguments.collect_app_info:
             with open(build_arguments.collect_app_info, 'a') as fw:
                 fw.write(app.to_json() + '\n')
-            LOGGER.debug('Recorded app info in %s', build_arguments.collect_app_info)
+            LOGGER.debug('Recorded app info in file: %s', build_arguments.collect_app_info)
 
         if app.build_status == BuildStatus.FAILED:
             if not build_arguments.keep_going:
+                LOGGER.error('Build failed and keep_going=False, stopping build process')
                 return 1
             else:
+                LOGGER.warning('Build failed but keep_going=True, continuing with next app')
                 exit_code = 1
         elif app.build_status == BuildStatus.SUCCESS:
             if build_arguments.collect_size_info and app.size_json_path:
@@ -229,13 +236,12 @@ def build_apps(
                             )
                             + '\n'
                         )
-                    LOGGER.debug('Recorded size info file path in %s', build_arguments.collect_size_info)
+                    LOGGER.debug('Recorded size info file path: %s', build_arguments.collect_size_info)
 
         LOGGER.info('')  # add one empty line for separating different builds
 
     if build_arguments.junitxml:
         TestReport([test_suite], build_arguments.junitxml).create_test_report()
-        LOGGER.info('Generated junit report for build apps: %s', build_arguments.junitxml)
 
     return exit_code
 
