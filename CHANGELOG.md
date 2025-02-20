@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.8.0 (2025-02-20)
+
+### Feat
+
+- support '--disable-targets'
+
 ## v2.7.0 (2025-02-18)
 
 ### Feat
