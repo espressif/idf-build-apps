@@ -16,7 +16,7 @@ from idf_build_apps.args import (
     FindArguments,
     FindBuildArguments,
 )
-from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN
+from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN, PREVIEW_TARGETS, SUPPORTED_TARGETS
 from idf_build_apps.main import main
 
 
@@ -159,6 +159,54 @@ modified_files = [
     assert args.modified_files == ['file1']
     assert args.verbose == 3
     assert args.deactivate_dependency_driven_build_by_components == ['baz']
+
+
+def test_build_targets_cli(tmp_path, monkeypatch):
+    create_project('foo', tmp_path)
+    with open(IDF_BUILD_APPS_TOML_FN, 'w') as fw:
+        fw.write("""paths = ["foo"]
+build_dir = "build_@t"
+junitxml = "test.xml"
+dry_run = true
+""")
+
+    def get_enabled_targets(args):
+        with monkeypatch.context() as m:
+            m.setattr('sys.argv', args)
+            main()
+        with open('test.xml') as f:
+            xml = ElementTree.fromstring(f.read())
+        test_suite = xml.findall('testsuite')[0]
+        testcases = test_suite.findall('testcase')
+        # get targets
+        return [c.attrib['name'].replace('foo/build_', '') for c in testcases]
+
+    # default build SUPPORTED_TARGETS
+    targets = get_enabled_targets(['idf-build-apps', 'build'])
+    assert len(targets) == len(SUPPORTED_TARGETS)
+    assert set(targets) == set(SUPPORTED_TARGETS)
+    # build with --target
+    targets = get_enabled_targets(['idf-build-apps', 'build', '--target', 'esp32'])
+    assert len(targets) == 1
+    assert targets[0] == 'esp32'
+    # build with --default-build-targets
+    targets = get_enabled_targets(['idf-build-apps', 'build', '--default-build-targets', 'esp32', 'esp32s2'])
+    assert len(targets) == 2
+    assert set(targets) == {'esp32', 'esp32s2'}
+    # build with --enable-preview-targets
+    targets = get_enabled_targets(['idf-build-apps', 'build', '--enable-preview-targets'])
+    assert len(targets) == len(SUPPORTED_TARGETS) + len(PREVIEW_TARGETS)
+    assert set(targets) == set(SUPPORTED_TARGETS) | set(PREVIEW_TARGETS)
+    # build with --disable-targets
+    assert 'esp32' in SUPPORTED_TARGETS and 'esp32s2' in SUPPORTED_TARGETS
+    targets = get_enabled_targets(['idf-build-apps', 'build', '--disable-targets', 'esp32', 'esp32s2'])
+    assert set(targets) == set(SUPPORTED_TARGETS) - {'esp32', 'esp32s2'}
+    # build with --enable-preview-targets and --disable-targets
+    targets = get_enabled_targets(
+        ['idf-build-apps', 'build', '--enable-preview-targets', '--disable-targets', PREVIEW_TARGETS[0]]
+    )
+    assert len(targets) == len(SUPPORTED_TARGETS) + len(PREVIEW_TARGETS) - 1
+    assert set(targets) == set(SUPPORTED_TARGETS) | set(PREVIEW_TARGETS) - {PREVIEW_TARGETS[0]}
 
 
 class TestIgnoreWarningFile:
