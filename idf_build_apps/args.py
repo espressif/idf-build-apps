@@ -27,7 +27,7 @@ from pydantic_settings import (
 from typing_extensions import Concatenate, ParamSpec
 
 from . import SESSION_ARGS, App, setup_logging
-from .constants import ALL_TARGETS, IDF_BUILD_APPS_TOML_FN
+from .constants import ALL_TARGETS, IDF_BUILD_APPS_TOML_FN, SUPPORTED_TARGETS
 from .manifest.manifest import FolderRule, Manifest
 from .utils import InvalidCommand, files_matches_patterns, semicolon_separated_str_to_list, to_absolute_path, to_list
 from .vendors.pydantic_sources import PyprojectTomlConfigSettingsSource, TomlConfigSettingsSource
@@ -500,6 +500,14 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         'including the preview targets. As the targets defined in `idf.py --list-targets --preview`',
         default=False,  # type: ignore
     )
+    disable_targets: t.Optional[t.List[str]] = field(
+        FieldMetadata(
+            validate_method=[ValidateMethod.TO_LIST],
+            nargs='+',
+        ),
+        description='space-separated list of targets that should be disabled to all apps.',
+        default=None,  # type: ignore
+    )
     include_skipped_apps: bool = field(
         FieldMetadata(
             action='store_true',
@@ -548,6 +556,14 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         elif self.enable_preview_targets:
             self.default_build_targets = deepcopy(ALL_TARGETS)
             LOGGER.info('Overriding default build targets to %s', self.default_build_targets)
+            FolderRule.DEFAULT_BUILD_TARGETS = self.default_build_targets
+        else:
+            # restore default build targets
+            FolderRule.DEFAULT_BUILD_TARGETS = SUPPORTED_TARGETS
+
+        if self.disable_targets and FolderRule.DEFAULT_BUILD_TARGETS:
+            LOGGER.info('Disable targets: %s', self.disable_targets)
+            self.default_build_targets = [t for t in FolderRule.DEFAULT_BUILD_TARGETS if t not in self.disable_targets]
             FolderRule.DEFAULT_BUILD_TARGETS = self.default_build_targets
 
         if self.override_sdkconfig_items or self.override_sdkconfig_items:
