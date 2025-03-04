@@ -146,6 +146,12 @@ When building the project for the ESP32 target, `sdkconfig files`_ with the ``.e
       B --> C --> D -- "populates sdkconfig file, then build" --> F
       B --> E -- "populates sdkconfig file, then build" --> G
 
+.. warning::
+
+   Standalone target-specific sdkconfig files are ignored. To make the target-specific sdkconfig files effective, the original sdkconfig file, (without the target name suffix) must be present.
+
+   For example, ``sdkconfig.ci.foo.esp32`` will only be taken into account while building with target ``esp32`` if ``sdkconfig.ci.foo`` is also present.
+
 Override In CLI
 ===============
 
