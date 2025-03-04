@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.8.1 (2025-03-04)
+
+### Fix
+
+- --override-sdkconfig-files not working
+
 ## v2.8.0 (2025-02-20)
 
 ### Feat
