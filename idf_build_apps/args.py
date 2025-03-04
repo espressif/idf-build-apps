@@ -566,7 +566,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
             self.default_build_targets = [t for t in FolderRule.DEFAULT_BUILD_TARGETS if t not in self.disable_targets]
             FolderRule.DEFAULT_BUILD_TARGETS = self.default_build_targets
 
-        if self.override_sdkconfig_items or self.override_sdkconfig_items:
+        if self.override_sdkconfig_files or self.override_sdkconfig_items:
             SESSION_ARGS.set(self)
 
 
