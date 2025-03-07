@@ -535,6 +535,28 @@ baz:
     }
 
 
+def test_folder_rule_introduced_by(tmp_path):
+    yaml_file = tmp_path / 'test.yml'
+    yaml_file.write_text(
+        """
+foo:
+  enable:
+    - if: IDF_TARGET == "esp32"
+    - if: IDF_TARGET == "esp32c3"
+bar:
+  enable:
+    - if: IDF_TARGET == "esp32"
+baz:
+  enable:
+    - if: IDF_TARGET == "esp32"
+""",
+        encoding='utf8',
+    )
+
+    manifest = Manifest.from_file(yaml_file)
+    assert manifest.most_suitable_rule('baz').by_manifest_file == str(yaml_file)
+
+
 class TestIfParser:
     def test_invalid_if_statement(self):
         statement = '1'

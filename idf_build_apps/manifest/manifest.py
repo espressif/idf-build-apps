@@ -89,7 +89,10 @@ class FolderRule:
         disable_test: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
         depends_components: t.Optional[t.List[t.Union[str, t.Dict[str, t.Any]]]] = None,
         depends_filepatterns: t.Optional[t.List[t.Union[str, t.Dict[str, t.Any]]]] = None,
+        manifest_filepath: t.Optional[str] = None,
     ) -> None:
+        self._manifest_filepath = manifest_filepath
+
         self.folder = os.path.abspath(folder)
 
         def _clause_to_if_clause(clause: t.Dict[str, t.Any]) -> IfClause:
@@ -167,6 +170,10 @@ class FolderRule:
 
     def __repr__(self) -> str:
         return f'FolderRule({self.folder})'
+
+    @property
+    def by_manifest_file(self) -> t.Optional[str]:
+        return self._manifest_filepath
 
     def _enable_build(self, target: str, config_name: str) -> bool:
         if self.enable:
@@ -309,7 +316,7 @@ class Manifest:
                     LOGGER.warning(msg)
 
             try:
-                rules.append(FolderRule(folder, **folder_rule if folder_rule else {}))
+                rules.append(FolderRule(folder, **folder_rule if folder_rule else {}, manifest_filepath=str(path)))
             except InvalidIfClause as e:
                 raise InvalidManifest(f'Invalid manifest file {path}: {e}')
 
