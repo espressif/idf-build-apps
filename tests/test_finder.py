@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
 import os
 import tempfile
 from pathlib import (
@@ -443,7 +442,6 @@ class TestFindWithSdkconfigFiles:
             if not os.path.isfile(default_sdkconfig_path):
                 with open(default_sdkconfig_path, 'w') as fw:
                     fw.write('CONFIG_IDF_TARGET="linux"')
-                    logging.info('Created temp %s %s', DEFAULT_SDKCONFIG, default_sdkconfig_path)
                 _app = app
                 _default_sdkconfig_path = default_sdkconfig_path
                 break
@@ -456,7 +454,6 @@ class TestFindWithSdkconfigFiles:
         finally:
             try:
                 os.remove(_default_sdkconfig_path)
-                logging.info('Removed temp %s %s', DEFAULT_SDKCONFIG, _default_sdkconfig_path)
             except:  # noqa
                 pass
 
