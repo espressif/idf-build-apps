@@ -97,6 +97,18 @@ This indicates that in the configuration file, you should specify it with the na
        "bar",
    ]
 
+******************************
+ Expand Environment Variables
+******************************
+
+Some configuration options support environment variables. You can use environment variables in the configuration file by using the syntax ``${VAR_NAME}`` or ``$VAR_NAME``. Undeclared environment variables will be replaced with an empty string. For exmaple:
+
+.. code:: toml
+
+   collect_app_info_filename = "app_info_${CI_JOB_NAME_SLUG}"
+
+when the environment variable ``CI_JOB_NAME_SLUG`` is set to ``my_job``, the ``collect_app_info_filename`` will be expanded to ``app_info_my_job``. When the environment variable is not set, the value will be ``app_info_``.
+
 *************************
  CLI Argument Precedence
 *************************
