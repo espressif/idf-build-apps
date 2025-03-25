@@ -16,8 +16,8 @@ repos:
           - license_header.txt        # defaults to: LICENSE.txt
           - --use-current-year
         exclude: 'idf_build_apps/vendors/'
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: 'v0.9.5'
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: 'v0.11.2'
     hooks:
       - id: ruff
         args: ['--fix']
