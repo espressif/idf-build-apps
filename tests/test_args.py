@@ -15,6 +15,7 @@ from idf_build_apps.args import (
     DependencyDrivenBuildArguments,
     FindArguments,
     FindBuildArguments,
+    expand_vars,
 )
 from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN, PREVIEW_TARGETS, SUPPORTED_TARGETS
 from idf_build_apps.main import main
@@ -408,3 +409,12 @@ dry_run = false
         assert test_suite.attrib['errors'] == '0'
         assert test_suite.attrib['skipped'] == '1'
         assert test_suite.findall('testcase')[0].attrib['name'] == 'bar/build'
+
+
+def test_expand_vars(monkeypatch):
+    assert expand_vars('Value is $TEST_VAR') == 'Value is '
+    monkeypatch.setenv('TEST_VAR', 'test_value')
+    assert expand_vars('Value is $TEST_VAR') == 'Value is test_value'
+    assert expand_vars('Value is $TEST_VAR and $NON_EXISTING_VAR') == 'Value is test_value and '
+    assert expand_vars('No variables here') == 'No variables here'
+    assert expand_vars('') == ''

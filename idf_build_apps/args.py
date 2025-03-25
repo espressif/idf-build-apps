@@ -14,6 +14,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from io import TextIOWrapper
 from pathlib import Path
+from string import Template
 from typing import Any
 
 from pydantic import AliasChoices, Field, computed_field, field_validator
@@ -112,6 +113,29 @@ def get_meta(f: FieldInfo) -> t.Optional[FieldMetadata]:
     return None
 
 
+def expand_vars(v: t.Optional[str]) -> t.Optional[str]:
+    """
+    Expand environment variables in the string. If the variable is not found, use an empty string.
+
+    :param v: string to expand
+    :return: expanded string or None if the input is None
+    """
+    if v is None:
+        return None
+
+    unknown_vars: t.Dict[str, str] = dict()
+    while True:
+        try:
+            v = Template(v).substitute(os.environ, **unknown_vars)
+        except KeyError as e:
+            LOGGER.debug('Environment variable %s not found. use empty string', e)
+            unknown_vars[e.args[0]] = ''
+        else:
+            break
+
+    return v
+
+
 class BaseArguments(BaseSettings):
     """Base settings class for all settings classes"""
 
@@ -154,7 +178,7 @@ class BaseArguments(BaseSettings):
                     if method == ValidateMethod.TO_LIST:
                         v = to_list(v)
                     elif method == ValidateMethod.EXPAND_VARS:
-                        v = os.path.expandvars(v)
+                        v = expand_vars(v)
                     else:
                         raise NotImplementedError(f'Unknown validate method: {method}')
 
@@ -689,9 +713,10 @@ class BuildArguments(FindBuildArguments):
         FieldMetadata(
             deprecates={'collect_size_info': {}},
             hidden=True,
+            validate_method=[ValidateMethod.EXPAND_VARS],
         ),
         description='Record size json filepath of the built apps to the specified file. '
-        'Each line is a json string. Can expand placeholders @p',
+        'Each line is a json string. Can expand placeholders @p. Support environment variables.',
         validation_alias=AliasChoices('collect_size_info_filename', 'collect_size_info'),
         default=None,  # type: ignore
         exclude=True,  # computed field is used
@@ -700,9 +725,10 @@ class BuildArguments(FindBuildArguments):
         FieldMetadata(
             deprecates={'collect_app_info': {}},
             hidden=True,
+            validate_method=[ValidateMethod.EXPAND_VARS],
         ),
         description='Record serialized app model of the built apps to the specified file. '
-        'Each line is a json string. Can expand placeholders @p',
+        'Each line is a json string. Can expand placeholders @p. Support environment variables.',
         validation_alias=AliasChoices('collect_app_info_filename', 'collect_app_info'),
         default=None,  # type: ignore
         exclude=True,  # computed field is used
@@ -711,8 +737,10 @@ class BuildArguments(FindBuildArguments):
         FieldMetadata(
             deprecates={'junitxml': {}},
             hidden=True,
+            validate_method=[ValidateMethod.EXPAND_VARS],
         ),
-        description='Path to the junitxml file to record the build results. Can expand placeholder @p',
+        description='Path to the junitxml file to record the build results. Can expand placeholder @p. '
+        'Support environment variables.',
         validation_alias=AliasChoices('junitxml_filename', 'junitxml'),
         default=None,  # type: ignore
         exclude=True,  # computed field is used
