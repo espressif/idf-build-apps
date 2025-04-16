@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.9.0 (2025-04-16)
+
+### Feat
+
+- record manifest_path that introduced the folder rule
+- support env var expansion in some fields
+
 ## v2.8.1 (2025-03-04)
 
 ### Fix
