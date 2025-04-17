@@ -16,8 +16,9 @@ This documentation is for idf-build-apps. idf-build-apps is a tool that allows d
 .. toctree::
    :maxdepth: 1
    :caption: Guides
+   :glob:
 
-   guides/1.x_to_2.x
+   guides/*
 
 .. toctree::
    :maxdepth: 1

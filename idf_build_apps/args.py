@@ -414,10 +414,9 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         default='all',  # type: ignore
     )
     build_system: t.Union[str, t.Type[App]] = field(
-        FieldMetadata(
-            choices=['cmake', 'make'],
-        ),
-        description='Filter the apps by build system. By default set to "cmake"',
+        None,
+        description='Filter the apps by build system. By default set to "cmake". '
+        'Can be either "cmake", "make" or a custom App class path in format "module:class"',
         default='cmake',  # type: ignore
     )
     recursive: bool = field(

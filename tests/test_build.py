@@ -3,9 +3,11 @@
 
 import os
 import shutil
+import subprocess
 from copy import (
     deepcopy,
 )
+from pathlib import Path
 from xml.etree import (
     ElementTree,
 )
@@ -20,6 +22,7 @@ from idf_build_apps import (
     find_apps,
 )
 from idf_build_apps.app import (
+    App,
     CMakeApp,
 )
 from idf_build_apps.args import BuildArguments
@@ -27,6 +30,7 @@ from idf_build_apps.constants import (
     IDF_PATH,
     BuildStatus,
 )
+from idf_build_apps.utils import Literal
 
 
 @pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')
@@ -203,6 +207,105 @@ class TestBuild:
         assert test_suite.attrib['skipped'] == '0'
 
         assert test_suite.findall('testcase')[0].attrib['name'] == 'foo/bar/build'
+
+
+class CustomClassApp(App):
+    build_system: Literal['custom_class'] = 'custom_class'  # type: ignore
+
+    def build(self, *args, **kwargs):
+        # For testing, we'll just create a dummy build directory
+        if not self.dry_run:
+            os.makedirs(self.build_path, exist_ok=True)
+            with open(os.path.join(self.build_path, 'dummy.txt'), 'w') as f:
+                f.write('Custom build successful')
+        self.build_status = BuildStatus.SUCCESS
+        print('Custom build successful')
+
+    @classmethod
+    def is_app(cls, path: str) -> bool:  # noqa: ARG003
+        return True
+
+
+@pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')
+class TestBuildWithCustomApp:
+    custom_app_code = """
+from idf_build_apps import App
+import os
+from idf_build_apps.constants import BuildStatus
+from idf_build_apps.utils import Literal
+
+class CustomApp(App):
+    build_system: Literal['custom'] = 'custom'
+
+    def build(self, *args, **kwargs):
+        # For testing, we'll just create a dummy build directory
+        if not self.dry_run:
+            os.makedirs(self.build_path, exist_ok=True)
+            with open(os.path.join(self.build_path, 'dummy.txt'), 'w') as f:
+                f.write('Custom build successful')
+        self.build_status = BuildStatus.SUCCESS
+        print('Custom build successful')
+
+    @classmethod
+    def is_app(cls, path: str) -> bool:
+        return True
+    """
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path: Path, monkeypatch):
+        os.chdir(tmp_path)
+
+        test_app = tmp_path / 'test_app'
+
+        test_app.mkdir()
+        (test_app / 'main' / 'main.c').parent.mkdir(parents=True)
+        (test_app / 'main' / 'main.c').write_text('void app_main() {}')
+
+        # Create a custom app module
+        custom_module = tmp_path / 'custom.py'
+        custom_module.write_text(self.custom_app_code)
+
+        monkeypatch.setenv('PYTHONPATH', os.getenv('PYTHONPATH', '') + os.pathsep + str(tmp_path))
+
+        return test_app
+
+    def test_custom_app_cli(self, tmp_path):
+        subprocess.run(
+            [
+                'idf-build-apps',
+                'build',
+                '-p',
+                'test_app',
+                '--target',
+                'esp32',
+                '--build-system',
+                'custom:CustomApp',
+            ],
+            check=True,
+        )
+
+        assert (tmp_path / 'test_app' / 'build' / 'dummy.txt').exists()
+        assert (tmp_path / 'test_app' / 'build' / 'dummy.txt').read_text() == 'Custom build successful'
+
+    def test_custom_app_function(self, tmp_path):
+        # Import the custom app class
+        # Find and build the app using the imported CustomApp class
+        apps = find_apps(
+            paths=['test_app'],
+            target='esp32',
+            build_system=CustomClassApp,
+        )
+
+        assert len(apps) == 1
+        app = apps[0]
+        assert isinstance(app, CustomClassApp)
+        assert app.build_system == 'custom_class'
+
+        # Build the app
+        app.build()
+        assert app.build_status == BuildStatus.SUCCESS
+        assert (tmp_path / 'test_app' / 'build' / 'dummy.txt').exists()
+        assert (tmp_path / 'test_app' / 'build' / 'dummy.txt').read_text() == 'Custom build successful'
 
 
 def test_build_apps_collect_files_when_no_apps_built(tmp_path):

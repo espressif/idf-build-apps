@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import importlib
 import json
 import logging
 import os
@@ -90,13 +91,24 @@ def find_apps(
 
     app_cls: t.Type[App]
     if isinstance(find_arguments.build_system, str):
-        # backwards compatible
         if find_arguments.build_system == 'cmake':
             app_cls = CMakeApp
         elif find_arguments.build_system == 'make':
             app_cls = MakeApp
+        elif ':' in find_arguments.build_system:
+            # Custom App class in format "module:class"
+            try:
+                module_path, class_name = find_arguments.build_system.split(':')
+                module = importlib.import_module(module_path)
+                app_cls = getattr(module, class_name)
+                if not issubclass(app_cls, App):
+                    raise ValueError(f'Class {class_name} must be a subclass of App')
+            except (ValueError, ImportError, AttributeError) as e:
+                raise ValueError(f'Invalid custom App class path: {find_arguments.build_system}. Error: {e!s}')
         else:
-            raise ValueError('Only Support "make" and "cmake"')
+            raise ValueError(
+                'build_system must be either "cmake", "make" or a custom App class path in format "module:class"'
+            )
     else:
         app_cls = find_arguments.build_system
 
