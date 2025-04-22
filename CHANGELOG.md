@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.10.0 (2025-04-22)
+
+### Feat
+
+- support custom class load from CLI
+
 ## v2.9.0 (2025-04-16)
 
 ### Feat
