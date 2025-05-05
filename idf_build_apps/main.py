@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import importlib
 import json
 import logging
 import os
@@ -30,8 +29,6 @@ from idf_build_apps.args import (
 from .app import (
     App,
     AppDeserializer,
-    CMakeApp,
-    MakeApp,
 )
 from .autocompletions import activate_completions
 from .constants import ALL_TARGETS, BuildStatus, completion_instructions
@@ -89,29 +86,6 @@ def find_apps(
             **kwargs,
         )
 
-    app_cls: t.Type[App]
-    if isinstance(find_arguments.build_system, str):
-        if find_arguments.build_system == 'cmake':
-            app_cls = CMakeApp
-        elif find_arguments.build_system == 'make':
-            app_cls = MakeApp
-        elif ':' in find_arguments.build_system:
-            # Custom App class in format "module:class"
-            try:
-                module_path, class_name = find_arguments.build_system.split(':')
-                module = importlib.import_module(module_path)
-                app_cls = getattr(module, class_name)
-                if not issubclass(app_cls, App):
-                    raise ValueError(f'Class {class_name} must be a subclass of App')
-            except (ValueError, ImportError, AttributeError) as e:
-                raise ValueError(f'Invalid custom App class path: {find_arguments.build_system}. Error: {e!s}')
-        else:
-            raise ValueError(
-                'build_system must be either "cmake", "make" or a custom App class path in format "module:class"'
-            )
-    else:
-        app_cls = find_arguments.build_system
-
     apps: t.Set[App] = set()
     if find_arguments.target == 'all':
         targets = ALL_TARGETS
@@ -127,7 +101,7 @@ def find_apps(
                 _find_apps(
                     _p,
                     _t,
-                    app_cls=app_cls,
+                    app_cls=find_arguments.build_system,  # type: ignore
                     args=find_arguments,
                 )
             )
@@ -499,14 +473,43 @@ def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = 
     :param extra_classes: extra App class
     :return: App object
     """
-    types = [App, CMakeApp, MakeApp]
+    _known_classes = list(FindArguments()._KNOWN_APP_CLASSES.values())
     if extra_classes:
-        types.extend(extra_classes)
+        _known_classes.extend(extra_classes)
 
     custom_deserializer = create_model(
         '_CustomDeserializer',
-        app=(t.Union[tuple(types)], Field(discriminator='build_system')),
+        app=(t.Union[tuple(_known_classes)], Field(discriminator='build_system')),
         __base__=AppDeserializer,
     )
 
     return custom_deserializer.from_json(json_str)
+
+
+def json_list_files_to_apps(
+    json_list_filepaths: t.List[str],
+    extra_classes: t.Optional[t.List[t.Type[App]]] = None,
+) -> t.List[App]:
+    """
+    Deserialize a list of json strings to App objects
+
+    :param json_list_filepaths: filepath to the files, each line is a json string
+    :param extra_classes: extra App class
+    :return: list of App object
+    """
+    _known_classes = list(FindArguments()._KNOWN_APP_CLASSES.values())
+    if extra_classes:
+        _known_classes.extend(extra_classes)
+
+    custom_deserializer = create_model(
+        '_CustomDeserializer',
+        app=(t.Union[tuple(_known_classes)], Field(discriminator='build_system')),
+        __base__=AppDeserializer,
+    )
+
+    jsons = []
+    for fp in json_list_filepaths:
+        with open(fp) as fr:
+            jsons.extend(fr.readlines())
+
+    return custom_deserializer.from_json_list(jsons)

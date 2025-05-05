@@ -1011,3 +1011,11 @@ class AppDeserializer(BaseModel):
     def from_json(cls, json_data: t.Union[str, bytes, bytearray]) -> App:
         json_dict = json.loads(json_data.strip())
         return cls.model_validate({'app': json_dict}).app
+
+    @classmethod
+    def from_json_list(cls, json_list: t.Sequence[t.Union[str, bytes, bytearray]]) -> t.List[App]:
+        apps = []
+        for app_json in json_list:
+            apps.append(cls.from_json(app_json))
+
+        return apps

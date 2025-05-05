@@ -79,8 +79,7 @@ def test_app_deserializer():
 
     with pytest.raises(
         ValidationError,
-        match="Input tag 'custom' found using 'build_system' does not match "
-        "any of the expected tags: 'unknown', 'cmake', 'make'",
+        match="Input tag 'custom' found using 'build_system' does not match any of the expected tags: 'cmake', 'make'",
     ):
         assert json_to_app(c.to_json()) == c
 
