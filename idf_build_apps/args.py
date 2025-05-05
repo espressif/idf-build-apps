@@ -4,6 +4,7 @@
 import argparse
 import enum
 import glob
+import importlib
 import inspect
 import logging
 import os
@@ -27,7 +28,7 @@ from pydantic_settings import (
 )
 from typing_extensions import Concatenate, ParamSpec
 
-from . import SESSION_ARGS, App, setup_logging
+from . import SESSION_ARGS, App, CMakeApp, MakeApp, setup_logging
 from .constants import ALL_TARGETS, IDF_BUILD_APPS_TOML_FN, SUPPORTED_TARGETS
 from .manifest.manifest import FolderRule, Manifest
 from .utils import InvalidCommand, files_matches_patterns, semicolon_separated_str_to_list, to_absolute_path, to_list
@@ -397,6 +398,12 @@ class DependencyDrivenBuildArguments(GlobalArguments):
 
 
 class FindBuildArguments(DependencyDrivenBuildArguments):
+    _KNOWN_APP_CLASSES: t.ClassVar[t.Dict[str, t.Type[App]]] = {
+        'cmake': CMakeApp,
+        'make': MakeApp,
+    }
+    _LOADED_MODULE_APPS: t.ClassVar[t.Dict[str, t.Type[App]]] = {}
+
     paths: t.List[str] = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
@@ -586,11 +593,55 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
 
         if self.disable_targets and FolderRule.DEFAULT_BUILD_TARGETS:
             LOGGER.info('Disable targets: %s', self.disable_targets)
-            self.default_build_targets = [t for t in FolderRule.DEFAULT_BUILD_TARGETS if t not in self.disable_targets]
+            self.default_build_targets = [
+                _target for _target in FolderRule.DEFAULT_BUILD_TARGETS if _target not in self.disable_targets
+            ]
             FolderRule.DEFAULT_BUILD_TARGETS = self.default_build_targets
 
         if self.override_sdkconfig_files or self.override_sdkconfig_items:
             SESSION_ARGS.set(self)
+
+        # load build system
+        # here could be a string or a class of type App
+        if not isinstance(self.build_system, str):
+            # do nothing, only cache
+            self._KNOWN_APP_CLASSES[self.build_system('', '').build_system] = self.build_system
+            return
+
+        # here could only be a string
+        if self.build_system in self._KNOWN_APP_CLASSES:
+            self.build_system = self._KNOWN_APP_CLASSES[self.build_system]
+            return
+
+        if ':' not in self.build_system:
+            raise ValueError(
+                f'Invalid build system: {self.build_system}. '
+                f'Known build systems: {", ".join(self._KNOWN_APP_CLASSES.keys())}'
+            )
+
+        # here could only be a string in format "module:class"
+        if self.build_system in self._LOADED_MODULE_APPS:
+            self.build_system = self._LOADED_MODULE_APPS[self.build_system]
+            return
+
+        # here could only be a string in format "module:class", and not loaded yet
+        module_path, class_name = self.build_system.split(':')
+        try:
+            module = importlib.import_module(module_path)
+        except ImportError as e:
+            raise ImportError(f'Failed to import module {module_path}. Error: {e!s}')
+
+        try:
+            app_cls = getattr(module, class_name)
+            if not issubclass(app_cls, App):
+                raise ValueError(f'Class {class_name} must be a subclass of App')
+        except (ValueError, AttributeError):
+            raise ValueError(f'Class {class_name} not found in module {module_path}')
+
+        self._LOADED_MODULE_APPS[self.build_system] = app_cls
+        self._KNOWN_APP_CLASSES[app_cls('', '').build_system] = app_cls
+
+        self.build_system = app_cls
 
 
 class FindArguments(FindBuildArguments):
