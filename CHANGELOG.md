@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.10.1 (2025-05-05)
+
+### Fix
+
+- cache custom app classes
+
 ## v2.10.0 (2025-04-22)
 
 ### Feat
