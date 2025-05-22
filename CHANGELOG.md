@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.10.2 (2025-05-22)
+
+### Perf
+
+- `most_suitable_rule` stop searching till reached root dir
+- pre-compute rules folder, reduced 50% time on `most_suitable_rule`
+
 ## v2.10.1 (2025-05-05)
 
 ### Fix
