@@ -12,6 +12,7 @@ from conftest import (
     create_project,
 )
 
+import idf_build_apps
 from idf_build_apps.constants import (
     DEFAULT_SDKCONFIG,
     IDF_PATH,
@@ -457,6 +458,21 @@ class TestFindWithSdkconfigFiles:
             except:  # noqa
                 pass
 
+    def test_build_preview_but_sdkconfig_default(self, tmp_path):
+        create_project('foo', tmp_path)
+
+        apps = find_apps(str(tmp_path / 'foo'), 'all', default_build_targets=['esp32'])
+        assert len(apps) == 1
+
+        with open(tmp_path / 'foo' / 'sdkconfig.defaults', 'w') as f:
+            f.write('CONFIG_IDF_TARGET="esp32p4"\n')
+
+        apps = find_apps(str(tmp_path / 'foo'), 'all', default_build_targets=['esp32'])
+        assert len(apps) == 0
+
+        apps = find_apps(str(tmp_path / 'foo'), 'esp32p4', default_build_targets=['esp32p4'])
+        assert len(apps) == 1
+
     def test_with_sdkconfig_defaults_idf_target_but_disabled(self, tmp_path):
         manifest_file = tmp_path / 'manifest.yml'
         manifest_file.write_text(
@@ -540,8 +556,6 @@ class TestFindWithSdkconfigFiles:
         assert len(apps) == 0
 
     def test_with_sdkconfig_override(self, tmp_path):
-        import idf_build_apps
-
         create_project('test1', tmp_path)
         (tmp_path / 'test1' / 'sdkconfig.defaults').write_text(
             """
