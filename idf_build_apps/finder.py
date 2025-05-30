@@ -18,6 +18,7 @@ from .args import FindArguments
 from .constants import (
     BuildStatus,
 )
+from .manifest import FolderRule
 from .utils import (
     config_rules_from_str,
     to_absolute_path,
@@ -37,6 +38,13 @@ def _get_apps_from_path(
     def _validate_app(_app: App) -> bool:
         if target not in _app.supported_targets:
             LOGGER.debug('=> Ignored. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
+            _app.build_status = BuildStatus.DISABLED
+            return args.include_disabled_apps
+
+        if target not in FolderRule.DEFAULT_BUILD_TARGETS:
+            LOGGER.debug(
+                '=> Ignored. %s is not in the default build targets: %s', target, FolderRule.DEFAULT_BUILD_TARGETS
+            )
             _app.build_status = BuildStatus.DISABLED
             return args.include_disabled_apps
 
