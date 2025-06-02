@@ -40,9 +40,9 @@ def _get_apps_from_path(
             _app.build_status = BuildStatus.DISABLED
             return args.include_disabled_apps
 
-        if target == 'all' and app.target not in FolderRule.DEFAULT_BUILD_TARGETS:
+        if target == 'all' and _app.target not in FolderRule.DEFAULT_BUILD_TARGETS:
             LOGGER.debug(
-                '=> Ignored. %s is not in the default build targets: %s', app.target, FolderRule.DEFAULT_BUILD_TARGETS
+                '=> Ignored. %s is not in the default build targets: %s', _app.target, FolderRule.DEFAULT_BUILD_TARGETS
             )
             _app.build_status = BuildStatus.DISABLED
             return args.include_disabled_apps
