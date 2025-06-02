@@ -34,17 +34,20 @@ def _get_apps_from_path(
     app_cls: t.Type[App] = CMakeApp,
     args: FindArguments,
 ) -> t.List[App]:
-    # trigger test
     def _validate_app(_app: App) -> bool:
         if target not in _app.supported_targets:
             LOGGER.debug('=> Ignored. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
             _app.build_status = BuildStatus.DISABLED
             return args.include_disabled_apps
 
-        if target not in FolderRule.DEFAULT_BUILD_TARGETS:
+        if target == 'all' and app.target not in FolderRule.DEFAULT_BUILD_TARGETS:
             LOGGER.debug(
-                '=> Ignored. %s is not in the default build targets: %s', target, FolderRule.DEFAULT_BUILD_TARGETS
+                '=> Ignored. %s is not in the default build targets: %s', app.target, FolderRule.DEFAULT_BUILD_TARGETS
             )
+            _app.build_status = BuildStatus.DISABLED
+            return args.include_disabled_apps
+        elif _app.target != target:
+            LOGGER.debug('=> Ignored. %s is not for target %s', _app, target)
             _app.build_status = BuildStatus.DISABLED
             return args.include_disabled_apps
 
