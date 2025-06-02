@@ -39,7 +39,7 @@ from .constants import (
     BuildStatus,
 )
 from .manifest.manifest import (
-    FolderRule,
+    DEFAULT_BUILD_TARGETS,
     Manifest,
 )
 from .utils import (
@@ -436,7 +436,7 @@ class App(BaseModel):
         if self.sdkconfig_files_defined_idf_target:
             return [self.sdkconfig_files_defined_idf_target]
 
-        return FolderRule.DEFAULT_BUILD_TARGETS
+        return DEFAULT_BUILD_TARGETS.get()
 
     @property
     def verified_targets(self) -> t.List[str]:
@@ -820,7 +820,7 @@ class MakeApp(App):
         if self.sdkconfig_files_defined_idf_target:
             return [self.sdkconfig_files_defined_idf_target]
 
-        return ['esp8266', *FolderRule.DEFAULT_BUILD_TARGETS]
+        return ['esp8266', *DEFAULT_BUILD_TARGETS.get()]
 
     def _build(
         self,

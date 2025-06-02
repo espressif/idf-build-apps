@@ -10,14 +10,13 @@ from idf_build_apps import (
     setup_logging,
 )
 from idf_build_apps.args import apply_config_file
-from idf_build_apps.constants import SUPPORTED_TARGETS
-from idf_build_apps.manifest.manifest import FolderRule
+from idf_build_apps.manifest.manifest import FolderRule, reset_default_build_targets
 
 
 @pytest.fixture(autouse=True)
 def clean_cls_attr(tmp_path):
     App.MANIFEST = None
-    FolderRule.DEFAULT_BUILD_TARGETS = SUPPORTED_TARGETS
+    reset_default_build_targets()
     idf_build_apps.SESSION_ARGS.clean()
     apply_config_file(reset=True)
     os.chdir(tmp_path)
