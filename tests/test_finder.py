@@ -25,8 +25,9 @@ from idf_build_apps.manifest.manifest import Manifest
 
 
 class TestFindWithManifest:
-    def test_manifest_rootpath_chdir(self, capsys):
-        test_dir = Path(IDF_PATH) / 'examples' / 'get-started'
+    def test_manifest_rootpath_chdir(self, capsys, tmp_path):
+        test_dir = tmp_path / 'examples' / 'get-started'
+        create_project('hello_world', test_dir)
 
         yaml_file = test_dir / 'test.yml'
         yaml_file.write_text(
@@ -38,7 +39,7 @@ examples/get-started:
             encoding='utf8',
         )
 
-        os.chdir(IDF_PATH)
+        os.chdir(tmp_path)
         assert not find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file))
         assert not capsys.readouterr().err
 

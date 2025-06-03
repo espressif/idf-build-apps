@@ -39,7 +39,6 @@ LOGGER = logging.getLogger(__name__)
 
 class ValidateMethod(str, enum.Enum):
     TO_LIST = 'to_list'
-    EXPAND_VARS = 'expand_vars'
 
 
 @dataclass
@@ -174,12 +173,17 @@ class BaseArguments(BaseSettings):
         if info.field_name and info.field_name in cls.model_fields:
             f = cls.model_fields[info.field_name]
             meta = get_meta(f)
+
+            # always expand vars for all fields
+            if isinstance(v, str):
+                v = expand_vars(v)
+            elif isinstance(v, list):
+                v = [expand_vars(item) if isinstance(item, str) else item for item in v]
+
             if meta and meta.validate_method:
                 for method in meta.validate_method:
                     if method == ValidateMethod.TO_LIST:
                         v = to_list(v)
-                    elif method == ValidateMethod.EXPAND_VARS:
-                        v = expand_vars(v)
                     else:
                         raise NotImplementedError(f'Unknown validate method: {method}')
 
@@ -241,9 +245,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         default=None,  # type: ignore
     )
     manifest_rootpath: str = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.EXPAND_VARS],
-        ),
+        None,
         description='Root path to resolve the relative paths defined in the manifest files. '
         'By default set to the current directory. Support environment variables.',
         default=os.curdir,  # type: ignore
@@ -770,7 +772,6 @@ class BuildArguments(FindBuildArguments):
         FieldMetadata(
             deprecates={'collect_size_info': {}},
             hidden=True,
-            validate_method=[ValidateMethod.EXPAND_VARS],
         ),
         description='Record size json filepath of the built apps to the specified file. '
         'Each line is a json string. Can expand placeholders @p. Support environment variables.',
@@ -782,7 +783,6 @@ class BuildArguments(FindBuildArguments):
         FieldMetadata(
             deprecates={'collect_app_info': {}},
             hidden=True,
-            validate_method=[ValidateMethod.EXPAND_VARS],
         ),
         description='Record serialized app model of the built apps to the specified file. '
         'Each line is a json string. Can expand placeholders @p. Support environment variables.',
@@ -794,7 +794,6 @@ class BuildArguments(FindBuildArguments):
         FieldMetadata(
             deprecates={'junitxml': {}},
             hidden=True,
-            validate_method=[ValidateMethod.EXPAND_VARS],
         ),
         description='Path to the junitxml file to record the build results. Can expand placeholder @p. '
         'Support environment variables.',
