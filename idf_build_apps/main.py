@@ -31,7 +31,7 @@ from .app import (
     AppDeserializer,
 )
 from .autocompletions import activate_completions
-from .constants import ALL_TARGETS, BuildStatus, completion_instructions
+from .constants import BuildStatus, completion_instructions
 from .finder import (
     _find_apps,
 )
@@ -41,6 +41,7 @@ from .junit import (
     TestSuite,
 )
 from .manifest.manifest import (
+    DEFAULT_BUILD_TARGETS,
     Manifest,
 )
 from .utils import (
@@ -88,8 +89,8 @@ def find_apps(
 
     apps: t.Set[App] = set()
     if find_arguments.target == 'all':
-        targets = ALL_TARGETS
-        LOGGER.info('Searching for apps by all targets')
+        targets = DEFAULT_BUILD_TARGETS.get()
+        LOGGER.info('Searching for apps by default build targets: %s', targets)
     else:
         targets = [find_arguments.target]
         LOGGER.info('Searching for apps by target: %s', find_arguments.target)

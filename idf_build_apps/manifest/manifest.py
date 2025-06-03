@@ -1,8 +1,10 @@
 # SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+import contextvars
 import logging
 import os
 import typing as t
+import warnings
 from hashlib import sha512
 
 from esp_bool_parser import BoolStmt, parse_bool_expr
@@ -25,6 +27,16 @@ from ..yaml import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+# Context variable for default build targets
+DEFAULT_BUILD_TARGETS: contextvars.ContextVar[t.List[str]] = contextvars.ContextVar(
+    'default_build_targets', default=SUPPORTED_TARGETS
+)
+
+
+def reset_default_build_targets() -> None:
+    """Reset DEFAULT_BUILD_TARGETS to the default value (SUPPORTED_TARGETS)"""
+    DEFAULT_BUILD_TARGETS.set(SUPPORTED_TARGETS)
 
 
 class IfClause:
@@ -78,8 +90,65 @@ class SwitchClause:
         )
 
 
-class FolderRule:
-    DEFAULT_BUILD_TARGETS = SUPPORTED_TARGETS
+def _getattr_default_build_targets(name: str) -> t.Any:
+    if name == 'DEFAULT_BUILD_TARGETS':
+        warnings.warn(
+            'FolderRule.DEFAULT_BUILD_TARGETS is deprecated. Use DEFAULT_BUILD_TARGETS.get() directly.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return DEFAULT_BUILD_TARGETS.get()
+    return None
+
+
+def _setattr_default_build_targets(name: str, value: t.Any) -> bool:
+    if name == 'DEFAULT_BUILD_TARGETS':
+        warnings.warn(
+            'FolderRule.DEFAULT_BUILD_TARGETS is deprecated. Use DEFAULT_BUILD_TARGETS.set() directly.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if not isinstance(value, list):
+            raise TypeError('Default build targets must be a list')
+        DEFAULT_BUILD_TARGETS.set(value)
+        return True
+    return False
+
+
+class _FolderRuleMeta(type):
+    """Metaclass to handle class-level assignments to DEFAULT_BUILD_TARGETS"""
+
+    def __getattribute__(cls, name):
+        result = _getattr_default_build_targets(name)
+        if result is not None:
+            return result
+        return super().__getattribute__(name)
+
+    def __setattr__(cls, name, value):
+        if _setattr_default_build_targets(name, value):
+            return
+        super().__setattr__(name, value)
+
+    def __delattr__(cls, name):
+        if name == 'DEFAULT_BUILD_TARGETS':
+            # Don't actually delete anything, just ignore the deletion
+            # This handles monkeypatch teardown issues
+            pass
+        else:
+            super().__delattr__(name)
+
+
+class FolderRule(metaclass=_FolderRuleMeta):
+    def __getattribute__(self, name):  # instance attr
+        result = _getattr_default_build_targets(name)
+        if result is not None:
+            return result
+        return super().__getattribute__(name)
+
+    def __setattr__(self, name, value):
+        if _setattr_default_build_targets(name, value):
+            return
+        super().__setattr__(name, value)
 
     def __init__(
         self,
