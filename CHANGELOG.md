@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.11.0 (2025-06-03)
+
+### Feat
+
+- support extra_pythonpaths injection during the runtime
+
 ## v2.10.3 (2025-06-03)
 
 ### Fix
