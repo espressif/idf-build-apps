@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.10.3 (2025-06-03)
+
+### Fix
+
+- app.target have higher precedence than target while `find_apps`
+- respect FolderRule.DEFAULT_BUILD_TARGETS while validating app
+
+### Refactor
+
+- move `FolderRule.DEFAULT_BUILD_TARGET` into contextvar
+
 ## v2.10.2 (2025-05-22)
 
 ### Perf
