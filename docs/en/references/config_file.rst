@@ -101,7 +101,7 @@ This indicates that in the configuration file, you should specify it with the na
  Expand Environment Variables
 ******************************
 
-Some configuration options support environment variables. You can use environment variables in the configuration file by using the syntax ``${VAR_NAME}`` or ``$VAR_NAME``. Undeclared environment variables will be replaced with an empty string. For exmaple:
+All configuration options support environment variables. You can use environment variables in the configuration file by using the syntax ``${VAR_NAME}`` or ``$VAR_NAME``. Undeclared environment variables will be replaced with an empty string. For example:
 
 .. code:: toml
 
