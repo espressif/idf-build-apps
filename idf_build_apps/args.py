@@ -422,6 +422,15 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         description='Filter the apps by target. By default set to "all"',
         default='all',  # type: ignore
     )
+    extra_pythonpaths: t.Optional[t.List[str]] = field(
+        FieldMetadata(
+            validate_method=[ValidateMethod.TO_LIST],
+            nargs='+',
+        ),
+        description='space-separated list of additional Python paths to search for the app classes. '
+        'Will be injected into the head of sys.path.',
+        default=None,  # type: ignore
+    )
     build_system: t.Union[str, t.Type[App]] = field(
         None,
         description='Filter the apps by build system. By default set to "cmake". '
@@ -609,6 +618,14 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
 
         if self.override_sdkconfig_files or self.override_sdkconfig_items:
             SESSION_ARGS.set(self)
+
+        # update PYTHONPATH
+        if self.extra_pythonpaths:
+            LOGGER.debug('Adding extra Python paths: %s', self.extra_pythonpaths)
+            for path in self.extra_pythonpaths:
+                abs_path = to_absolute_path(path)
+                if abs_path not in sys.path:
+                    sys.path.insert(0, abs_path)
 
         # load build system
         # here could be a string or a class of type App
