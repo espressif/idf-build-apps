@@ -97,12 +97,19 @@ def test_empty_argument():
     assert args.config_rules is None
 
 
-def test_build_args_expansion():
+def test_build_args_expansion(monkeypatch):
+    monkeypatch.setenv('FOO', '2')
+
     args = BuildArguments(
-        parallel_index=2, collect_app_info='@p.txt', junitxml='x_@p.txt', collect_size_info='@p_@p.txt'
+        parallel_index=2,
+        parallel_count='$FOO',
+        collect_app_info='@p.txt',
+        junitxml='x_@p.txt',
+        collect_size_info='@p_@p.txt',
     )
     assert args.collect_app_info == '2.txt'
     assert args.junitxml == 'x_2.txt'
+    assert args.parallel_count == 2
 
     args.parallel_index = 3
     assert args.collect_app_info == '3.txt'

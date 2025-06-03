@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
 import tempfile
 from pathlib import (
     Path,
@@ -25,8 +26,9 @@ from idf_build_apps.manifest.manifest import Manifest
 
 
 class TestFindWithManifest:
-    def test_manifest_rootpath_chdir(self, capsys):
-        test_dir = Path(IDF_PATH) / 'examples' / 'get-started'
+    def test_manifest_rootpath_chdir(self, capsys, tmp_path):
+        test_dir = tmp_path / 'examples' / 'get-started'
+        create_project('hello_world', test_dir)
 
         yaml_file = test_dir / 'test.yml'
         yaml_file.write_text(
@@ -38,7 +40,7 @@ examples/get-started:
             encoding='utf8',
         )
 
-        os.chdir(IDF_PATH)
+        os.chdir(tmp_path)
         assert not find_apps(str(test_dir), 'esp32', recursive=True, manifest_files=str(yaml_file))
         assert not capsys.readouterr().err
 
@@ -769,3 +771,104 @@ def test_find_apps_with_duplicated_paths(tmp_path):
         == len(find_apps(str(tmp_path / 'folder1'), 'esp32', recursive=True))
         == 2
     )
+
+
+class TestFindWithExtraPythonPaths:
+    custom_app_code = """
+import os
+import typing as t
+from idf_build_apps import App
+from idf_build_apps.constants import BuildStatus
+from idf_build_apps.utils import Literal
+
+
+class ExtraPathTestApp(App):
+    build_system: Literal['extra_path_test'] = 'extra_path_test'  # type: ignore
+
+    @property
+    def supported_targets(self) -> t.List[str]:
+        return ['esp32', 'esp32s2', 'esp32c3']
+
+    def build(self, *args, **kwargs):
+        if not self.dry_run:
+            os.makedirs(self.build_path, exist_ok=True)
+            with open(os.path.join(self.build_path, 'extra_path_test_marker.txt'), 'w') as f:
+                f.write('Extra path test build successful')
+        self.build_status = BuildStatus.SUCCESS
+
+    @classmethod
+    def is_app(cls, path: str) -> bool:
+        return True
+"""
+
+    @pytest.fixture
+    def setup_custom_module_and_app(self, tmp_path):
+        """Set up a custom module in a separate directory and a test app"""
+        # Create custom module directory (separate from app directory)
+        custom_module_dir = tmp_path / 'custom_modules'
+        custom_module_dir.mkdir()
+
+        # Create the custom module file
+        custom_module_file = custom_module_dir / 'extra_path_test_module.py'
+        custom_module_file.write_text(self.custom_app_code)
+
+        # Create test app directory
+        test_app_dir = tmp_path / 'test_app'
+        test_app_dir.mkdir()
+
+        # Create basic app structure
+        main_dir = test_app_dir / 'main'
+        main_dir.mkdir()
+        (main_dir / 'main.c').write_text('void app_main() {}')
+        (main_dir / 'CMakeLists.txt').write_text('idf_component_register(SRCS "main.c")')
+        (test_app_dir / 'CMakeLists.txt').write_text(
+            'cmake_minimum_required(VERSION 3.16)\ninclude($ENV{IDF_PATH}/tools/cmake/project.cmake)\nproject(test_app)'
+        )
+
+        return {
+            'custom_module_dir': str(custom_module_dir),
+            'test_app_dir': str(test_app_dir),
+            'custom_module_file': str(custom_module_file),
+        }
+
+    def test_extra_pythonpaths_with_custom_build_system(self, setup_custom_module_and_app):
+        """Test that extra_pythonpaths allows loading custom build system classes"""
+        setup = setup_custom_module_and_app
+
+        original_path = sys.path.copy()
+
+        try:
+            # First verify that without extra_pythonpaths, the module cannot be found
+            with pytest.raises(ImportError, match=r'Failed to import module extra_path_test_module'):
+                find_apps(
+                    paths=[setup['test_app_dir']],
+                    target='esp32',
+                    build_system='extra_path_test_module:ExtraPathTestApp',
+                )
+
+            # Now test with extra_pythonpaths - this should work
+            apps = find_apps(
+                paths=[setup['test_app_dir']],
+                target='esp32',
+                build_system='extra_path_test_module:ExtraPathTestApp',
+                extra_pythonpaths=[setup['custom_module_dir']],
+            )
+
+            # Verify we found the app
+            assert len(apps) == 1
+            app = apps[0]
+
+            # Verify it's using our custom class
+            assert app.build_system == 'extra_path_test'
+            assert app.__class__.__name__ == 'ExtraPathTestApp'
+
+            # Verify the custom module dir was added to sys.path
+            assert setup['custom_module_dir'] in sys.path
+
+            # Test building the app
+            app.build(dry_run=True)
+            assert app.build_status == BuildStatus.SUCCESS
+
+        finally:
+            # Restore original sys.path
+            sys.path[:] = original_path
