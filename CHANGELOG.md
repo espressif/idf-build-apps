@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.11.1 (2025-06-04)
+
+### Fix
+
+- stop searching apps when reached file system root
+
 ## v2.11.0 (2025-06-03)
 
 ### Feat
