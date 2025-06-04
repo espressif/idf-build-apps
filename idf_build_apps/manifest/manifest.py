@@ -460,8 +460,8 @@ class Manifest:
                 return self._rule_paths[folder]
             folder = os.path.dirname(folder)
 
-            # reached the root path, stop searching
-            if folder == self._root_path:
+            # reached the root path or the system root path, stop searching
+            if folder == self._root_path or os.path.dirname(folder) == folder:
                 if folder in self._rule_paths:
                     return self._rule_paths[folder]
                 break
