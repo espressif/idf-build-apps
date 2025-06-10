@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.11.2 (2025-06-10)
+
+### Fix
+
+- missing `FolderRule` in .manifest
+
 ## v2.11.1 (2025-06-04)
 
 ### Fix
