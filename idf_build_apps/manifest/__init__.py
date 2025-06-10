@@ -5,9 +5,14 @@
 Manifest file
 """
 
-from esp_bool_parser import register_addition_attribute
+from .manifest import DEFAULT_BUILD_TARGETS, FolderRule
 
-from .manifest import DEFAULT_BUILD_TARGETS
+__all__ = [
+    'DEFAULT_BUILD_TARGETS',
+    'FolderRule',
+]
+
+from esp_bool_parser import register_addition_attribute
 
 
 def folder_rule_attr(target, **kwargs):

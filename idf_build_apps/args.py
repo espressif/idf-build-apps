@@ -247,7 +247,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
     manifest_rootpath: str = field(
         None,
         description='Root path to resolve the relative paths defined in the manifest files. '
-        'By default set to the current directory. Support environment variables.',
+        'By default set to the current directory.',
         default=os.curdir,  # type: ignore
     )
     modified_components: t.Optional[t.List[str]] = field(
@@ -791,7 +791,7 @@ class BuildArguments(FindBuildArguments):
             hidden=True,
         ),
         description='Record size json filepath of the built apps to the specified file. '
-        'Each line is a json string. Can expand placeholders @p. Support environment variables.',
+        'Each line is a json string. Can expand placeholders @p.',
         validation_alias=AliasChoices('collect_size_info_filename', 'collect_size_info'),
         default=None,  # type: ignore
         exclude=True,  # computed field is used
@@ -802,7 +802,7 @@ class BuildArguments(FindBuildArguments):
             hidden=True,
         ),
         description='Record serialized app model of the built apps to the specified file. '
-        'Each line is a json string. Can expand placeholders @p. Support environment variables.',
+        'Each line is a json string. Can expand placeholders @p.',
         validation_alias=AliasChoices('collect_app_info_filename', 'collect_app_info'),
         default=None,  # type: ignore
         exclude=True,  # computed field is used
@@ -812,8 +812,7 @@ class BuildArguments(FindBuildArguments):
             deprecates={'junitxml': {}},
             hidden=True,
         ),
-        description='Path to the junitxml file to record the build results. Can expand placeholder @p. '
-        'Support environment variables.',
+        description='Path to the junitxml file to record the build results. Can expand placeholder @p.',
         validation_alias=AliasChoices('junitxml_filename', 'junitxml'),
         default=None,  # type: ignore
         exclude=True,  # computed field is used
