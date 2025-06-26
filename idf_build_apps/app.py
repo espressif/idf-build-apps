@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -171,7 +171,7 @@ class App(BaseModel):
         # private attrs, won't be dumped to json
         self._checked_should_build = False
 
-        self._logger = logging.getLogger(f'{__name__}.{hash(self)}')
+        self._logger = logging.getLogger(f'{__name__}.{hash(self.app_dir)}')
         self._logger.addFilter(_AppBuildStageFilter(app=self))
 
         self._sdkconfig_files, self._sdkconfig_files_defined_target = self._process_sdkconfig_files()
@@ -456,6 +456,257 @@ class App(BaseModel):
             )
 
         return []
+
+    @computed_field  # type: ignore
+    @property
+    def build_test_status(self) -> str:
+        """
+        Build and test status description
+        Possible values:
+        - "can_build_and_test" - Can build and can test
+        - "can_build_no_test" - Can build but cannot test
+        - "cannot_build" - Cannot build
+        """
+        # Check if there's a cached value
+        if hasattr(self, '_build_test_status_cache'):
+            return self._build_test_status_cache  # type: ignore
+
+        if self.target not in self.supported_targets:
+            result = 'cannot_build'
+        elif self.target not in self.verified_targets:
+            result = 'can_build_no_test'
+        else:
+            result = 'can_build_and_test'
+
+        self._build_test_status_cache = result
+        return result
+
+    @computed_field  # type: ignore
+    @property
+    def build_test_reason(self) -> t.Optional[t.Dict[str, t.Any]]:
+        """
+        Reason for build and test status
+        Returns None when status is "can_build_and_test"
+        Structure:
+        {
+            "disable_temporary": bool,  # Whether it's temporarily disabled
+            "reason": str               # Disable reason
+        }
+        """
+        # Check if there's a cached value
+        if hasattr(self, '_build_test_reason_cache'):
+            return self._build_test_reason_cache  # type: ignore
+
+        status = self.build_test_status
+
+        # When can build and test, no reason needed
+        if status == 'can_build_and_test':
+            result = None
+        else:
+            try:
+                self._validate_build_test_consistency()
+            except ValueError as e:
+                self._logger.warning(f'  Consistency check failed: {e}')
+
+            if status == 'cannot_build':
+                reasons = self._get_build_disable_reasons()
+            else:  # can_build_no_test
+                reasons = self._get_test_disable_reasons()
+
+            # Select highest priority reason
+            result = self._select_priority_reason(reasons)
+
+        self._build_test_reason_cache = result
+        return result
+
+    def _get_build_disable_reasons(self) -> t.List[t.Dict[str, t.Any]]:
+        """
+        Get list of build disable reasons
+        Return format: [{"temporary": bool, "reason": str}, ...]
+        """
+
+        if self.target in self.supported_targets:
+            return []
+
+        reasons = []
+        if self.MANIFEST:
+            rule = self.MANIFEST.most_suitable_rule(self.app_dir)
+
+            # Check if explicitly disabled by disable rules
+            is_disabled = False
+            if rule.disable:
+                for clause in rule.disable:
+                    clause_value = clause.get_value(self.target, self.config_name or '')
+                    self._logger.debug(f'  checking disable clause: {clause._stmt}, value: {clause_value}')
+                    if clause_value:
+                        is_disabled = True
+                        reasons.append(
+                            {
+                                'temporary': clause.temporary,
+                                'reason': clause.reason or f'Build disabled by rule: {clause._stmt}',
+                            }
+                        )
+
+            # If not explicitly disabled, check if in enable list
+            if not is_disabled:
+                should_be_enabled = False
+                if rule.enable:
+                    # If there are enable rules, check if they match
+                    for clause in rule.enable:
+                        clause_value = clause.get_value(self.target, self.config_name or '')
+                        self._logger.debug(f'  checking enable clause: {clause._stmt}, value: {clause_value}')
+                        if clause_value:
+                            should_be_enabled = True
+                            break
+                else:
+                    # If no enable rules, check if in default targets
+                    should_be_enabled = self.target in rule.DEFAULT_BUILD_TARGETS
+                    self._logger.debug(f'  no enable rules, checking default targets: {should_be_enabled}')
+
+                # If should be enabled but not in supported_targets, there's another reason
+                if should_be_enabled:
+                    # This case might be due to sdkconfig defined target restrictions
+                    if (
+                        self.sdkconfig_files_defined_idf_target
+                        and self.sdkconfig_files_defined_idf_target != self.target
+                    ):
+                        reasons.append(
+                            {
+                                'temporary': False,
+                                'reason': (
+                                    f'Target {self.target} not matching sdkconfig defined target '
+                                    f'{self.sdkconfig_files_defined_idf_target}'
+                                ),
+                            }
+                        )
+                    else:
+                        reasons.append(
+                            {
+                                'temporary': False,
+                                'reason': (
+                                    f'Target {self.target} not in supported targets despite being enabled by manifest'
+                                ),
+                            }
+                        )
+                else:
+                    # Target not in enable list
+                    if rule.enable:
+                        reasons.append(
+                            {'temporary': False, 'reason': f'Target {self.target} not enabled by manifest rules'}
+                        )
+                    else:
+                        reasons.append(
+                            {'temporary': False, 'reason': f'Target {self.target} not in default build targets'}
+                        )
+
+        else:
+            # No MANIFEST case
+            if self.sdkconfig_files_defined_idf_target:
+                # If sdkconfig defines target but current target doesn't match
+                if self.target != self.sdkconfig_files_defined_idf_target:
+                    reasons.append(
+                        {
+                            'temporary': False,
+                            'reason': (
+                                f'Target {self.target} not matching sdkconfig defined target '
+                                f'{self.sdkconfig_files_defined_idf_target}'
+                            ),
+                        }
+                    )
+            else:
+                # Use default targets, check if current target is in default targets
+                if self.target not in FolderRule.DEFAULT_BUILD_TARGETS:
+                    reasons.append(
+                        {
+                            'temporary': False,
+                            'reason': (
+                                f'Target {self.target} not in default build targets '
+                                f'{FolderRule.DEFAULT_BUILD_TARGETS}'
+                            ),
+                        }
+                    )
+
+        return reasons
+
+    def _get_test_disable_reasons(self) -> t.List[t.Dict[str, t.Any]]:
+        """
+        Get list of test disable reasons
+        Return format: [{"temporary": bool, "reason": str}, ...]
+        """
+        reasons = []
+
+        if self.MANIFEST:
+            rule = self.MANIFEST.most_suitable_rule(self.app_dir)
+            for clause in rule.disable_test:
+                if clause.get_value(self.target, self.config_name or ''):
+                    reasons.append(
+                        {
+                            'temporary': clause.temporary,
+                            'reason': clause.reason or f'Test disabled by rule: {clause._stmt}',
+                        }
+                    )
+
+        return reasons
+
+    def _select_priority_reason(self, reasons: t.List[t.Dict[str, t.Any]]) -> t.Dict[str, t.Any]:
+        """
+        Select highest priority reason from multiple reasons
+        Priority: non-temporary > temporary
+        """
+        assert len(reasons) > 0, 'No reasons found'
+
+        permanent_reasons = [r for r in reasons if r.get('temporary') is False]
+
+        if permanent_reasons:
+            selected = permanent_reasons[0]
+            return {'disable_temporary': False, 'reason': selected.get('reason')}
+
+        # If no non-temporary reasons, select first temporary reason
+        selected = reasons[0]
+        return {'disable_temporary': True, 'reason': selected.get('reason')}
+
+    def _validate_build_test_consistency(self) -> None:
+        """
+        Validate consistency between _get_build_disable_reasons, _get_test_disable_reasons
+        and supported_targets, verified_targets
+        """
+        can_build = self.target in self.supported_targets
+        build_reasons = self._get_build_disable_reasons()
+
+        # Check build consistency
+        if not can_build:
+            # Target not in supported_targets, should have build disable reasons
+            if not build_reasons:
+                self._logger.warning(f'Inconsistency detected: App {self.app_dir}, target {self.target}')
+                self._logger.warning(f'  supported_targets = {self.supported_targets}')
+                self._logger.warning(f'  build_reasons = {build_reasons}')
+                self._logger.warning(f'  MANIFEST exists = {self.MANIFEST is not None}')
+                if self.MANIFEST:
+                    rule = self.MANIFEST.most_suitable_rule(self.app_dir)
+                    self._logger.warning(f'  rule folder = {rule.folder}')
+                    self._logger.warning(f'  rule.disable = {rule.disable}')
+                    self._logger.warning(f'  rule.enable = {rule.enable}')
+                    self._logger.warning(f'  rule.DEFAULT_BUILD_TARGETS = {rule.DEFAULT_BUILD_TARGETS}')
+                    self._logger.warning(
+                        f'  target {self.target} in DEFAULT_BUILD_TARGETS = {self.target in rule.DEFAULT_BUILD_TARGETS}'
+                    )
+                    self._logger.warning(
+                        f"  _enable_build result = {rule._enable_build(self.target, self.config_name or '')}"
+                    )
+                raise ValueError(
+                    f'Inconsistency: target {self.target} not in supported_targets but no build disable reasons found'
+                )
+        else:
+            # Target in supported_targets, should not have build disable reasons
+            if build_reasons:
+                raise ValueError(
+                    f'Inconsistency: target {self.target} in supported_targets but build disable reasons found'
+                )
+
+        can_test = self.target in self.verified_targets
+        test_reasons = self._get_test_disable_reasons()
+        if can_test and test_reasons:
+            raise ValueError(f'Inconsistency: target {self.target} in verified_targets but test disable reasons found')
 
     def record_build_duration(func):
         @functools.wraps(func)
@@ -1027,4 +1278,17 @@ class AppDeserializer(BaseModel):
     @classmethod
     def from_json(cls, json_data: t.Union[str, bytes, bytearray]) -> App:
         json_dict = json.loads(json_data.strip())
-        return cls.model_validate({'app': json_dict}).app
+
+        # Extract computed field values (if they exist)
+        build_test_status = json_dict.pop('build_test_status', None)
+        build_test_reason = json_dict.pop('build_test_reason', None)
+
+        app = cls.model_validate({'app': json_dict}).app
+
+        # If computed field values exist, set cache
+        if build_test_status is not None:
+            app._build_test_status_cache = build_test_status
+        if build_test_reason is not None:
+            app._build_test_reason_cache = build_test_reason
+
+        return app
