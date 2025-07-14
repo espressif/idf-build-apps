@@ -553,3 +553,185 @@ def test_expand_vars(monkeypatch):
     assert expand_vars('Value is $TEST_VAR and $NON_EXISTING_VAR') == 'Value is test_value and '
     assert expand_vars('No variables here') == 'No variables here'
     assert expand_vars('') == ''
+
+
+class TestManifestFilepatterns:
+    def test_manifest_filepatterns_default(self, tmp_path):
+        root_dir = tmp_path / 'project'
+
+        (root_dir / 'app1' / 'manifest.yml').parent.mkdir(parents=True, exist_ok=True)
+        (root_dir / 'app1' / 'manifest.yml').write_text('app1:\n  enable:\n    - if: IDF_TARGET == "esp32"')
+
+        (root_dir / 'tests' / 'manifest.yml').parent.mkdir(parents=True, exist_ok=True)
+        (root_dir / 'tests' / 'manifest.yml').write_text('tests:\n  enable:\n    - if: IDF_TARGET == "esp32"')
+
+        (root_dir / 'build' / 'managed_components' / 'comp' / 'manifest.yml').parent.mkdir(parents=True, exist_ok=True)
+        (root_dir / 'build' / 'managed_components' / 'comp' / 'manifest.yml').write_text(
+            'build:\n  enable:\n    - if: IDF_TARGET == "esp32"'
+        )
+
+        # Change to the root directory
+        os.chdir(root_dir)
+
+        # Test with manifest_filepatterns and default exclude patterns
+        args = DependencyDrivenBuildArguments(manifest_filepatterns=['**/*.yml'], manifest_rootpath=str(root_dir))
+
+        # Should include app1 and app2 manifest files, but exclude managed_components
+        manifest_files = args.manifest_files
+        assert manifest_files is not None
+        assert len(manifest_files) == 2
+
+        # Convert to relative paths for easier assertion
+        rel_paths = [os.path.relpath(f, str(root_dir)) for f in manifest_files]
+        assert 'app1/manifest.yml' in rel_paths
+        assert 'tests/manifest.yml' in rel_paths
+
+    def test_manifest_exclude_regexes_custom(self, tmp_path):
+        """Test custom exclude patterns"""
+        root_dir = tmp_path / 'project'
+        root_dir.mkdir()
+
+        # Create various manifest files
+        (root_dir / 'app1' / 'manifest.yml').parent.mkdir()
+        (root_dir / 'app1' / 'manifest.yml').write_text('app1:\n  enable:\n    - if: IDF_TARGET == "esp32"')
+
+        (root_dir / 'tests' / 'manifest.yml').parent.mkdir()
+        (root_dir / 'tests' / 'manifest.yml').write_text('tests:\n  enable:\n    - if: IDF_TARGET == "esp32"')
+
+        (root_dir / 'build' / 'manifest.yml').parent.mkdir()
+        (root_dir / 'build' / 'manifest.yml').write_text('build:\n  enable:\n    - if: IDF_TARGET == "esp32"')
+
+        os.chdir(root_dir)
+
+        # Test with custom exclude patterns
+        args = DependencyDrivenBuildArguments(
+            manifest_filepatterns=['**/*.yml'],
+            manifest_exclude_regexes=['/tests/', '/build/'],
+            manifest_rootpath=str(root_dir),
+        )
+
+        manifest_files = args.manifest_files
+        assert manifest_files is not None
+        assert len(manifest_files) == 1
+
+        rel_paths = [os.path.relpath(f, str(root_dir)) for f in manifest_files]
+        assert 'app1/manifest.yml' in rel_paths
+
+    def test_manifest_exclude_regexes_empty(self, tmp_path):
+        """Test with empty exclude patterns"""
+        root_dir = tmp_path / 'project'
+        root_dir.mkdir()
+
+        # Create manifest files including one in managed_components
+        (root_dir / 'app1' / 'manifest.yml').parent.mkdir()
+        (root_dir / 'app1' / 'manifest.yml').write_text('app1:\n  enable:\n    - if: IDF_TARGET == "esp32"')
+
+        (root_dir / 'managed_components' / 'component1' / 'manifest.yml').parent.mkdir(parents=True)
+        (root_dir / 'managed_components' / 'component1' / 'manifest.yml').write_text(
+            'component1:\n  enable:\n    - if: IDF_TARGET == "esp32"'
+        )
+
+        os.chdir(root_dir)
+
+        # Test with empty exclude patterns - should include all files
+        args = DependencyDrivenBuildArguments(
+            manifest_filepatterns=['**/*.yml'], manifest_exclude_regexes=[], manifest_rootpath=str(root_dir)
+        )
+
+        manifest_files = args.manifest_files
+        assert manifest_files is not None
+        assert len(manifest_files) == 2
+
+        rel_paths = [os.path.relpath(f, str(root_dir)) for f in manifest_files]
+        assert 'app1/manifest.yml' in rel_paths
+        assert 'managed_components/component1/manifest.yml' in rel_paths
+
+    def test_manifest_exclude_regexes_with_existing_manifest_files(self, tmp_path):
+        """Test that exclude patterns work when manifest_files are already provided"""
+        root_dir = tmp_path / 'project'
+        root_dir.mkdir()
+
+        # Create manifest files
+        existing_manifest = root_dir / 'existing.yml'
+        existing_manifest.write_text('existing:\n  enable:\n    - if: IDF_TARGET == "esp32"')
+
+        (root_dir / 'app1' / 'manifest.yml').parent.mkdir()
+        (root_dir / 'app1' / 'manifest.yml').write_text('app1:\n  enable:\n    - if: IDF_TARGET == "esp32"')
+
+        (root_dir / 'managed_components' / 'component1' / 'manifest.yml').parent.mkdir(parents=True)
+        (root_dir / 'managed_components' / 'component1' / 'manifest.yml').write_text(
+            'component1:\n  enable:\n    - if: IDF_TARGET == "esp32"'
+        )
+
+        os.chdir(root_dir)
+
+        # Test with existing manifest files + filepatterns + exclude patterns
+        args = DependencyDrivenBuildArguments(
+            manifest_files=[str(existing_manifest)],
+            manifest_filepatterns=['**/*.yml'],
+            manifest_exclude_regexes=['/managed_components/'],
+            manifest_rootpath=str(root_dir),
+        )
+
+        manifest_files = args.manifest_files
+        assert manifest_files is not None
+        assert len(manifest_files) == 3  # existing (twice) + app1 (managed_components excluded)
+
+        rel_paths = [os.path.relpath(f, str(root_dir)) for f in manifest_files]
+        assert 'existing.yml' in rel_paths
+        assert 'app1/manifest.yml' in rel_paths
+        assert 'managed_components/component1/manifest.yml' not in rel_paths
+
+    def test_manifest_exclude_regexes_complex_patterns(self, tmp_path):
+        """Test complex exclude patterns with wildcards"""
+        root_dir = tmp_path / 'project'
+        root_dir.mkdir()
+
+        # Create various manifest files
+        (root_dir / 'app1' / 'manifest.yml').parent.mkdir()
+        (root_dir / 'app1' / 'manifest.yml').write_text('app1:\n  enable:\n    - if: IDF_TARGET == "esp32"')
+
+        (root_dir / 'app2' / 'foo_manifest.yml').parent.mkdir()
+        (root_dir / 'app2' / 'foo_manifest.yml').write_text('app2:\n  enable:\n    - if: IDF_TARGET == "esp32"')
+
+        (root_dir / 'docs' / 'example.yml').parent.mkdir()
+        (root_dir / 'docs' / 'example.yml').write_text('docs:\n  enable:\n    - if: IDF_TARGET == "esp32"')
+
+        os.chdir(root_dir)
+
+        # Test with complex exclude patterns
+        args = DependencyDrivenBuildArguments(
+            manifest_filepatterns=['**/*.yml'],
+            manifest_exclude_regexes=['/foo_.+', '/docs/'],
+            manifest_rootpath=str(root_dir),
+        )
+
+        manifest_files = args.manifest_files
+        assert manifest_files is not None
+        assert len(manifest_files) == 1
+
+        rel_paths = [os.path.relpath(f, str(root_dir)) for f in manifest_files]
+        assert 'app1/manifest.yml' in rel_paths
+        assert 'app2/foo_manifest.yml' not in rel_paths
+        assert 'docs/example.yml' not in rel_paths
+
+    def test_manifest_exclude_regexes_no_filepatterns(self, tmp_path):
+        """Test that exclude patterns have no effect when no filepatterns are specified"""
+        root_dir = tmp_path / 'project'
+        root_dir.mkdir()
+
+        manifest_file = root_dir / 'manifest.yml'
+        manifest_file.write_text('app:\n  enable:\n    - if: IDF_TARGET == "esp32"')
+
+        os.chdir(root_dir)
+
+        # Test with only exclude patterns (no filepatterns)
+        args = DependencyDrivenBuildArguments(
+            manifest_files=[str(manifest_file)], manifest_exclude_regexes=['.+'], manifest_rootpath=str(root_dir)
+        )
+
+        # Should still have the explicitly provided manifest file
+        manifest_files = args.manifest_files
+        assert manifest_files is not None
+        assert len(manifest_files) == 1
+        assert str(manifest_file) in manifest_files
