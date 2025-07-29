@@ -33,32 +33,6 @@ def _get_apps_from_path(
     app_cls: t.Type[App] = CMakeApp,
     args: FindArguments,
 ) -> t.List[App]:
-    def _validate_app(_app: App) -> bool:
-        if target not in _app.supported_targets:
-            LOGGER.debug('=> Ignored. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
-            _app.build_status = BuildStatus.DISABLED
-            return args.include_disabled_apps
-
-        if _app.target != target:
-            LOGGER.debug('=> Ignored. %s is not for target %s', _app, target)
-            _app.build_status = BuildStatus.DISABLED
-            return args.include_disabled_apps
-
-        _app.check_should_build(
-            manifest_rootpath=args.manifest_rootpath,
-            modified_manifest_rules_folders=args.modified_manifest_rules_folders,
-            modified_components=args.modified_components,
-            modified_files=args.modified_files,
-            check_app_dependencies=args.dependency_driven_build_enabled,
-        )
-
-        # for unknown ones, we keep them to the build stage to judge
-        if _app.build_status == BuildStatus.SKIPPED:
-            LOGGER.debug('=> Skipped. Reason: %s', _app.build_comment or 'Unknown')
-            return args.include_skipped_apps
-
-        return True
-
     if not app_cls.is_app(path):
         LOGGER.debug('Skipping. %s is not an app', path)
         return []
@@ -116,11 +90,37 @@ def _get_apps_from_path(
             sdkconfig_defaults_str=args.sdkconfig_defaults,
         )
 
-        if _validate_app(app):
+        if app.sdkconfig_files_defined_idf_target and app.target != app.sdkconfig_files_defined_idf_target:
+            LOGGER.debug(
+                'Project %s with config %s defined CONFIG_IDF_TARGET=%s, Ignoring target %s',
+                app.app_dir,
+                app.config_name or 'default',
+                app.sdkconfig_files_defined_idf_target,
+                target,
+            )
+            continue
+
+        app.check_should_build(
+            manifest_rootpath=args.manifest_rootpath,
+            modified_manifest_rules_folders=args.modified_manifest_rules_folders,
+            modified_components=args.modified_components,
+            modified_files=args.modified_files,
+            check_app_dependencies=args.dependency_driven_build_enabled,
+        )
+        app.check_should_test()
+
+        if app.build_status == BuildStatus.DISABLED:
+            LOGGER.debug('=> Disabled. Reason: %s', app.build_comment or 'Unknown')
+            should_include = args.include_disabled_apps
+        elif app.build_status == BuildStatus.SKIPPED:
+            LOGGER.debug('=> Skipped. Reason: %s', app.build_comment or 'Unknown')
+            should_include = args.include_skipped_apps
+        else:
+            should_include = True
+
+        if should_include:
             LOGGER.debug('Found app: %s', app)
             apps.append(app)
-
-        LOGGER.debug('')  # add one empty line for separating different finds
 
     return sorted(apps)
 

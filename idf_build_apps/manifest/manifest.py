@@ -61,6 +61,14 @@ class IfClause:
                 f'    reason: lack of ci runners'
             )
 
+    def __str__(self):
+        s = self._stmt
+        if self.temporary:
+            s += ' (temporary)'
+        if self.reason:
+            s += f' (reason: {self.reason})'
+        return s
+
     def __repr__(self):
         return f'IfClause(stmt={self._stmt!r}, temporary={self.temporary!r}, reason={self.reason!r})'
 
