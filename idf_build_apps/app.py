@@ -105,15 +105,16 @@ class App(BaseModel):
     # build_apps() related
     index: t.Optional[int] = None
 
-    # build status related
     build_status: BuildStatus = BuildStatus.UNKNOWN
     build_comment: t.Optional[str] = None
+    test_comment: t.Optional[str] = None
 
     _build_duration: float = 0
     _build_timestamp: t.Optional[datetime] = None
 
     __EQ_IGNORE_FIELDS__ = [
         'build_comment',
+        'test_comment',
     ]
     __EQ_TUNE_FIELDS__ = {
         'app_dir': lambda x: (os.path.realpath(os.path.expanduser(x))),
@@ -417,13 +418,13 @@ class App(BaseModel):
 
     @property
     def supported_targets(self) -> t.List[str]:
+        if self.sdkconfig_files_defined_idf_target:
+            return [self.sdkconfig_files_defined_idf_target]
+
         if self.MANIFEST:
             return self.MANIFEST.enable_build_targets(
                 self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
             )
-
-        if self.sdkconfig_files_defined_idf_target:
-            return [self.sdkconfig_files_defined_idf_target]
 
         return DEFAULT_BUILD_TARGETS.get()
 
@@ -724,7 +725,35 @@ class App(BaseModel):
         modified_components: t.Optional[t.List[str]] = None,
         modified_files: t.Optional[t.List[str]] = None,
     ) -> None:
+        """Check if this app should be built based on the modified files and components."""
         if self.build_status != BuildStatus.UNKNOWN:
+            return
+
+        if self.target not in self.supported_targets:
+            # Determine the specific reason for disabling
+            if self.MANIFEST:
+                rule = self.MANIFEST.most_suitable_rule(self.app_dir)
+                # Check if it's disabled by manifest rules, since disable rules can override enable rules
+                for clause in rule.disable:
+                    if clause.get_value(self.target, self.config_name or ''):
+                        self.build_comment = f'Disabled by manifest rule: {clause}'
+                        break
+                else:
+                    # Check if it's not enabled by manifest rules
+                    if rule.enable:
+                        # Has enable rules but target not in enabled targets
+                        self.build_comment = f'Not enabled by manifest rules for target {self.target}'
+                    else:
+                        # Check if target is not in default build targets
+                        if self.target not in DEFAULT_BUILD_TARGETS.get():
+                            self.build_comment = f'Target {self.target} not in default build targets'
+                        else:
+                            self.build_comment = f'Target {self.target} not supported by app'
+            else:
+                self.build_comment = f'Project {self.app_dir} only supports targets {",".join(self.supported_targets)}'
+
+            self.build_status = BuildStatus.DISABLED
+            self._checked_should_build = True
             return
 
         if not check_app_dependencies:
@@ -792,6 +821,41 @@ class App(BaseModel):
         self.build_status = BuildStatus.SKIPPED
         self.build_comment = 'current build does not modify any components or files required by this app'
         self._checked_should_build = True
+
+    def check_should_test(self) -> None:
+        """Check if testing is disabled for this app and set test_disable_reason."""
+        if not self.MANIFEST:
+            return
+
+        rule = self.MANIFEST.most_suitable_rule(self.app_dir)
+
+        # Check if testing is enabled for this target
+        enabled_test_targets = rule.enable_test_targets(self.sdkconfig_files_defined_idf_target, self.config_name)
+
+        if self.target not in enabled_test_targets:
+            # Determine the specific reason for test disabling
+            for clause in rule.disable_test:
+                if clause.get_value(self.target, self.config_name or ''):
+                    self.test_comment = f'Disabled by manifest test rule: {clause}'
+                    return
+
+            # Check if disabled by general disable rules
+            for clause in rule.disable:
+                if clause.get_value(self.target, self.config_name or ''):
+                    self.test_comment = f'Disabled by manifest rule: {clause}'
+                    return
+
+            # If not explicitly disabled but not in enabled targets
+            if rule.enable:
+                self.test_comment = f'Not enabled for testing on target {self.target} by manifest rules'
+            else:
+                if self.target not in DEFAULT_BUILD_TARGETS.get():
+                    self.test_comment = f'Target {self.target} not in default build targets'
+                else:
+                    self.test_comment = f'Testing not enabled for target {self.target}'
+            return
+
+        return
 
 
 class MakeApp(App):
