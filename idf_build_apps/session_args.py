@@ -70,6 +70,5 @@ class SessionArgs:
             return None
         f_path = os.path.join(self.workdir, 'override-result.sdkconfig')
         with open(f_path, 'w+') as f:
-            for key, value in override_sdkconfig_merged_items.items():
-                f.write(f'{key}={value}\n')
+            f.writelines(f'{key}={value}\n' for key, value in override_sdkconfig_merged_items.items())
         return f_path

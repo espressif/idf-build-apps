@@ -402,8 +402,7 @@ class Manifest:
         :return: None
         """
         with open(sha_filepath, 'w') as fw:
-            for rule in self.rules:
-                fw.write(f'{os.path.relpath(rule.folder, self._root_path)}:{rule.sha}\n')
+            fw.writelines(f'{os.path.relpath(rule.folder, self._root_path)}:{rule.sha}\n' for rule in self.rules)
 
     def diff_sha_with_filepath(self, sha_filepath: str, use_abspath: bool = False) -> t.Set[str]:
         """
