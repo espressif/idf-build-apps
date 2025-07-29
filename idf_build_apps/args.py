@@ -508,6 +508,13 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         validation_alias=AliasChoices('size_json_filename', 'size_file'),
         default=None,  # type: ignore
     )
+    size_json_extra_args: t.Optional[t.List[str]] = field(
+        FieldMetadata(
+            validate_method=[ValidateMethod.TO_LIST],
+        ),
+        description='Additional arguments to pass to esp_idf_size tool',
+        default=None,  # type: ignore
+    )
     config_rules: t.Optional[t.List[str]] = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
