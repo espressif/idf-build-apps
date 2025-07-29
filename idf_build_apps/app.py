@@ -325,8 +325,7 @@ class App(BaseModel):
         # put the expanded variable files in a temporary directory
         # will remove if the content is the same as the original one
         expanded_dir = os.path.join(self.work_dir, 'expanded_sdkconfig_files', os.path.basename(self.build_dir))
-        if not os.path.isdir(expanded_dir):
-            os.makedirs(expanded_dir)
+        os.makedirs(expanded_dir, exist_ok=True)
 
         for f in self.sdkconfig_defaults_candidates + ([self.sdkconfig_path] if self.sdkconfig_path else []):
             # use filepath if abs/rel already point to itself
@@ -339,57 +338,47 @@ class App(BaseModel):
                     continue
 
             expanded_fp = os.path.join(expanded_dir, os.path.basename(f))
-            with open(f) as fr:
-                with open(expanded_fp, 'w') as fw:
-                    for line in fr:
-                        line = os.path.expandvars(line)
+            with open(f) as fr, open(expanded_fp, 'w') as fw:
+                for line in fr:
+                    line = os.path.expandvars(line)
 
-                        m = self.SDKCONFIG_LINE_REGEX.match(line)
-                        if m:
-                            key = m.group(1)
-                            if key == 'CONFIG_IDF_TARGET':
-                                sdkconfig_files_defined_target = m.group(2)
+                    m = self.SDKCONFIG_LINE_REGEX.match(line)
+                    if m:
+                        key, value = m.group(1), m.group(2)
+                        if key == 'CONFIG_IDF_TARGET':
+                            sdkconfig_files_defined_target = value
 
-                            if isinstance(self, CMakeApp):
-                                if key in self.SDKCONFIG_TEST_OPTS:
-                                    self.cmake_vars[key] = m.group(2)
-                                    continue
+                        if isinstance(self, CMakeApp):
+                            if key in self.SDKCONFIG_TEST_OPTS:
+                                self.cmake_vars[key] = value
+                                continue
+                            if key in self.SDKCONFIG_IGNORE_OPTS:
+                                continue
 
-                                if key in self.SDKCONFIG_IGNORE_OPTS:
-                                    continue
+                    fw.write(line)
 
-                        fw.write(line)
+            with open(f) as fr, open(expanded_fp) as new_fr:
+                if fr.read() == new_fr.read():
+                    LOGGER.debug('Use sdkconfig file %s', f)
+                    try:
+                        os.unlink(expanded_fp)
+                    except OSError:
+                        LOGGER.debug('Failed to remove file %s', expanded_fp)
+                    real_sdkconfig_files.append(f)
+                else:
+                    LOGGER.debug('Expand sdkconfig file %s to %s', f, expanded_fp)
+                    real_sdkconfig_files.append(expanded_fp)
+                    # copy the related target-specific sdkconfig files
+                    par_dir = os.path.abspath(os.path.join(f, '..'))
+                    for target_specific_file in (
+                        os.path.join(par_dir, str(p))
+                        for p in Path(par_dir).glob(os.path.basename(f) + f'.{self.target}')
+                    ):
+                        LOGGER.debug('Copy target-specific sdkconfig file %s to %s', target_specific_file, expanded_dir)
+                        shutil.copy(target_specific_file, expanded_dir)
 
-            with open(f) as fr:
-                with open(expanded_fp) as new_fr:
-                    if fr.read() == new_fr.read():
-                        LOGGER.debug('Use sdkconfig file %s', f)
-                        try:
-                            os.unlink(expanded_fp)
-                        except OSError:
-                            LOGGER.debug('Failed to remove file %s', expanded_fp)
-                        real_sdkconfig_files.append(f)
-                    else:
-                        LOGGER.debug('Expand sdkconfig file %s to %s', f, expanded_fp)
-                        real_sdkconfig_files.append(expanded_fp)
-                        # copy the related target-specific sdkconfig files
-                        par_dir = os.path.abspath(os.path.join(f, '..'))
-                        for target_specific_file in (
-                            os.path.join(par_dir, str(p))
-                            for p in Path(par_dir).glob(os.path.basename(f) + f'.{self.target}')
-                        ):
-                            LOGGER.debug(
-                                'Copy target-specific sdkconfig file %s to %s', target_specific_file, expanded_dir
-                            )
-                            shutil.copy(target_specific_file, expanded_dir)
-
-        # remove if expanded folder is empty
         try:
             os.rmdir(expanded_dir)
-        except OSError:
-            pass
-
-        try:
             os.rmdir(os.path.join(self.work_dir, 'expanded_sdkconfig_files'))
         except OSError:
             pass

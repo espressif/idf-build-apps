@@ -18,7 +18,6 @@ from .args import FindArguments
 from .constants import (
     BuildStatus,
 )
-from .manifest.manifest import DEFAULT_BUILD_TARGETS
 from .utils import (
     config_rules_from_str,
     to_absolute_path,
@@ -40,13 +39,7 @@ def _get_apps_from_path(
             _app.build_status = BuildStatus.DISABLED
             return args.include_disabled_apps
 
-        if target == 'all' and _app.target not in DEFAULT_BUILD_TARGETS.get():
-            LOGGER.debug(
-                '=> Ignored. %s is not in the default build targets: %s', _app.target, DEFAULT_BUILD_TARGETS.get()
-            )
-            _app.build_status = BuildStatus.DISABLED
-            return args.include_disabled_apps
-        elif _app.target != target:
+        if _app.target != target:
             LOGGER.debug('=> Ignored. %s is not for target %s', _app, target)
             _app.build_status = BuildStatus.DISABLED
             return args.include_disabled_apps
@@ -73,8 +66,10 @@ def _get_apps_from_path(
     config_rules = config_rules_from_str(args.config_rules)
 
     apps = []
+    app_configs: t.List[t.Tuple[t.Optional[str], str]] = []  # List of (sdkconfig_path, config_name) tuples
     default_config_name = ''
     sdkconfig_paths_matched = False
+
     for rule in config_rules:
         if not rule.file_name:
             default_config_name = rule.config_name
@@ -99,32 +94,19 @@ def _get_apps_from_path(
                 assert groups
                 config_name = groups.group(1)
 
-            app = app_cls(
-                path,
-                target,
-                sdkconfig_path=sdkconfig_path,
-                config_name=config_name,
-                work_dir=args.work_dir,
-                build_dir=args.build_dir,
-                build_log_filename=args.build_log_filename,
-                size_json_filename=args.size_json_filename,
-                size_json_extra_args=args.size_json_extra_args,
-                check_warnings=args.check_warnings,
-                sdkconfig_defaults_str=args.sdkconfig_defaults,
-            )
-            if _validate_app(app):
-                LOGGER.debug('Found app: %s', app)
-                apps.append(app)
-
-            LOGGER.debug('')  # add one empty line for separating different finds
+            app_configs.append((sdkconfig_path, config_name))
 
     # no config rules matched, use default app
     if not sdkconfig_paths_matched:
+        app_configs.append((None, default_config_name))
+
+    # Create, validate, and add all apps
+    for p, n in app_configs:
         app = app_cls(
             path,
             target,
-            sdkconfig_path=None,
-            config_name=default_config_name,
+            sdkconfig_path=p,
+            config_name=n,
             work_dir=args.work_dir,
             build_dir=args.build_dir,
             build_log_filename=args.build_log_filename,

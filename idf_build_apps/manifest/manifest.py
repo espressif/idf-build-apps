@@ -5,6 +5,7 @@ import logging
 import os
 import typing as t
 import warnings
+from functools import lru_cache
 from hashlib import sha512
 
 from esp_bool_parser import BoolStmt, parse_bool_expr
@@ -95,7 +96,7 @@ def _getattr_default_build_targets(name: str) -> t.Any:
         warnings.warn(
             'FolderRule.DEFAULT_BUILD_TARGETS is deprecated. Use DEFAULT_BUILD_TARGETS.get() directly.',
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
         return DEFAULT_BUILD_TARGETS.get()
     return None
@@ -106,7 +107,7 @@ def _setattr_default_build_targets(name: str, value: t.Any) -> bool:
         warnings.warn(
             'FolderRule.DEFAULT_BUILD_TARGETS is deprecated. Use DEFAULT_BUILD_TARGETS.set() directly.',
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
         if not isinstance(value, list):
             raise TypeError('Default build targets must be a list')
@@ -244,6 +245,7 @@ class FolderRule(metaclass=_FolderRuleMeta):
     def by_manifest_file(self) -> t.Optional[str]:
         return self._manifest_filepath
 
+    @lru_cache(None)
     def _enable_build(self, target: str, config_name: str) -> bool:
         if self.enable:
             res = False
@@ -252,7 +254,7 @@ class FolderRule(metaclass=_FolderRuleMeta):
                     res = True
                     break
         else:
-            res = target in self.DEFAULT_BUILD_TARGETS
+            res = target in DEFAULT_BUILD_TARGETS.get()
 
         if self.disable:
             for clause in self.disable:
@@ -262,6 +264,7 @@ class FolderRule(metaclass=_FolderRuleMeta):
 
         return res
 
+    @lru_cache(None)
     def _enable_test(
         self, target: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> bool:
@@ -275,6 +278,7 @@ class FolderRule(metaclass=_FolderRuleMeta):
 
         return res
 
+    @lru_cache(None)
     def enable_build_targets(
         self, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> t.List[str]:
@@ -301,6 +305,7 @@ class FolderRule(metaclass=_FolderRuleMeta):
 
         return sorted(res)
 
+    @lru_cache(None)
     def enable_test_targets(
         self, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> t.List[str]:
