@@ -1,6 +1,5 @@
 # SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
-import contextlib
 import os
 
 import pytest
@@ -104,9 +103,14 @@ def test_app_hash():
     assert hash(a) == hash(b)
     assert len(list({a, b})) == 1
 
-    with contextlib.chdir(os.path.expanduser('~')):
+    cur_dir = os.getcwd()
+    os.chdir(os.path.expanduser('~'))
+
+    try:
         a = CMakeApp('foo', 'esp32')
         b = CMakeApp(os.path.join('~', 'foo'), 'esp32')
         assert a == b
         assert hash(a) == hash(b)
         assert len(list({a, b})) == 1
+    finally:
+        os.chdir(cur_dir)

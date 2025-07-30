@@ -11,6 +11,7 @@ This documentation is for idf-build-apps. idf-build-apps is a tool that allows d
    explanations/config_rules
    explanations/find
    explanations/build
+   explanations/build_status
    explanations/dependency_driven_build
 
 .. toctree::
