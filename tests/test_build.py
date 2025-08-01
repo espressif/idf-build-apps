@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import os
 import shutil
 import subprocess
@@ -207,6 +208,53 @@ class TestBuild:
         assert test_suite.attrib['skipped'] == '0'
 
         assert test_suite.findall('testcase')[0].attrib['name'] == 'foo/bar/build'
+
+    def test_build_with_size_json_without_extra_args(self, tmp_path):
+        """Test idf_size_py without extra args."""
+        path = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
+
+        app = CMakeApp(path, 'esp32', work_dir=str(tmp_path / 'test'), size_json_filename='size.json')
+        app.build()
+        app.write_size_json()
+
+        assert app.build_status == BuildStatus.SUCCESS
+        assert os.path.exists(app.size_json_path)
+
+        with open(app.size_json_path) as f:
+            size_data = json.load(f)
+
+        expected_keys = ['dram_data', 'dram_bss', 'used_dram', 'iram_text', 'flash_code', 'total_size']
+        for key in expected_keys:
+            assert key in size_data, f"Size JSON should contain '{key}' when no extra args"
+
+    def test_build_with_size_json_with_extra_args(self, tmp_path):
+        """Test idf_size_py with extra args."""
+        path = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
+
+        app = CMakeApp(
+            path,
+            'esp32',
+            work_dir=str(tmp_path / 'test'),
+            size_json_filename='size.json',
+            size_json_extra_args=['--files'],
+        )
+        app.build()
+        app.write_size_json()
+
+        assert app.build_status == BuildStatus.SUCCESS
+        assert os.path.exists(app.size_json_path)
+
+        with open(app.size_json_path) as f:
+            size_data = json.load(f)
+
+        expected_keys = [
+            'libesp_timer.a:system_time.c.obj',
+            'libc.a:libc_a-vfprintf.o',
+            'libfreertos.a:tasks.c.obj',
+            'libheap.a:tlsf.c.obj',
+        ]
+        for key in expected_keys:
+            assert key in size_data, f"Size JSON should contain '{key}' with extra args"
 
 
 class CustomClassApp(App):

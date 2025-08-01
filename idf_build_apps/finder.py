@@ -108,6 +108,7 @@ def _get_apps_from_path(
                 build_dir=args.build_dir,
                 build_log_filename=args.build_log_filename,
                 size_json_filename=args.size_json_filename,
+                size_json_extra_args=args.size_json_extra_args,
                 check_warnings=args.check_warnings,
                 sdkconfig_defaults_str=args.sdkconfig_defaults,
             )
@@ -128,6 +129,7 @@ def _get_apps_from_path(
             build_dir=args.build_dir,
             build_log_filename=args.build_log_filename,
             size_json_filename=args.size_json_filename,
+            size_json_extra_args=args.size_json_extra_args,
             check_warnings=args.check_warnings,
             sdkconfig_defaults_str=args.sdkconfig_defaults,
         )
