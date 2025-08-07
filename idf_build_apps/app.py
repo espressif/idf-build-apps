@@ -95,6 +95,7 @@ class App(BaseModel):
 
     _build_log_filename: t.Optional[str] = None
     _size_json_filename: t.Optional[str] = None
+    size_json_extra_args: t.Optional[t.List[str]] = None
 
     dry_run: bool = False
     verbose: bool = False
@@ -656,11 +657,10 @@ class App(BaseModel):
                 [
                     sys.executable,
                     str(IDF_SIZE_PY),
-                ]
-                + (['--json'] if IDF_VERSION < Version('5.1') else ['--format', 'json'])
-                + [
+                    *(['--json'] if IDF_VERSION < Version('5.1') else ['--format', 'json']),
                     '-o',
                     self.size_json_path,
+                    *(self.size_json_extra_args or []),
                     map_file,
                 ],
                 check=True,
@@ -668,14 +668,13 @@ class App(BaseModel):
         else:
             with open(self.size_json_path, 'w') as fw:
                 subprocess_run(
-                    (
-                        [
-                            sys.executable,
-                            str(IDF_SIZE_PY),
-                            '--json',
-                            map_file,
-                        ]
-                    ),
+                    [
+                        sys.executable,
+                        str(IDF_SIZE_PY),
+                        '--json',
+                        *(self.size_json_extra_args or []),
+                        map_file,
+                    ],
                     log_terminal=False,
                     log_fs=fw,
                     check=True,
