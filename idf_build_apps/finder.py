@@ -18,7 +18,6 @@ from .args import FindArguments
 from .constants import (
     BuildStatus,
 )
-from .manifest.manifest import DEFAULT_BUILD_TARGETS
 from .utils import (
     config_rules_from_str,
     to_absolute_path,
@@ -34,38 +33,6 @@ def _get_apps_from_path(
     app_cls: t.Type[App] = CMakeApp,
     args: FindArguments,
 ) -> t.List[App]:
-    def _validate_app(_app: App) -> bool:
-        if target not in _app.supported_targets:
-            LOGGER.debug('=> Ignored. %s only supports targets: %s', _app, ', '.join(_app.supported_targets))
-            _app.build_status = BuildStatus.DISABLED
-            return args.include_disabled_apps
-
-        if target == 'all' and _app.target not in DEFAULT_BUILD_TARGETS.get():
-            LOGGER.debug(
-                '=> Ignored. %s is not in the default build targets: %s', _app.target, DEFAULT_BUILD_TARGETS.get()
-            )
-            _app.build_status = BuildStatus.DISABLED
-            return args.include_disabled_apps
-        elif _app.target != target:
-            LOGGER.debug('=> Ignored. %s is not for target %s', _app, target)
-            _app.build_status = BuildStatus.DISABLED
-            return args.include_disabled_apps
-
-        _app.check_should_build(
-            manifest_rootpath=args.manifest_rootpath,
-            modified_manifest_rules_folders=args.modified_manifest_rules_folders,
-            modified_components=args.modified_components,
-            modified_files=args.modified_files,
-            check_app_dependencies=args.dependency_driven_build_enabled,
-        )
-
-        # for unknown ones, we keep them to the build stage to judge
-        if _app.build_status == BuildStatus.SKIPPED:
-            LOGGER.debug('=> Skipped. Reason: %s', _app.build_comment or 'Unknown')
-            return args.include_skipped_apps
-
-        return True
-
     if not app_cls.is_app(path):
         LOGGER.debug('Skipping. %s is not an app', path)
         return []
@@ -73,8 +40,10 @@ def _get_apps_from_path(
     config_rules = config_rules_from_str(args.config_rules)
 
     apps = []
+    app_configs: t.List[t.Tuple[t.Optional[str], str]] = []  # List of (sdkconfig_path, config_name) tuples
     default_config_name = ''
     sdkconfig_paths_matched = False
+
     for rule in config_rules:
         if not rule.file_name:
             default_config_name = rule.config_name
@@ -99,32 +68,19 @@ def _get_apps_from_path(
                 assert groups
                 config_name = groups.group(1)
 
-            app = app_cls(
-                path,
-                target,
-                sdkconfig_path=sdkconfig_path,
-                config_name=config_name,
-                work_dir=args.work_dir,
-                build_dir=args.build_dir,
-                build_log_filename=args.build_log_filename,
-                size_json_filename=args.size_json_filename,
-                size_json_extra_args=args.size_json_extra_args,
-                check_warnings=args.check_warnings,
-                sdkconfig_defaults_str=args.sdkconfig_defaults,
-            )
-            if _validate_app(app):
-                LOGGER.debug('Found app: %s', app)
-                apps.append(app)
-
-            LOGGER.debug('')  # add one empty line for separating different finds
+            app_configs.append((sdkconfig_path, config_name))
 
     # no config rules matched, use default app
     if not sdkconfig_paths_matched:
+        app_configs.append((None, default_config_name))
+
+    # Create, validate, and add all apps
+    for p, n in app_configs:
         app = app_cls(
             path,
             target,
-            sdkconfig_path=None,
-            config_name=default_config_name,
+            sdkconfig_path=p,
+            config_name=n,
             work_dir=args.work_dir,
             build_dir=args.build_dir,
             build_log_filename=args.build_log_filename,
@@ -134,11 +90,37 @@ def _get_apps_from_path(
             sdkconfig_defaults_str=args.sdkconfig_defaults,
         )
 
-        if _validate_app(app):
+        if app.sdkconfig_files_defined_idf_target and app.target != app.sdkconfig_files_defined_idf_target:
+            LOGGER.debug(
+                'Project %s with config %s defined CONFIG_IDF_TARGET=%s, Ignoring target %s',
+                app.app_dir,
+                app.config_name or 'default',
+                app.sdkconfig_files_defined_idf_target,
+                target,
+            )
+            continue
+
+        app.check_should_build(
+            manifest_rootpath=args.manifest_rootpath,
+            modified_manifest_rules_folders=args.modified_manifest_rules_folders,
+            modified_components=args.modified_components,
+            modified_files=args.modified_files,
+            check_app_dependencies=args.dependency_driven_build_enabled,
+        )
+        app.check_should_test()
+
+        if app.build_status == BuildStatus.DISABLED:
+            LOGGER.debug('=> Disabled. Reason: %s', app.build_comment or 'Unknown')
+            should_include = args.include_disabled_apps
+        elif app.build_status == BuildStatus.SKIPPED:
+            LOGGER.debug('=> Skipped. Reason: %s', app.build_comment or 'Unknown')
+            should_include = args.include_skipped_apps
+        else:
+            should_include = True
+
+        if should_include:
             LOGGER.debug('Found app: %s', app)
             apps.append(app)
-
-        LOGGER.debug('')  # add one empty line for separating different finds
 
     return sorted(apps)
 

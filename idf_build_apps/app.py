@@ -106,15 +106,16 @@ class App(BaseModel):
     # build_apps() related
     index: t.Optional[int] = None
 
-    # build status related
     build_status: BuildStatus = BuildStatus.UNKNOWN
     build_comment: t.Optional[str] = None
+    test_comment: t.Optional[str] = None
 
     _build_duration: float = 0
     _build_timestamp: t.Optional[datetime] = None
 
     __EQ_IGNORE_FIELDS__ = [
         'build_comment',
+        'test_comment',
     ]
     __EQ_TUNE_FIELDS__ = {
         'app_dir': lambda x: (os.path.realpath(os.path.expanduser(x))),
@@ -325,8 +326,7 @@ class App(BaseModel):
         # put the expanded variable files in a temporary directory
         # will remove if the content is the same as the original one
         expanded_dir = os.path.join(self.work_dir, 'expanded_sdkconfig_files', os.path.basename(self.build_dir))
-        if not os.path.isdir(expanded_dir):
-            os.makedirs(expanded_dir)
+        os.makedirs(expanded_dir, exist_ok=True)
 
         for f in self.sdkconfig_defaults_candidates + ([self.sdkconfig_path] if self.sdkconfig_path else []):
             # use filepath if abs/rel already point to itself
@@ -339,57 +339,47 @@ class App(BaseModel):
                     continue
 
             expanded_fp = os.path.join(expanded_dir, os.path.basename(f))
-            with open(f) as fr:
-                with open(expanded_fp, 'w') as fw:
-                    for line in fr:
-                        line = os.path.expandvars(line)
+            with open(f) as fr, open(expanded_fp, 'w') as fw:
+                for line in fr:
+                    line = os.path.expandvars(line)
 
-                        m = self.SDKCONFIG_LINE_REGEX.match(line)
-                        if m:
-                            key = m.group(1)
-                            if key == 'CONFIG_IDF_TARGET':
-                                sdkconfig_files_defined_target = m.group(2)
+                    m = self.SDKCONFIG_LINE_REGEX.match(line)
+                    if m:
+                        key, value = m.group(1), m.group(2)
+                        if key == 'CONFIG_IDF_TARGET':
+                            sdkconfig_files_defined_target = value
 
-                            if isinstance(self, CMakeApp):
-                                if key in self.SDKCONFIG_TEST_OPTS:
-                                    self.cmake_vars[key] = m.group(2)
-                                    continue
+                        if isinstance(self, CMakeApp):
+                            if key in self.SDKCONFIG_TEST_OPTS:
+                                self.cmake_vars[key] = value
+                                continue
+                            if key in self.SDKCONFIG_IGNORE_OPTS:
+                                continue
 
-                                if key in self.SDKCONFIG_IGNORE_OPTS:
-                                    continue
+                    fw.write(line)
 
-                        fw.write(line)
+            with open(f) as fr, open(expanded_fp) as new_fr:
+                if fr.read() == new_fr.read():
+                    LOGGER.debug('Use sdkconfig file %s', f)
+                    try:
+                        os.unlink(expanded_fp)
+                    except OSError:
+                        LOGGER.debug('Failed to remove file %s', expanded_fp)
+                    real_sdkconfig_files.append(f)
+                else:
+                    LOGGER.debug('Expand sdkconfig file %s to %s', f, expanded_fp)
+                    real_sdkconfig_files.append(expanded_fp)
+                    # copy the related target-specific sdkconfig files
+                    par_dir = os.path.abspath(os.path.join(f, '..'))
+                    for target_specific_file in (
+                        os.path.join(par_dir, str(p))
+                        for p in Path(par_dir).glob(os.path.basename(f) + f'.{self.target}')
+                    ):
+                        LOGGER.debug('Copy target-specific sdkconfig file %s to %s', target_specific_file, expanded_dir)
+                        shutil.copy(target_specific_file, expanded_dir)
 
-            with open(f) as fr:
-                with open(expanded_fp) as new_fr:
-                    if fr.read() == new_fr.read():
-                        LOGGER.debug('Use sdkconfig file %s', f)
-                        try:
-                            os.unlink(expanded_fp)
-                        except OSError:
-                            LOGGER.debug('Failed to remove file %s', expanded_fp)
-                        real_sdkconfig_files.append(f)
-                    else:
-                        LOGGER.debug('Expand sdkconfig file %s to %s', f, expanded_fp)
-                        real_sdkconfig_files.append(expanded_fp)
-                        # copy the related target-specific sdkconfig files
-                        par_dir = os.path.abspath(os.path.join(f, '..'))
-                        for target_specific_file in (
-                            os.path.join(par_dir, str(p))
-                            for p in Path(par_dir).glob(os.path.basename(f) + f'.{self.target}')
-                        ):
-                            LOGGER.debug(
-                                'Copy target-specific sdkconfig file %s to %s', target_specific_file, expanded_dir
-                            )
-                            shutil.copy(target_specific_file, expanded_dir)
-
-        # remove if expanded folder is empty
         try:
             os.rmdir(expanded_dir)
-        except OSError:
-            pass
-
-        try:
             os.rmdir(os.path.join(self.work_dir, 'expanded_sdkconfig_files'))
         except OSError:
             pass
@@ -429,13 +419,13 @@ class App(BaseModel):
 
     @property
     def supported_targets(self) -> t.List[str]:
+        if self.sdkconfig_files_defined_idf_target:
+            return [self.sdkconfig_files_defined_idf_target]
+
         if self.MANIFEST:
             return self.MANIFEST.enable_build_targets(
                 self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
             )
-
-        if self.sdkconfig_files_defined_idf_target:
-            return [self.sdkconfig_files_defined_idf_target]
 
         return DEFAULT_BUILD_TARGETS.get()
 
@@ -734,7 +724,33 @@ class App(BaseModel):
         modified_components: t.Optional[t.List[str]] = None,
         modified_files: t.Optional[t.List[str]] = None,
     ) -> None:
+        """Check if this app should be built based on the modified files and components."""
         if self.build_status != BuildStatus.UNKNOWN:
+            return
+
+        if self.target not in self.supported_targets:
+            # default error message
+            self.build_comment = (
+                f'Target {self.target} not in default build targets {",".join(DEFAULT_BUILD_TARGETS.get())}'
+            )
+
+            if self.MANIFEST:
+                rule = self.MANIFEST.most_suitable_rule(self.app_dir)
+
+                # disable > enable
+                for clause in rule.disable:
+                    if clause.get_value(self.target, self.config_name or ''):
+                        self.build_comment = f'Disabled by manifest rule: {clause}'
+                        break
+                else:
+                    # Check if it's not enabled by manifest rules
+                    if rule.enable:
+                        # Has enable rules but target not in enabled targets
+                        self.build_comment = 'Not enabled by manifest rules:\n'
+                        self.build_comment += '\n'.join(f'- {clause}' for clause in rule.enable)
+
+            self.build_status = BuildStatus.DISABLED
+            self._checked_should_build = True
             return
 
         if not check_app_dependencies:
@@ -802,6 +818,35 @@ class App(BaseModel):
         self.build_status = BuildStatus.SKIPPED
         self.build_comment = 'current build does not modify any components or files required by this app'
         self._checked_should_build = True
+
+    def check_should_test(self) -> None:
+        """Check if testing is disabled for this app and set test_disable_reason."""
+        if not self.MANIFEST:
+            return
+
+        rule = self.MANIFEST.most_suitable_rule(self.app_dir)
+
+        # Check if testing is enabled for this target
+        if self.target not in self.verified_targets:
+            # default error message
+            self.test_comment = f'Target {self.target} not in verified targets {",".join(self.verified_targets)}'
+
+            # disable_test > disable > enable
+            for clause in rule.disable_test:
+                if clause.get_value(self.target, self.config_name or ''):
+                    self.test_comment = f'Disabled by manifest rule: {clause}'
+                    return
+
+            # Check if disabled by general disable rules
+            for clause in rule.disable:
+                if clause.get_value(self.target, self.config_name or ''):
+                    self.test_comment = f'Disabled by manifest rule: {clause}'
+                    return
+
+            # If not explicitly disabled but not in enabled targets
+            if rule.enable:
+                self.test_comment = 'Not enabled by manifest rules:\n'
+                self.test_comment += '\n'.join(f'- {clause}' for clause in rule.enable)
 
 
 class MakeApp(App):
