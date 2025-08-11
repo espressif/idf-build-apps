@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.12.0 (2025-08-11)
+
+### Feat
+
+- recording build_disable_reason and test_disable_reason
+- support --archives, --archive-details ARCHIVE or --files args of idf.py size
+- support config `manifest_exclude_regexes`
+
 ## v2.11.2 (2025-06-10)
 
 ### Fix
