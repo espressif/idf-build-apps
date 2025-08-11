@@ -640,7 +640,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         elif self.enable_preview_targets:
             self.default_build_targets = deepcopy(ALL_TARGETS)
             LOGGER.info('Overriding default build targets to %s', self.default_build_targets)
-            DEFAULT_BUILD_TARGETS.set(self.default_build_targets)  # type: ignore
+            DEFAULT_BUILD_TARGETS.set(self.default_build_targets)
 
         if self.disable_targets and DEFAULT_BUILD_TARGETS.get():
             LOGGER.info('Disable targets: %s', self.disable_targets)

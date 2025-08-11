@@ -408,8 +408,7 @@ def main():
             os.makedirs(os.path.dirname(os.path.realpath(arguments.output)), exist_ok=True)
             with open(arguments.output, 'w') as fw:
                 if arguments.output_format == 'raw':
-                    for app in apps:
-                        fw.write(app.to_json() + '\n')
+                    fw.writelines(app.to_json() + '\n' for app in apps)
                 elif arguments.output_format == 'json':
                     fw.write(json.dumps([app.model_dump() for app in apps], indent=2))
                 else:
