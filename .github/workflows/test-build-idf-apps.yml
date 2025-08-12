@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'idf_build_apps/**'
+      - '.github/workflows/test-build-idf-apps.yml'
   push:
     branches:
       - main
@@ -94,7 +95,7 @@ jobs:
     strategy:
       matrix:
         branch:
-          - v3.4
+          - release/v3.4
     steps:
       - uses: actions/checkout@v5
       - name: Install dependencies
