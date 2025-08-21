@@ -856,20 +856,19 @@ class BuildArguments(FindBuildArguments):
     def model_post_init(self, __context: Any) -> None:
         super().model_post_init(__context)
 
-        ignore_warnings_regexes = []
+        patterns = []
         if self.ignore_warning_strs:
-            for s in self.ignore_warning_strs:
-                ignore_warnings_regexes.append(re.compile(s))
+            patterns.extend(self.ignore_warning_strs)
+
         if self.ignore_warning_files:
             for f in self.ignore_warning_files:
                 if isinstance(f, str):
                     with open(f) as fr:
-                        for s in fr:
-                            ignore_warnings_regexes.append(re.compile(s.strip()))
+                        patterns.extend(line.strip() for line in fr)
                 else:
-                    for s in f:
-                        ignore_warnings_regexes.append(re.compile(s.strip()))
-        App.IGNORE_WARNS_REGEXES = ignore_warnings_regexes
+                    patterns.extend(f)
+
+        App.IGNORE_WARNS_REGEXES = [re.compile(p.strip()) for p in patterns if p.strip()]
 
     @computed_field  # type: ignore
     @property
