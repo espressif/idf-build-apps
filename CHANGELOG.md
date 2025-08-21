@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.12.1 (2025-08-21)
+
+### Fix
+
+- ignore warnings regex ignore empty string
+
 ## v2.12.0 (2025-08-11)
 
 ### Feat
