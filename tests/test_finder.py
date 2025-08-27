@@ -475,7 +475,7 @@ class TestFindWithSdkconfigFiles:
         apps = find_apps(str(tmp_path / 'foo'), 'esp32p4', default_build_targets=['esp32p4'])
         assert len(apps) == 1
 
-    def test_with_sdkconfig_defaults_idf_target_but_disabled_failed(self, tmp_path):
+    def test_with_sdkconfig_defaults_idf_target_but_disabled(self, tmp_path):
         manifest_file = tmp_path / 'manifest.yml'
         manifest_file.write_text(
             f"""
@@ -490,7 +490,7 @@ class TestFindWithSdkconfigFiles:
 
         test_dir = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
         # according to idf.py, if `CONFIG_IDF_TARGET` is set to `esp32s2`, the app should be built
-        assert find_apps(
+        assert not find_apps(
             test_dir,
             'esp32s2',
             recursive=True,

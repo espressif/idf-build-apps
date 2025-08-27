@@ -419,13 +419,13 @@ class App(BaseModel):
 
     @property
     def supported_targets(self) -> t.List[str]:
-        if self.sdkconfig_files_defined_idf_target:
-            return [self.sdkconfig_files_defined_idf_target]
-
         if self.MANIFEST:
             return self.MANIFEST.enable_build_targets(
                 self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
             )
+
+        if self.sdkconfig_files_defined_idf_target:
+            return [self.sdkconfig_files_defined_idf_target]
 
         return DEFAULT_BUILD_TARGETS.get()
 
