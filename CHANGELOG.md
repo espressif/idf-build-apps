@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.12.2 (2025-08-27)
+
+### Fix
+
+- disable rules wrongly ignored when defining CONFIG_IDF_TARGET in sdkconfig files
+
 ## v2.12.1 (2025-08-21)
 
 ### Fix
