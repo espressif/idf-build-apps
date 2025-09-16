@@ -8,6 +8,7 @@ from pathlib import (
 import pytest
 
 from idf_build_apps.utils import (
+    BaseModel,
     files_matches_patterns,
     get_parallel_start_stop,
     rmdir,
@@ -142,3 +143,19 @@ def test_files_matches_patterns(tmp_path):
         os.chdir(temp_dir)
         for f in matched_files:
             assert files_matches_patterns(f, abs_pat)
+
+
+def test_base_model_hashable():
+    class Foo(BaseModel):
+        foo: str
+        bar: str
+
+        __EQ_IGNORE_FIELDS__ = ['bar']
+
+    a = Foo(foo='foo', bar='bar')
+    b = Foo(foo='foo', bar='rab')
+
+    assert a == b
+    assert hash(a) == hash(b)
+    s = {a, b}
+    assert len(s) == 1
