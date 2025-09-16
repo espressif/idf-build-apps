@@ -386,6 +386,9 @@ class BaseModel(_BaseModel):
         hash_list = []
 
         self_model_dump = self.model_dump()
+        for _field in self.__EQ_IGNORE_FIELDS__:
+            self_model_dump.pop(_field, None)
+
         for _field in self.__EQ_TUNE_FIELDS__:
             self_model_dump[_field] = self.__EQ_TUNE_FIELDS__[_field](self_model_dump[_field])
 
