@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.12.3 (2025-09-16)
+
+### Fix
+
+- app behaves normally in set
+
 ## v2.12.2 (2025-08-27)
 
 ### Fix
