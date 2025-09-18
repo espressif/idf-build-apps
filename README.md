@@ -65,6 +65,18 @@ The binary files will be generated under `$IDF_PATH/examples/get-started/hello_w
 
 For detailed information, please refer to [our documentation site][doc]!
 
+## Testing
+
+To run the full test suite, you need ESP-IDF installed and configured. Core functionality tests can be run without ESP-IDF:
+
+```shell
+# Run core tests (no ESP-IDF required)
+pytest tests/test_app.py tests/test_utils.py
+
+# Run all tests (requires ESP-IDF)
+pytest
+```
+
 ## Contributing
 
 Thanks for your contribution! Please refer to our [Contributing Guide](CONTRIBUTING.md)
