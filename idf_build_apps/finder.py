@@ -16,6 +16,7 @@ from .app import (
 )
 from .args import FindArguments
 from .constants import (
+    ALL_TARGETS,
     BuildStatus,
 )
 from .utils import (
@@ -24,6 +25,14 @@ from .utils import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _is_target_specific(filepath: str) -> bool:
+    for target in ALL_TARGETS:
+        if filepath.endswith(f'.{target}'):
+            return True
+
+    return False
 
 
 def _get_apps_from_path(
@@ -55,8 +64,8 @@ def _get_apps_from_path(
             sdkconfig_paths_matched = True  # skip the next block for no wildcard config rules
 
         for sdkconfig_path in sdkconfig_paths:
-            if sdkconfig_path.endswith(f'.{target}'):
-                LOGGER.debug('=> Skipping sdkconfig %s which is target-specific', sdkconfig_path)
+            if _is_target_specific(sdkconfig_path):
+                LOGGER.debug('=> Skipping sdkconfig file `%s` which is target-specific', sdkconfig_path)
                 continue
 
             # Figure out the config name
