@@ -626,19 +626,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
             LOGGER.debug('--target is missing. Set --target as "all".')
             self.target = 'all'
 
-        # Validate mutual exclusivity of enable_preview_targets and default_build_targets
-        if self.enable_preview_targets and self.default_build_targets:
-            raise InvalidCommand(
-                'Cannot specify both --enable-preview-targets and --default-build-targets at the same time. '
-                'Please use only one of these options.'
-            )
 
-        # Validate mutual exclusivity of enable_preview_targets and extra_build_targets
-        if self.enable_preview_targets and self.extra_build_targets:
-            raise InvalidCommand(
-                'Cannot specify both --enable-preview-targets and --extra-build-targets at the same time. '
-                'When using --enable-preview-targets, all targets are already enabled by default.'
-            )
 
         reset_default_build_targets()  # reset first then judge again
         if self.default_build_targets:
