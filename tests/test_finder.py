@@ -504,6 +504,7 @@ class TestFindWithSdkconfigFiles:
         (tmp_path / 'test1' / 'sdkconfig.defaults').touch()
         (tmp_path / 'test1' / 'sdkconfig.defaults_new').touch()
         (tmp_path / 'test1' / 'sdkconfig.ci.foo').touch()
+        (tmp_path / 'test1' / 'sdkconfig.ci.foo.esp32p4').touch()
 
         apps = find_apps(str(tmp_path / 'test1'), 'esp32', recursive=True, config_rules_str='sdkconfig.ci.*=')
         assert len(apps) == 1
