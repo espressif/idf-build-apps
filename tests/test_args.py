@@ -19,7 +19,7 @@ from idf_build_apps.args import (
 )
 from idf_build_apps.constants import ALL_TARGETS, IDF_BUILD_APPS_TOML_FN, PREVIEW_TARGETS, SUPPORTED_TARGETS
 from idf_build_apps.main import main
-from idf_build_apps.manifest.manifest import DEFAULT_BUILD_TARGETS, FolderRule
+from idf_build_apps.manifest.manifest import DEFAULT_BUILD_TARGETS, FolderRule, reset_default_build_targets
 from idf_build_apps.utils import InvalidCommand
 
 
@@ -544,6 +544,115 @@ class TestDefaultBuildTargetsContextVar:
         assert args.default_build_targets == []
         assert DEFAULT_BUILD_TARGETS.get() == SUPPORTED_TARGETS
         assert FolderRule.DEFAULT_BUILD_TARGETS == SUPPORTED_TARGETS
+
+    def test_extra_build_targets_basic(self, monkeypatch):
+        """Test basic --extra-build-targets functionality"""
+        # Mock the constants
+        monkeypatch.setattr('idf_build_apps.constants.ALL_TARGETS', ['esp32', 'esp32s2', 'esp32c3', 'esp32h2', 'esp32p4'])
+        monkeypatch.setattr('idf_build_apps.constants.SUPPORTED_TARGETS', ['esp32', 'esp32s2', 'esp32c3'])
+        monkeypatch.setattr('idf_build_apps.args.ALL_TARGETS', ['esp32', 'esp32s2', 'esp32c3', 'esp32h2', 'esp32p4'])
+        monkeypatch.setattr('idf_build_apps.manifest.manifest.SUPPORTED_TARGETS', ['esp32', 'esp32s2', 'esp32c3'])
+        
+        # Reset and test
+        reset_default_build_targets()
+        extra_targets = ['esp32h2', 'esp32p4'] 
+        args = FindBuildArguments(extra_build_targets=extra_targets, paths=['.'])
+        
+        # Should include SUPPORTED_TARGETS plus extra targets  
+        expected_targets = ['esp32', 'esp32s2', 'esp32c3', 'esp32h2', 'esp32p4']
+        assert set(args.default_build_targets) == set(expected_targets)
+        assert set(DEFAULT_BUILD_TARGETS.get()) == set(expected_targets)
+
+    def test_extra_build_targets_with_default_build_targets(self, monkeypatch):
+        """Test --extra-build-targets combined with --default-build-targets"""
+        # Mock the constants
+        monkeypatch.setattr('idf_build_apps.constants.ALL_TARGETS', ['esp32', 'esp32s2', 'esp32c3', 'esp32h2', 'esp32p4'])
+        monkeypatch.setattr('idf_build_apps.args.ALL_TARGETS', ['esp32', 'esp32s2', 'esp32c3', 'esp32h2', 'esp32p4'])
+        
+        reset_default_build_targets()
+        default_targets = ['esp32', 'esp32s2']
+        extra_targets = ['esp32c3', 'esp32h2']
+        
+        args = FindBuildArguments(
+            default_build_targets=default_targets,
+            extra_build_targets=extra_targets,
+            paths=['.']
+        )
+        
+        # Should include default targets plus extra targets
+        expected_targets = ['esp32', 'esp32s2', 'esp32c3', 'esp32h2']
+        assert set(args.default_build_targets) == set(expected_targets)
+        assert set(DEFAULT_BUILD_TARGETS.get()) == set(expected_targets)
+
+    def test_extra_build_targets_duplicates_ignored(self, monkeypatch):
+        """Test that duplicate targets in extra_build_targets are ignored"""
+        # Mock the constants
+        monkeypatch.setattr('idf_build_apps.constants.ALL_TARGETS', ['esp32', 'esp32s2', 'esp32c3', 'esp32h2'])
+        monkeypatch.setattr('idf_build_apps.args.ALL_TARGETS', ['esp32', 'esp32s2', 'esp32c3', 'esp32h2'])
+        
+        reset_default_build_targets()
+        default_targets = ['esp32', 'esp32s2']
+        extra_targets = ['esp32s2', 'esp32c3']  # esp32s2 is duplicate
+        
+        args = FindBuildArguments(
+            default_build_targets=default_targets,
+            extra_build_targets=extra_targets, 
+            paths=['.']
+        )
+        
+        expected_targets = ['esp32', 'esp32s2', 'esp32c3']
+        assert set(args.default_build_targets) == set(expected_targets)
+        
+    def test_extra_build_targets_with_enable_preview_targets_error(self):
+        """Test that --extra-build-targets cannot be used with --enable-preview-targets"""
+        reset_default_build_targets()
+        with pytest.raises(InvalidCommand) as exc_info:
+            FindBuildArguments(
+                enable_preview_targets=True,
+                extra_build_targets=['esp32h2'],
+                paths=['.']
+            )
+        
+        assert 'Cannot specify both --enable-preview-targets and --extra-build-targets' in str(exc_info.value)
+
+    def test_extra_build_targets_with_disable_targets(self, monkeypatch):
+        """Test --extra-build-targets combined with --disable-targets"""
+        # Mock the constants
+        monkeypatch.setattr('idf_build_apps.constants.ALL_TARGETS', ['esp32', 'esp32s2', 'esp32c3', 'esp32h2', 'esp32p4'])
+        monkeypatch.setattr('idf_build_apps.constants.SUPPORTED_TARGETS', ['esp32', 'esp32s2', 'esp32c3'])
+        monkeypatch.setattr('idf_build_apps.args.ALL_TARGETS', ['esp32', 'esp32s2', 'esp32c3', 'esp32h2', 'esp32p4'])
+        monkeypatch.setattr('idf_build_apps.manifest.manifest.SUPPORTED_TARGETS', ['esp32', 'esp32s2', 'esp32c3'])
+        
+        reset_default_build_targets()
+        extra_targets = ['esp32h2', 'esp32p4']
+        disable_targets = ['esp32h2']  # Disable one of the extra targets
+        
+        args = FindBuildArguments(
+            extra_build_targets=extra_targets,
+            disable_targets=disable_targets,
+            paths=['.']
+        )
+        
+        # Should add extra targets first, then remove disabled ones
+        expected_targets = ['esp32', 'esp32s2', 'esp32c3', 'esp32p4']  # esp32h2 disabled
+        assert set(args.default_build_targets) == set(expected_targets)
+
+    def test_extra_build_targets_invalid_targets_filtered(self, monkeypatch):
+        """Test that invalid targets in extra_build_targets are filtered out"""
+        # Mock the constants
+        monkeypatch.setattr('idf_build_apps.constants.ALL_TARGETS', ['esp32', 'esp32s2', 'esp32c3', 'esp32h2', 'esp32p4'])
+        monkeypatch.setattr('idf_build_apps.constants.SUPPORTED_TARGETS', ['esp32', 'esp32s2', 'esp32c3'])
+        monkeypatch.setattr('idf_build_apps.args.ALL_TARGETS', ['esp32', 'esp32s2', 'esp32c3', 'esp32h2', 'esp32p4'])
+        monkeypatch.setattr('idf_build_apps.manifest.manifest.SUPPORTED_TARGETS', ['esp32', 'esp32s2', 'esp32c3'])
+        
+        reset_default_build_targets()
+        extra_targets = ['esp32h2', 'invalid_target', 'esp32p4']
+        
+        args = FindBuildArguments(extra_build_targets=extra_targets, paths=['.'])
+        
+        # Should only include valid targets (invalid_target should be ignored)
+        expected_targets = ['esp32', 'esp32s2', 'esp32c3', 'esp32h2', 'esp32p4']
+        assert set(args.default_build_targets) == set(expected_targets)
 
 
 def test_expand_vars(monkeypatch):

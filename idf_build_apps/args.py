@@ -584,6 +584,16 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         description='space-separated list of targets that should be disabled to all apps.',
         default=None,  # type: ignore
     )
+    extra_build_targets: t.Optional[t.List[str]] = field(
+        FieldMetadata(
+            validate_method=[ValidateMethod.TO_LIST],
+            nargs='+',
+        ),
+        description='space-separated list of additional targets to be added to the default enabled build targets. '
+        'These targets will be added to the default list (either SUPPORTED_TARGETS or the list specified by '
+        '--default-build-targets). Cannot be used together with --enable-preview-targets',
+        default=None,  # type: ignore
+    )
     include_skipped_apps: bool = field(
         FieldMetadata(
             action='store_true',
@@ -623,6 +633,13 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
                 'Please use only one of these options.'
             )
 
+        # Validate mutual exclusivity of enable_preview_targets and extra_build_targets
+        if self.enable_preview_targets and self.extra_build_targets:
+            raise InvalidCommand(
+                'Cannot specify both --enable-preview-targets and --extra-build-targets at the same time. '
+                'When using --enable-preview-targets, all targets are already enabled by default.'
+            )
+
         reset_default_build_targets()  # reset first then judge again
         if self.default_build_targets:
             default_build_targets = []
@@ -641,6 +658,31 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
             self.default_build_targets = deepcopy(ALL_TARGETS)
             LOGGER.info('Overriding default build targets to %s', self.default_build_targets)
             DEFAULT_BUILD_TARGETS.set(self.default_build_targets)
+
+        # Handle extra build targets
+        if self.extra_build_targets:
+            # Get current default build targets
+            current_targets = list(DEFAULT_BUILD_TARGETS.get())
+            extra_targets = []
+            
+            for target in self.extra_build_targets:
+                if target not in ALL_TARGETS:
+                    LOGGER.warning(
+                        f'Ignoring... Unrecognizable target {target} specified with "--extra-build-targets". '
+                        f'Current ESP-IDF available targets: {ALL_TARGETS}'
+                    )
+                elif target not in current_targets:
+                    current_targets.append(target)
+                    extra_targets.append(target)
+            
+            if extra_targets:
+                LOGGER.info('Adding extra build targets: %s', extra_targets)
+            
+            LOGGER.info('Updated default build targets to %s', current_targets)
+            
+            # Update both the instance attribute and the context variable
+            self.default_build_targets = current_targets
+            DEFAULT_BUILD_TARGETS.set(current_targets)
 
         if self.disable_targets and DEFAULT_BUILD_TARGETS.get():
             LOGGER.info('Disable targets: %s', self.disable_targets)
