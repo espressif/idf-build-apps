@@ -17,10 +17,9 @@ from idf_build_apps.args import (
     FindBuildArguments,
     expand_vars,
 )
-from idf_build_apps.constants import ALL_TARGETS, IDF_BUILD_APPS_TOML_FN, PREVIEW_TARGETS, SUPPORTED_TARGETS
+from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN, PREVIEW_TARGETS, SUPPORTED_TARGETS
 from idf_build_apps.main import main
-from idf_build_apps.manifest.manifest import DEFAULT_BUILD_TARGETS, FolderRule
-from idf_build_apps.utils import InvalidCommand
+from idf_build_apps.manifest.manifest import DEFAULT_BUILD_TARGETS, FolderRule, reset_default_build_targets
 
 
 def test_init_attr_deprecated_by():
@@ -171,13 +170,42 @@ modified_files = [
     assert args.deactivate_dependency_driven_build_by_components == ['baz']
 
 
-def test_mutual_exclusivity_validation():
-    # Test that both options together raise InvalidCommand
-    with pytest.raises(InvalidCommand) as exc_info:
-        FindBuildArguments(enable_preview_targets=True, default_build_targets=['esp32'], paths=['.'])
+def test_combination_validation():
+    """Test that target options can now be combined"""
+    # Mock targets for consistent testing
+    mock_supported = ['esp32', 'esp32s2']
+    mock_preview = ['esp32h2']
+    mock_all = mock_supported + mock_preview
 
-    assert 'Cannot specify both --enable-preview-targets and --default-build-targets' in str(exc_info.value)
-    assert 'Please use only one of these options' in str(exc_info.value)
+    import idf_build_apps.args
+    import idf_build_apps.constants
+
+    original_supported = idf_build_apps.constants.SUPPORTED_TARGETS
+    original_preview = idf_build_apps.constants.PREVIEW_TARGETS
+    original_all = idf_build_apps.constants.ALL_TARGETS
+
+    try:
+        idf_build_apps.constants.SUPPORTED_TARGETS = mock_supported
+        idf_build_apps.constants.PREVIEW_TARGETS = mock_preview
+        idf_build_apps.constants.ALL_TARGETS = mock_all
+        idf_build_apps.args.SUPPORTED_TARGETS = mock_supported
+        idf_build_apps.args.PREVIEW_TARGETS = mock_preview
+        idf_build_apps.args.ALL_TARGETS = mock_all
+
+        # Test combination: default + preview
+        args = FindBuildArguments(enable_preview_targets=True, default_build_targets=['esp32'], paths=['.'])
+
+        # Should combine: ['esp32'] + ['esp32h2'] = ['esp32', 'esp32h2']
+        expected = ['esp32', 'esp32h2']
+        assert args.default_build_targets == expected
+
+    finally:
+        idf_build_apps.constants.SUPPORTED_TARGETS = original_supported
+        idf_build_apps.constants.PREVIEW_TARGETS = original_preview
+        idf_build_apps.constants.ALL_TARGETS = original_all
+        idf_build_apps.args.SUPPORTED_TARGETS = original_supported
+        idf_build_apps.args.PREVIEW_TARGETS = original_preview
+        idf_build_apps.args.ALL_TARGETS = original_all
 
 
 def test_build_targets_cli(tmp_path, monkeypatch):
@@ -430,9 +458,34 @@ dry_run = false
 
 
 class TestDefaultBuildTargetsContextVar:
+    SUPPORTED_TARGETS = ['esp32', 'esp32s2']
+    PREVIEW_TARGETS = ['esp32h2', 'esp32p4']
+    ALL_TARGETS = SUPPORTED_TARGETS + PREVIEW_TARGETS + ['esp32s3', 'esp32c3']
+
+    @pytest.fixture(autouse=True)
+    def setup(self, monkeypatch):
+        import idf_build_apps.args
+        import idf_build_apps.constants
+        import idf_build_apps.manifest.manifest
+
+        # reset_default_build_targets() need .manifest.manifest
+        monkeypatch.setattr(idf_build_apps.manifest.manifest, 'SUPPORTED_TARGETS', self.SUPPORTED_TARGETS)
+        monkeypatch.setattr(idf_build_apps.constants, 'SUPPORTED_TARGETS', self.SUPPORTED_TARGETS)
+        monkeypatch.setattr(idf_build_apps.args, 'SUPPORTED_TARGETS', self.SUPPORTED_TARGETS)
+
+        monkeypatch.setattr(idf_build_apps.constants, 'PREVIEW_TARGETS', self.PREVIEW_TARGETS)
+        monkeypatch.setattr(idf_build_apps.args, 'PREVIEW_TARGETS', self.PREVIEW_TARGETS)
+
+        monkeypatch.setattr(idf_build_apps.manifest.manifest, 'ALL_TARGETS', self.SUPPORTED_TARGETS)
+        monkeypatch.setattr(idf_build_apps.constants, 'ALL_TARGETS', self.ALL_TARGETS)
+        monkeypatch.setattr(idf_build_apps.args, 'ALL_TARGETS', self.ALL_TARGETS)
+
+        reset_default_build_targets()
+
+        yield
+
     def test_direct_contextvar_access(self):
-        # Test initial value
-        assert DEFAULT_BUILD_TARGETS.get() == SUPPORTED_TARGETS
+        assert DEFAULT_BUILD_TARGETS.get() == self.SUPPORTED_TARGETS
 
         # Test setting new values
         test_targets = ['esp32', 'esp32s2']
@@ -440,14 +493,10 @@ class TestDefaultBuildTargetsContextVar:
         assert DEFAULT_BUILD_TARGETS.get() == test_targets
 
         # Test setting to ALL_TARGETS
-        DEFAULT_BUILD_TARGETS.set(ALL_TARGETS)
-        assert DEFAULT_BUILD_TARGETS.get() == ALL_TARGETS
-        assert len(DEFAULT_BUILD_TARGETS.get()) == len(SUPPORTED_TARGETS) + len(PREVIEW_TARGETS)
+        DEFAULT_BUILD_TARGETS.set(self.ALL_TARGETS)
+        assert DEFAULT_BUILD_TARGETS.get() == self.ALL_TARGETS
 
     def test_folder_rule_backward_compatibility(self):
-        # Test initial access
-        assert FolderRule.DEFAULT_BUILD_TARGETS == SUPPORTED_TARGETS
-
         # Test setting via contextvar
         other_targets = ['esp32h2', 'esp32p4']
         DEFAULT_BUILD_TARGETS.set(other_targets)
@@ -460,37 +509,29 @@ class TestDefaultBuildTargetsContextVar:
         assert DEFAULT_BUILD_TARGETS.get() == test_targets
         assert FolderRule.DEFAULT_BUILD_TARGETS == test_targets
 
-    def test_default_build_targets_option(self):
-        """Test that --default-build-targets option works correctly"""
-        test_targets = ['esp32', 'esp32s2', 'esp32c3']
+    def test_default_behavior(self):
+        args = FindBuildArguments(paths=['.'])
 
+        assert args.enable_preview_targets is False
+        assert args.default_build_targets == self.SUPPORTED_TARGETS
+        assert DEFAULT_BUILD_TARGETS.get() == self.SUPPORTED_TARGETS
+
+    def test_default_build_targets_option(self):
+        test_targets = ['esp32', 'esp32c3', 'esp32s2']
         args = FindBuildArguments(default_build_targets=test_targets, paths=['.'])
 
         assert args.default_build_targets == test_targets
         assert DEFAULT_BUILD_TARGETS.get() == test_targets
-        assert FolderRule.DEFAULT_BUILD_TARGETS == test_targets
 
     def test_enable_preview_targets_option(self):
-        """Test that --enable-preview-targets option works correctly"""
         args = FindBuildArguments(enable_preview_targets=True, paths=['.'])
 
         assert args.enable_preview_targets is True
-        assert args.default_build_targets == ALL_TARGETS
-        assert DEFAULT_BUILD_TARGETS.get() == ALL_TARGETS
-        assert FolderRule.DEFAULT_BUILD_TARGETS == ALL_TARGETS
-        assert len(DEFAULT_BUILD_TARGETS.get()) == len(SUPPORTED_TARGETS) + len(PREVIEW_TARGETS)
-
-    def test_default_behavior(self):
-        """Test default behavior when no special options are provided"""
-        args = FindBuildArguments(paths=['.'])
-
-        assert args.enable_preview_targets is False
-        assert args.default_build_targets is None
-        assert DEFAULT_BUILD_TARGETS.get() == SUPPORTED_TARGETS
-        assert FolderRule.DEFAULT_BUILD_TARGETS == SUPPORTED_TARGETS
+        expected_targets = sorted(self.SUPPORTED_TARGETS + self.PREVIEW_TARGETS)
+        assert args.default_build_targets == expected_targets
+        assert DEFAULT_BUILD_TARGETS.get() == expected_targets
 
     def test_disable_targets_with_default_build_targets(self):
-        """Test --disable-targets option works with --default-build-targets"""
         args = FindBuildArguments(
             default_build_targets=['esp32', 'esp32s2', 'esp32c3'], disable_targets=['esp32s2'], paths=['.']
         )
@@ -498,23 +539,19 @@ class TestDefaultBuildTargetsContextVar:
         expected_targets = ['esp32', 'esp32c3']
         assert args.default_build_targets == expected_targets
         assert DEFAULT_BUILD_TARGETS.get() == expected_targets
-        assert FolderRule.DEFAULT_BUILD_TARGETS == expected_targets
 
     def test_disable_targets_with_enable_preview_targets(self):
-        """Test --disable-targets option works with --enable-preview-targets"""
-        disabled_target = PREVIEW_TARGETS[0]  # Disable first preview target
-
+        disabled_target = 'esp32h2'
         args = FindBuildArguments(enable_preview_targets=True, disable_targets=[disabled_target], paths=['.'])
 
-        expected_targets = [t for t in ALL_TARGETS if t != disabled_target]
+        expected_targets = sorted(
+            [_t for _t in [*self.SUPPORTED_TARGETS, *self.PREVIEW_TARGETS] if _t != disabled_target]
+        )
         assert args.default_build_targets == expected_targets
         assert DEFAULT_BUILD_TARGETS.get() == expected_targets
-        assert len(DEFAULT_BUILD_TARGETS.get()) == len(ALL_TARGETS) - 1
 
     def test_invalid_targets_filtering(self):
-        """Test that invalid targets are filtered out and warnings are logged"""
         invalid_targets = ['esp32', 'invalid_target', 'esp32s2', 'another_invalid']
-
         args = FindBuildArguments(default_build_targets=invalid_targets, paths=['.'])
 
         # Only valid targets should remain
@@ -525,25 +562,110 @@ class TestDefaultBuildTargetsContextVar:
     def test_contextvar_isolation_between_instances(self):
         """Test that the contextvar behaves correctly across multiple argument instances"""
         # First instance sets default_build_targets
-        FindBuildArguments(default_build_targets=['esp32', 'esp32s2'])
+        FindBuildArguments(default_build_targets=['esp32', 'esp32s2'], paths=['.'])
         assert DEFAULT_BUILD_TARGETS.get() == ['esp32', 'esp32s2']
 
-        # Second instance sets enable_preview_targets
-        FindBuildArguments(enable_preview_targets=True)
-        assert DEFAULT_BUILD_TARGETS.get() == ALL_TARGETS
+        # Second instance sets enable_preview_targets (should combine with SUPPORTED_TARGETS)
+        FindBuildArguments(enable_preview_targets=True, paths=['.'])
+        assert DEFAULT_BUILD_TARGETS.get() == sorted(self.SUPPORTED_TARGETS + self.PREVIEW_TARGETS)
 
-        # Third instance uses default behavior
-        FindBuildArguments()
-        assert DEFAULT_BUILD_TARGETS.get() == SUPPORTED_TARGETS
+        FindBuildArguments(paths=['.'])
+        assert DEFAULT_BUILD_TARGETS.get() == self.SUPPORTED_TARGETS
 
     def test_empty_default_build_targets(self):
-        """Test behavior with empty default_build_targets list"""
         args = FindBuildArguments(default_build_targets=[])
 
         # Empty list is treated as falsy, so it falls back to default behavior
-        assert args.default_build_targets == []
-        assert DEFAULT_BUILD_TARGETS.get() == SUPPORTED_TARGETS
-        assert FolderRule.DEFAULT_BUILD_TARGETS == SUPPORTED_TARGETS
+        assert args.default_build_targets == self.SUPPORTED_TARGETS
+        assert DEFAULT_BUILD_TARGETS.get() == self.SUPPORTED_TARGETS
+
+    def test_additional_build_targets_option(self):
+        """Test that --additional-build-targets option works correctly"""
+        additional_targets = ['esp32h2', 'esp32p4']
+        args = FindBuildArguments(additional_build_targets=additional_targets, paths=['.'])
+
+        expected_targets = sorted(self.SUPPORTED_TARGETS + additional_targets)
+        assert args.additional_build_targets == additional_targets
+        assert args.default_build_targets == expected_targets
+        assert DEFAULT_BUILD_TARGETS.get() == expected_targets
+
+    def test_additional_build_targets_with_existing_target(self):
+        existing_target = 'esp32'  # From self.SUPPORTED_TARGETS
+        new_target = 'esp32h2'  # From self.ALL_TARGETS but not in self.SUPPORTED_TARGETS
+        additional_targets = [existing_target, new_target]
+
+        args = FindBuildArguments(additional_build_targets=additional_targets, paths=['.'])
+
+        # Should only add the new target, not duplicate the existing one
+        expected_targets = sorted([*self.SUPPORTED_TARGETS, new_target])
+        assert args.additional_build_targets == additional_targets
+        assert args.default_build_targets == expected_targets
+        assert DEFAULT_BUILD_TARGETS.get() == expected_targets
+
+    def test_additional_build_targets_with_invalid_target(self):
+        invalid_targets = [
+            'esp32',
+            'invalid_target',
+            'esp32h2',
+        ]  # esp32 is already supported, invalid_target doesn't exist
+
+        args = FindBuildArguments(additional_build_targets=invalid_targets, paths=['.'])
+
+        # Should only add valid targets not already in SUPPORTED_TARGETS
+        expected_targets = sorted([*self.SUPPORTED_TARGETS, 'esp32h2'])
+        assert args.additional_build_targets == invalid_targets
+        assert args.default_build_targets == expected_targets
+        assert DEFAULT_BUILD_TARGETS.get() == expected_targets
+
+    def test_disable_targets_with_additional_build_targets(self):
+        additional_target = 'esp32h2'  # From self.ALL_TARGETS but not in self.SUPPORTED_TARGETS
+        disabled_target = 'esp32'  # From self.SUPPORTED_TARGETS
+
+        args = FindBuildArguments(
+            additional_build_targets=[additional_target], disable_targets=[disabled_target], paths=['.']
+        )
+
+        expected_targets = ['esp32h2', 'esp32s2']
+        assert args.default_build_targets == expected_targets
+        assert DEFAULT_BUILD_TARGETS.get() == expected_targets
+
+    def test_combination_default_and_additional(self):
+        args = FindBuildArguments(
+            default_build_targets=['esp32', 'esp32s2'], additional_build_targets=['esp32h2'], paths=['.']
+        )
+
+        expected_targets = ['esp32', 'esp32h2', 'esp32s2']
+        assert args.default_build_targets == expected_targets
+        assert DEFAULT_BUILD_TARGETS.get() == expected_targets
+
+    def test_combination_preview_and_additional(self):
+        args = FindBuildArguments(enable_preview_targets=True, additional_build_targets=['esp32p4'], paths=['.'])
+
+        # Should combine: SUPPORTED_TARGETS + PREVIEW_TARGETS + additional
+        # self.PREVIEW_TARGETS contains 'esp32p4', so it's not really additional
+        expected_targets = sorted(self.SUPPORTED_TARGETS + self.PREVIEW_TARGETS)
+        assert args.default_build_targets == expected_targets
+        assert DEFAULT_BUILD_TARGETS.get() == expected_targets
+
+    def test_combination_all_three_options(self):
+        args = FindBuildArguments(
+            default_build_targets=['esp32'],
+            enable_preview_targets=True,
+            additional_build_targets=['esp32p4', 'esp32c3'],
+            paths=['.'],
+        )
+
+        # Should combine: ['esp32'] + PREVIEW_TARGETS + ['esp32p4', 'esp32c3']
+        expected_targets = sorted({'esp32', *self.PREVIEW_TARGETS, 'esp32p4', 'esp32c3'})
+        assert args.default_build_targets == expected_targets
+        assert DEFAULT_BUILD_TARGETS.get() == expected_targets
+
+    def test_empty_additional_build_targets(self):
+        args = FindBuildArguments(additional_build_targets=[], paths=['.'])
+
+        assert args.additional_build_targets == []
+        assert args.default_build_targets == self.SUPPORTED_TARGETS
+        assert DEFAULT_BUILD_TARGETS.get() == self.SUPPORTED_TARGETS
 
 
 def test_expand_vars(monkeypatch):

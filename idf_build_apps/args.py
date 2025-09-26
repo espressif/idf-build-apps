@@ -29,7 +29,7 @@ from pydantic_settings import (
 from typing_extensions import Concatenate, ParamSpec
 
 from . import SESSION_ARGS, App, CMakeApp, MakeApp, setup_logging
-from .constants import ALL_TARGETS, IDF_BUILD_APPS_TOML_FN
+from .constants import ALL_TARGETS, IDF_BUILD_APPS_TOML_FN, PREVIEW_TARGETS, SUPPORTED_TARGETS
 from .manifest.manifest import DEFAULT_BUILD_TARGETS, Manifest, reset_default_build_targets
 from .utils import InvalidCommand, files_matches_patterns, semicolon_separated_str_to_list, to_absolute_path, to_list
 from .vendors.pydantic_sources import PyprojectTomlConfigSettingsSource, TomlConfigSettingsSource
@@ -563,17 +563,22 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
             nargs='+',
         ),
         description='space-separated list of the default enabled build targets for the apps. '
-        'When not specified, the default value is the targets listed by `idf.py --list-targets`. '
-        'Cannot be used together with --enable-preview-targets',
+        'When not specified, the default value is the targets listed by `idf.py --list-targets`.',
+        default=None,  # type: ignore
+    )
+    additional_build_targets: t.Optional[t.List[str]] = field(
+        FieldMetadata(
+            validate_method=[ValidateMethod.TO_LIST],
+            nargs='+',
+        ),
+        description='space-separated list of additional build targets to add to the default enabled build targets',
         default=None,  # type: ignore
     )
     enable_preview_targets: bool = field(
         FieldMetadata(
             action='store_true',
         ),
-        description='When enabled, all targets will be enabled by default, '
-        'including the preview targets. As the targets defined in `idf.py --list-targets --preview`. '
-        'Cannot be used together with --default-build-targets',
+        description='When enabled, PREVIEW_TARGETS will be added to the default enabled build targets',
         default=False,  # type: ignore
     )
     disable_targets: t.Optional[t.List[str]] = field(
@@ -616,39 +621,44 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
             LOGGER.debug('--target is missing. Set --target as "all".')
             self.target = 'all'
 
-        # Validate mutual exclusivity of enable_preview_targets and default_build_targets
-        if self.enable_preview_targets and self.default_build_targets:
-            raise InvalidCommand(
-                'Cannot specify both --enable-preview-targets and --default-build-targets at the same time. '
-                'Please use only one of these options.'
-            )
-
         reset_default_build_targets()  # reset first then judge again
+
+        # Build the target set by combining the options
+        default_build_targets: t.List[str] = []
+        # Step 1: Determine base targets
         if self.default_build_targets:
-            default_build_targets = []
-            for target in self.default_build_targets:
-                if target not in ALL_TARGETS:
-                    LOGGER.warning(
-                        f'Ignoring... Unrecognizable target {target} specified with "--default-build-targets". '
-                        f'Current ESP-IDF available targets: {ALL_TARGETS}'
-                    )
-                elif target not in default_build_targets:
-                    default_build_targets.append(target)
-            self.default_build_targets = default_build_targets
-            LOGGER.info('Overriding default build targets to %s', self.default_build_targets)
-            DEFAULT_BUILD_TARGETS.set(self.default_build_targets)
-        elif self.enable_preview_targets:
-            self.default_build_targets = deepcopy(ALL_TARGETS)
-            LOGGER.info('Overriding default build targets to %s', self.default_build_targets)
-            DEFAULT_BUILD_TARGETS.set(self.default_build_targets)
+            LOGGER.info('--default-build-targets is set, using `%s`', self.default_build_targets)
+            default_build_targets = deepcopy(self.default_build_targets)
+        elif SUPPORTED_TARGETS:
+            LOGGER.info('Using default SUPPORTED_TARGETS: %s', SUPPORTED_TARGETS)
+            default_build_targets = deepcopy(SUPPORTED_TARGETS)
 
-        if self.disable_targets and DEFAULT_BUILD_TARGETS.get():
-            LOGGER.info('Disable targets: %s', self.disable_targets)
-            self.default_build_targets = [
-                _target for _target in DEFAULT_BUILD_TARGETS.get() if _target not in self.disable_targets
-            ]
-            DEFAULT_BUILD_TARGETS.set(self.default_build_targets)
+        if self.enable_preview_targets:
+            LOGGER.info('--enable-preview-targets is set, adding preview targets `%s`', PREVIEW_TARGETS)
+            default_build_targets.extend(PREVIEW_TARGETS)
 
+        if self.additional_build_targets:
+            LOGGER.info('--additional-build-targets is set, adding `%s`', self.additional_build_targets)
+            default_build_targets.extend(self.additional_build_targets)
+
+        res = []
+        for _t in set(default_build_targets):
+            if _t not in ALL_TARGETS:
+                LOGGER.warning(
+                    f'Ignoring... Unrecognizable target {_t} specified. '
+                    f'Current ESP-IDF available targets: {ALL_TARGETS}'
+                )
+                continue
+
+            if self.disable_targets and _t in self.disable_targets:
+                LOGGER.info(f'Ignoring... Target {_t} is in the disabled targets list.')
+                continue
+
+            res.append(_t)
+        self.default_build_targets = sorted(res)
+        DEFAULT_BUILD_TARGETS.set(self.default_build_targets)
+
+        # Override sdkconfig files/items
         if self.override_sdkconfig_files or self.override_sdkconfig_items:
             SESSION_ARGS.set(self)
 
