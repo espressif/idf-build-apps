@@ -64,9 +64,17 @@ changelog = "https://github.com/espressif/idf-build-apps/blob/main/CHANGELOG.md"
 idf-build-apps = "idf_build_apps:main.main"
 
 [tool.commitizen]
-name = "cz_conventional_commits"
-version = "2.12.3"
+name = "czespressif"
+version = "2.13.0"
+
 tag_format = "v$version"
+version_scheme = "pep440"
+
+update_changelog_on_bump = true
+changelog_merge_prerelease = true
+
+types_in_changelog = ["BREAKING CHANGE", "feat", "fix", "refactor", "change", "perf", "docs"]
+
 version_files = [
     "idf_build_apps/__init__.py",
 ]

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.13.0 (2025-09-26)
+
+### ✨ New Features
+
+- support `--additional-build-targets` *(Fu Hanxi - dbbd8d3)*
+
+### 🐛 Bug Fixes
+
+- **find_apps**: ignore target-specific sdkconfig files even without setting CONFIG_IDF_TARGET *(Fu Hanxi - 1861a7a)*
+- record `checked_should_build` *(Fu Hanxi - f37fff1)*
+
+
 ## v2.12.3 (2025-09-16)
 
 ### Fix
