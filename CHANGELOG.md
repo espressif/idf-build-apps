@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.13.1 (2025-09-29)
+
+### 🐛 Bug Fixes
+
+- path checking for modified apps *(Fu Hanxi - 18f554c)*
+
+
 ## v2.13.0 (2025-09-26)
 
 ### ✨ New Features
