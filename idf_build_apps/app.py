@@ -709,8 +709,12 @@ class App(BaseModel):
                 if os.path.basename(_f_fullpath).endswith('.md'):
                     continue
 
-                if _f_fullpath.startswith(_app_dir_fullpath):
-                    return True
+                try:
+                    if os.path.commonpath([_f_fullpath, _app_dir_fullpath]) == _app_dir_fullpath:
+                        return True
+                except ValueError:
+                    # on Windows, if paths are on different drives, a ValueError will be raised
+                    continue
 
         return False
 
