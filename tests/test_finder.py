@@ -193,6 +193,10 @@ class TestFindWithModifiedFilesComponents:
                 ],
                 True,
             ),
+            (
+                [os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world_longer', 'main', 'hello_world_main.c')],
+                False,
+            ),
         ],
     )
     def test_with_depends_components_but_modified(self, tmp_path, modified_files, could_find_apps):
