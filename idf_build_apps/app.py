@@ -642,11 +642,22 @@ class App(BaseModel):
             return
 
         if IDF_VERSION >= Version('4.1'):
+            # Since IDF 5.3, idf_size.py uses esp-idf-size in legacy mode
+            # That means `idf.py --format json` argument was changed to `--format json2`
+            # In IDF 5.1 and 5.2, only `--format json` is supported
+            # For IDF below 5.1, only `--json` is supported
+            if IDF_VERSION >= Version('5.3'):
+                format_arg = ['--format', 'json2']
+            elif IDF_VERSION >= Version('5.1'):
+                format_arg = ['--format', 'json']
+            else:
+                format_arg = ['--json']
+
             subprocess_run(
                 [
                     sys.executable,
                     str(IDF_SIZE_PY),
-                    *(['--json'] if IDF_VERSION < Version('5.1') else ['--format', 'json']),
+                    *(format_arg),
                     '-o',
                     self.size_json_path,
                     *(self.size_json_extra_args or []),
