@@ -645,11 +645,11 @@ class App(BaseModel):
             """
             Starting from version 2.0.0 esp-idf-size uses new generation (NG) implementation.
             In newest version `--format json` was changed to `--format json2`.
-            For different version of IDF there are 4 scenarios:
+            For different versions of IDF there are 4 scenarios:
 
             1. 6.0 - NG is enforced until version 2.x will be fully incorporated.
             2. >=5.3 <=5.5 - NG is enabled by default, but could be disabled using `-l/--legacy` argument.
-            3. 5.1 and 5.2 - only legacy is supported.
+            3. 5.1 and 5.2 - only legacy mode is supported.
             4. <5.1 - esp-idf-size package is not used, only `--json` argument is supported.
             """
             if IDF_VERSION >= Version('5.3'):
