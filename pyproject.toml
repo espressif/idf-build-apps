@@ -65,7 +65,7 @@ idf-build-apps = "idf_build_apps:main.main"
 
 [tool.commitizen]
 name = "czespressif"
-version = "2.13.2"
+version = "2.13.3"
 
 tag_format = "v$version"
 version_scheme = "pep440"
