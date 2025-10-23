@@ -145,6 +145,7 @@ class BaseArguments(BaseSettings):
         # these below two are supported in pydantic 2.6
         pyproject_toml_table_header=('tool', 'idf-build-apps'),
         pyproject_toml_depth=sys.maxsize,
+        validate_default=True,
         extra='ignore',  # we're supporting pydantic <2.6 as well, so we ignore extra fields
     )
 

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.13.2 (2025-10-23)
+
+### 🐛 Bug Fixes
+
+- update broken tests for `size.json` *(Evgeny Torbin - c603221)*
+- change `idf_size.py --format json` to `--format json2` *(Evgeny Torbin - 49b9f3d)*
+
+
 ## v2.13.1 (2025-09-29)
 
 ### 🐛 Bug Fixes

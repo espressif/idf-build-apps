@@ -396,6 +396,9 @@ def main():
         Manifest.from_files(arguments.manifest_files).dump_sha_values(arguments.output)
         sys.exit(0)
     elif action == 'find':
+        print('reinstall idf-build-apps')
+        print(kwargs['paths'])
+
         arguments = FindArguments(**drop_none_kwargs(kwargs))
     else:
         arguments = BuildArguments(**drop_none_kwargs(kwargs))
