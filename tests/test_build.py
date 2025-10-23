@@ -223,9 +223,13 @@ class TestBuild:
         with open(app.size_json_path) as f:
             size_data = json.load(f)
 
-        expected_keys = ['dram_data', 'dram_bss', 'used_dram', 'iram_text', 'flash_code', 'total_size']
-        for key in expected_keys:
-            assert key in size_data, f"Size JSON should contain '{key}' when no extra args"
+        expected_names = ['Flash Code', 'IRAM', 'Flash Data', 'DRAM', 'RTC SLOW']
+
+        assert 'layout' in size_data
+        size_data_names = [name_info['name'] for name_info in size_data['layout']]
+
+        for name in expected_names:
+            assert name in size_data_names, f"Size JSON layout should contain '{name}' when no extra args"
 
     def test_build_with_size_json_with_extra_args(self, tmp_path):
         """Test idf_size_py with extra args."""
@@ -247,14 +251,16 @@ class TestBuild:
         with open(app.size_json_path) as f:
             size_data = json.load(f)
 
-        expected_keys = [
+        expected_files = [
             'libesp_timer.a:system_time.c.obj',
             'libc.a:libc_a-vfprintf.o',
             'libfreertos.a:tasks.c.obj',
             'libheap.a:tlsf.c.obj',
         ]
-        for key in expected_keys:
-            assert key in size_data, f"Size JSON should contain '{key}' with extra args"
+
+        size_data_files = size_data.keys()
+        for file in expected_files:
+            assert any(file in s for s in size_data_files), f"Size JSON should contain '{file}' with extra args"
 
 
 class CustomClassApp(App):
