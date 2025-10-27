@@ -45,7 +45,7 @@ jobs:
       image: espressif/idf:${{ matrix.idf-branch }}
     steps:
       - name: Download wheel
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: wheel
       - name: Build the Apps
