@@ -20,7 +20,7 @@ jobs:
   build-python-packages:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: '3.7'
@@ -67,7 +67,7 @@ jobs:
     env:
       FLIT_ROOT_INSTALL: 1
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Build the Apps
         run: |
           bash $IDF_PATH/install.sh
@@ -97,7 +97,7 @@ jobs:
         branch:
           - release/v3.4
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install dependencies
         run: |
           apt update \
