@@ -511,7 +511,9 @@ class App(BaseModel):
             BuildStatus.UNKNOWN,
             BuildStatus.SHOULD_BE_BUILT,
         ):
-            self.build_comment = f'Build {self.build_status.value}. Skipping...'
+            if not self.build_comment:
+                self.build_comment = f'Build {self.build_status.value}. Skipping...'
+
             return
 
         # real build starts here
