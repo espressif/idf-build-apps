@@ -172,4 +172,4 @@ docstring-code-format = true
 ignore-variadic-names = true
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
