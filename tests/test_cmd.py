@@ -3,9 +3,13 @@
 import os
 import sys
 from pathlib import Path
+from textwrap import dedent
+from xml.etree import ElementTree
 
 import pytest
+from conftest import create_project
 
+from idf_build_apps.constants import SUPPORTED_TARGETS
 from idf_build_apps.main import main
 from idf_build_apps.utils import InvalidCommand
 
@@ -95,3 +99,65 @@ bar:
     assert f'Loading manifest file {os.path.join(tmp_path, "manifest.yml")}' in err
     assert f'"{os.path.join(tmp_path, "foo")}" does not exist' in err
     assert f'"{os.path.join(tmp_path, "bar")}" does not exist' in err
+
+
+def test_build_include_all_apps(tmp_path, monkeypatch, capsys):
+    create_project('foo', tmp_path)
+
+    manifest = tmp_path / 'manifest.yml'
+    manifest.write_text(
+        dedent("""\
+        foo:
+          disable:
+            - if: IDF_TARGET == "esp32"
+        """)
+    )
+
+    with monkeypatch.context() as m:
+        m.setattr(
+            sys,
+            'argv',
+            [
+                'idf-build-apps',
+                'build',
+                '--paths',
+                'foo',
+                '--manifest-files',
+                str(manifest),
+                '--check-manifest-rules',
+                '--include-all-apps',
+                '--junitxml',
+                str(tmp_path / 'junit.xml'),
+                '--dry-run',
+            ],
+        )
+        main()
+
+    out, err = capsys.readouterr()
+    assert err == ''
+    assert 'Disabled the following apps' in out
+    assert out.count('Disabled by manifest rule: IDF_TARGET == "esp32"') == 1
+
+    with open(str(tmp_path / 'junit.xml')) as f:
+        xml = ElementTree.fromstring(f.read())
+
+    test_suite = xml.findall('testsuite')[0]
+    assert test_suite.attrib['tests'] == '0'
+    assert test_suite.attrib['failures'] == '0'
+    assert test_suite.attrib['errors'] == '0'
+    assert test_suite.attrib['skipped'] == str(len(SUPPORTED_TARGETS))
+
+    disabled_testcases = 0
+
+    for case in test_suite.findall('testcase'):
+        if case.get('name') != 'foo/build':
+            continue
+
+        skipped = case.find('skipped')
+        if skipped is None:
+            continue
+
+        if skipped.get('message') == 'Disabled by manifest rule: IDF_TARGET == "esp32"':
+            disabled_testcases += 1
+
+    assert disabled_testcases == 1

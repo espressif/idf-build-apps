@@ -386,23 +386,28 @@ def main():
         sys.exit(0)
 
     kwargs = vars(args)
+    kwargs_without_none = drop_none_kwargs(kwargs)
     action = kwargs.pop('action')
     config_file = kwargs.pop('config_file')
     if config_file:
         apply_config_file(config_file)
 
     if action == 'dump-manifest-sha':
-        arguments = DumpManifestShaArguments(**drop_none_kwargs(kwargs))
+        arguments = DumpManifestShaArguments(**kwargs_without_none)
         Manifest.from_files(arguments.manifest_files).dump_sha_values(arguments.output)
         sys.exit(0)
-    elif action == 'find':
-        arguments = FindArguments(**drop_none_kwargs(kwargs))
+
+    if action == 'find':
+        arguments = FindArguments(**kwargs_without_none)
     else:
-        arguments = BuildArguments(**drop_none_kwargs(kwargs))
+        arguments = BuildArguments(**kwargs_without_none)
 
     # real call starts here
     # build also needs to find first
-    apps = find_apps(args.paths, args.target, find_arguments=arguments)
+    apps = find_apps(
+        args.paths, args.target, find_arguments=FindArguments.model_validate(kwargs_without_none, extra='ignore')
+    )
+
     if isinstance(arguments, FindArguments):  # find only
         if arguments.output:
             os.makedirs(os.path.dirname(os.path.realpath(arguments.output)), exist_ok=True)
@@ -442,6 +447,12 @@ def main():
     if failed_apps:
         print('Failed building the following apps:')
         for app in failed_apps:
+            print(f'  {app}')
+
+    disabled_apps = [app for app in apps if app.build_status == BuildStatus.DISABLED]
+    if disabled_apps:
+        print('Disabled the following apps:')
+        for app in disabled_apps:
             print(f'  {app}')
 
     if ret_code != 0:

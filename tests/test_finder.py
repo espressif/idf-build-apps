@@ -138,7 +138,7 @@ examples/get-started:
         for app in apps:
             assert app.build_status == BuildStatus.DISABLED
             app.build()
-            assert app.build_comment == 'Build disabled. Skipping...'
+            assert app.build_comment.startswith('Not enabled by manifest rules:')
 
 
 class TestFindWithModifiedFilesComponents:
