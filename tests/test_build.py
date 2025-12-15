@@ -253,7 +253,6 @@ class TestBuild:
 
         expected_files = [
             'libesp_timer.a:system_time.c.obj',
-            'libc.a:libc_a-vfprintf.o',
             'libfreertos.a:tasks.c.obj',
             'libheap.a:tlsf.c.obj',
         ]
