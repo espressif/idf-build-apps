@@ -45,7 +45,7 @@ class IfClause:
         try:
             self.stmt: BoolStmt = parse_bool_expr(stmt)
             self._stmt: str = stmt
-        except (ParseException, InvalidIfClause) as ex:
+        except (ParseException, InvalidIfClause, AttributeError) as ex:
             raise InvalidIfClause(f'Invalid if clause: {stmt}. {ex}')
 
         self.temporary = temporary
