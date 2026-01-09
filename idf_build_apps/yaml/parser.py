@@ -1,6 +1,7 @@
-# SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2024-2026 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
+import re
 import typing as t
 
 import yaml
@@ -62,8 +63,33 @@ def parse_postfixes(manifest_dict: t.Dict):
         manifest_dict[folder] = updated_folder
 
 
-def parse(path: PathLike) -> t.Dict:
+def replace_common_components(data: str, root_components: t.Sequence[str]):
+    if not root_components:
+        return data
+
+    def _replace_with_indent(match, replacement: str) -> str:
+        indent = match.group(1)
+        if not replacement:
+            return ''
+        return '\n'.join(indent + line for line in replacement.splitlines())
+
+    def _format_yaml_string_list(items: t.Sequence[str]) -> str:
+        items = [str(i) for i in items]
+        return '\n'.join(f"- '{item}'" for item in items)
+
+    data = re.sub(
+        r'^([ \t]*)\{\{\s*root_components\s*}}',
+        lambda match: _replace_with_indent(match, replacement=_format_yaml_string_list(root_components)),
+        data,
+        flags=re.MULTILINE,
+    )
+    return data
+
+
+def parse(path: PathLike, *, root_components: t.Optional[t.Sequence[str]] = None) -> t.Dict:
     with open(path) as f:
-        manifest_dict = yaml.safe_load(f) or {}
+        data = replace_common_components(f.read(), root_components=root_components or [])
+        manifest_dict = yaml.safe_load(data) or {}
+
     parse_postfixes(manifest_dict)
     return manifest_dict
