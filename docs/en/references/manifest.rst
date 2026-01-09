@@ -209,6 +209,15 @@ Reuse Lists
 
 To reuse the items defined in a list, you can use the ``+`` and ``-`` postfixes respectively. The order of calculation is always ``+`` first, followed by ``-``.
 
+Placeholder: ``*common_components``
+-----------------------------------
+
+In addition to YAML anchors, ``idf-build-apps`` also supports a special placeholder entry ``- *common_components`` inside ``depends_components``.
+
+When loading the manifest file, this placeholder is expanded using the values provided via the CLI option ``--common-components`` (or the ``common_components`` argument to :meth:`~idf_build_apps.manifest.manifest.Manifest.from_file`).
+
+This placeholder entry is only supported inside ``depends_components``.
+
 Array Elements as Strings
 -------------------------
 
