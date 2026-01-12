@@ -9,7 +9,8 @@ import logging
 import os
 import sys
 import textwrap
-import typing as t
+from functools import reduce
+from operator import or_
 from pathlib import Path
 
 import argcomplete
@@ -488,9 +489,10 @@ def json_to_app(json_str: str, extra_classes: list[type[App]] | None = None) -> 
     if extra_classes:
         _known_classes.extend(extra_classes)
 
+    app_type_union = reduce(or_, _known_classes)
     custom_deserializer = create_model(
         '_CustomDeserializer',
-        app=(t.Union[tuple(_known_classes)], Field(discriminator='build_system')),
+        app=(app_type_union, Field(discriminator='build_system')),
         __base__=AppDeserializer,
     )
 
@@ -512,9 +514,10 @@ def json_list_files_to_apps(
     if extra_classes:
         _known_classes.extend(extra_classes)
 
+    app_type_union = reduce(or_, _known_classes)
     custom_deserializer = create_model(
         '_CustomDeserializer',
-        app=(t.Union[tuple(_known_classes)], Field(discriminator='build_system')),
+        app=(app_type_union, Field(discriminator='build_system')),
         __base__=AppDeserializer,
     )
 

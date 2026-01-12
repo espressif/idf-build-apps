@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import (
     Path,
 )
+from typing import Literal
 
 from packaging.version import (
     Version,
@@ -45,7 +46,6 @@ from .manifest.manifest import (
 from .utils import (
     BaseModel,
     BuildError,
-    Literal,
     files_matches_patterns,
     find_first_match,
     rmdir,
