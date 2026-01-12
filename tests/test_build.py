@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2026 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import json
@@ -9,6 +9,7 @@ from copy import (
     deepcopy,
 )
 from pathlib import Path
+from typing import Literal
 from xml.etree import (
     ElementTree,
 )
@@ -31,7 +32,6 @@ from idf_build_apps.constants import (
     IDF_PATH,
     BuildStatus,
 )
-from idf_build_apps.utils import Literal
 
 
 @pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')
