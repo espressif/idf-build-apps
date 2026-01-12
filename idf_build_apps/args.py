@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from io import TextIOWrapper
 from pathlib import Path
 from string import Template
-from typing import Any
+from typing import Any, Concatenate
 
 from pydantic import AliasChoices, Field, computed_field, field_validator
 from pydantic.fields import FieldInfo
@@ -24,15 +24,16 @@ from pydantic_core.core_schema import ValidationInfo
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
+    PyprojectTomlConfigSettingsSource,
     SettingsConfigDict,
+    TomlConfigSettingsSource,
 )
-from typing_extensions import Concatenate, ParamSpec
+from typing_extensions import ParamSpec
 
 from . import SESSION_ARGS, App, CMakeApp, MakeApp, setup_logging
 from .constants import ALL_TARGETS, IDF_BUILD_APPS_TOML_FN, PREVIEW_TARGETS, SUPPORTED_TARGETS
 from .manifest.manifest import DEFAULT_BUILD_TARGETS, Manifest, reset_default_build_targets
 from .utils import InvalidCommand, files_matches_patterns, semicolon_separated_str_to_list, to_absolute_path, to_list
-from .vendors.pydantic_sources import PyprojectTomlConfigSettingsSource, TomlConfigSettingsSource
 
 LOGGER = logging.getLogger(__name__)
 
@@ -60,15 +61,15 @@ class FieldMetadata:
     """
 
     # validate method
-    validate_method: t.Optional[t.List[str]] = None
+    validate_method: list[str] | None = None
     # the field description will be copied from the deprecates field if not specified
-    deprecates: t.Optional[t.Dict[str, t.Dict[str, t.Any]]] = None
-    shorthand: t.Optional[str] = None
+    deprecates: dict[str, dict[str, t.Any]] | None = None
+    shorthand: str | None = None
     # argparse_kwargs
-    action: t.Optional[str] = None
-    nargs: t.Optional[str] = None
-    choices: t.Optional[t.List[str]] = None
-    type: t.Optional[t.Callable] = None
+    action: str | None = None
+    nargs: str | None = None
+    choices: list[str] | None = None
+    type: t.Callable | None = None
     required: bool = False
     # usually default is not needed. only set it when different from the default value of the field
     default: t.Any = None
@@ -82,24 +83,24 @@ T = t.TypeVar('T')
 
 def _wrap_with_metadata(
     _: t.Callable[P, t.Any],
-) -> t.Callable[[t.Callable[..., T]], t.Callable[Concatenate[t.Optional[FieldMetadata], P], T]]:
+) -> t.Callable[[t.Callable[..., T]], t.Callable[Concatenate[FieldMetadata | None, P], T]]:
     """Patch the function signature with metadata args"""
 
-    def return_func(func: t.Callable[..., T]) -> t.Callable[Concatenate[t.Optional[FieldMetadata], P], T]:
-        return t.cast(t.Callable[Concatenate[t.Optional[FieldMetadata], P], T], func)
+    def return_func(func: t.Callable[..., T]) -> t.Callable[Concatenate[FieldMetadata | None, P], T]:
+        return t.cast(t.Callable[Concatenate[FieldMetadata | None, P], T], func)
 
     return return_func
 
 
 @_wrap_with_metadata(Field)
-def field(meta: t.Optional[FieldMetadata], *args, **kwargs):
+def field(meta: FieldMetadata | None, *args, **kwargs):
     """field with metadata"""
     f = Field(*args, **kwargs)
     f.metadata.append(meta)
     return f
 
 
-def get_meta(f: FieldInfo) -> t.Optional[FieldMetadata]:
+def get_meta(f: FieldInfo) -> FieldMetadata | None:
     """
     Get the metadata of the field
 
@@ -113,7 +114,7 @@ def get_meta(f: FieldInfo) -> t.Optional[FieldMetadata]:
     return None
 
 
-def expand_vars(v: t.Optional[str]) -> t.Optional[str]:
+def expand_vars(v: str | None) -> str | None:
     """
     Expand environment variables in the string. If the variable is not found, use an empty string.
 
@@ -123,7 +124,7 @@ def expand_vars(v: t.Optional[str]) -> t.Optional[str]:
     if v is None:
         return None
 
-    unknown_vars: t.Dict[str, str] = dict()
+    unknown_vars: dict[str, str] = dict()
     while True:
         try:
             v = Template(v).substitute(os.environ, **unknown_vars)
@@ -139,7 +140,7 @@ def expand_vars(v: t.Optional[str]) -> t.Optional[str]:
 class BaseArguments(BaseSettings):
     """Base settings class for all settings classes"""
 
-    CONFIG_FILE_PATH: t.ClassVar[t.Optional[Path]] = None
+    CONFIG_FILE_PATH: t.ClassVar[Path | None] = None
 
     model_config = SettingsConfigDict(
         # these below two are supported in pydantic 2.6
@@ -151,13 +152,13 @@ class BaseArguments(BaseSettings):
     @classmethod
     def settings_customise_sources(
         cls,
-        settings_cls: t.Type[BaseSettings],
+        settings_cls: type[BaseSettings],
         init_settings: PydanticBaseSettingsSource,
         env_settings: PydanticBaseSettingsSource,  # noqa: ARG003
         dotenv_settings: PydanticBaseSettingsSource,  # noqa: ARG003
         file_secret_settings: PydanticBaseSettingsSource,  # noqa: ARG003
-    ) -> t.Tuple[PydanticBaseSettingsSource, ...]:
-        sources: t.Tuple[PydanticBaseSettingsSource, ...] = (init_settings,)
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        sources: tuple[PydanticBaseSettingsSource, ...] = (init_settings,)
         if cls.CONFIG_FILE_PATH is None:
             sources += (TomlConfigSettingsSource(settings_cls, toml_file=Path(IDF_BUILD_APPS_TOML_FN)),)
             sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=Path('pyproject.toml')),)
@@ -201,7 +202,7 @@ class GlobalArguments(BaseArguments):
         description='Verbosity level. By default set to WARNING. Specify -v for INFO, -vv for DEBUG',
         default=0,  # type: ignore
     )
-    log_file: t.Optional[str] = field(
+    log_file: str | None = field(
         None,
         description='Path to the log file, if not specified logs will be printed to stderr',
         default=None,  # type: ignore
@@ -221,7 +222,7 @@ class GlobalArguments(BaseArguments):
 
 
 class DependencyDrivenBuildArguments(GlobalArguments):
-    manifest_files: t.Optional[t.List[t.Union[Path, str]]] = field(
+    manifest_files: list[Path | str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             deprecates={
@@ -235,7 +236,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         validation_alias=AliasChoices('manifest_files', 'manifest_file'),
         default=None,  # type: ignore
     )
-    manifest_filepatterns: t.Optional[t.List[str]] = field(
+    manifest_filepatterns: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             nargs='+',
@@ -244,7 +245,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         'The matched files will be loaded as the manifest files.',
         default=None,  # type: ignore
     )
-    manifest_exclude_regexes: t.Optional[t.List[str]] = field(
+    manifest_exclude_regexes: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             nargs='+',
@@ -260,7 +261,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         'By default set to the current directory.',
         default=os.curdir,  # type: ignore
     )
-    modified_components: t.Optional[t.List[str]] = field(
+    modified_components: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             type=semicolon_separated_str_to_list,
@@ -270,7 +271,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         'If set to ";", the value would be considered as an empty list.',
         default=None,  # type: ignore
     )
-    modified_files: t.Optional[t.List[str]] = field(
+    modified_files: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             type=semicolon_separated_str_to_list,
@@ -280,7 +281,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         'If set to ";", the value would be considered as an empty list.',
         default=None,  # type: ignore
     )
-    deactivate_dependency_driven_build_by_components: t.Optional[t.List[str]] = field(
+    deactivate_dependency_driven_build_by_components: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             deprecates={
@@ -302,7 +303,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         ),
         default=None,  # type: ignore
     )
-    root_components: t.Optional[t.List[str]] = field(
+    root_components: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             type=semicolon_separated_str_to_list,
@@ -316,7 +317,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         validation_alias=AliasChoices('root_components'),
         default=None,  # type: ignore
     )
-    deactivate_dependency_driven_build_by_filepatterns: t.Optional[t.List[str]] = field(
+    deactivate_dependency_driven_build_by_filepatterns: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             deprecates={
@@ -345,7 +346,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         description='Check if all folders defined in the manifest files exist. Fail if not',
         default=False,  # type: ignore
     )
-    compare_manifest_sha_filepath: t.Optional[str] = field(
+    compare_manifest_sha_filepath: str | None = field(
         None,
         description='Path to the file containing the hash of the manifest rules. '
         'Compare the hash with the current manifest rules. '
@@ -433,7 +434,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         return True
 
     @property
-    def modified_manifest_rules_folders(self) -> t.Optional[t.Set[str]]:
+    def modified_manifest_rules_folders(self) -> set[str] | None:
         if self.compare_manifest_sha_filepath and App.MANIFEST is not None:
             return App.MANIFEST.diff_sha_with_filepath(self.compare_manifest_sha_filepath, use_abspath=True)
 
@@ -441,13 +442,13 @@ class DependencyDrivenBuildArguments(GlobalArguments):
 
 
 class FindBuildArguments(DependencyDrivenBuildArguments):
-    _KNOWN_APP_CLASSES: t.ClassVar[t.Dict[str, t.Type[App]]] = {
+    _KNOWN_APP_CLASSES: t.ClassVar[dict[str, type[App]]] = {
         'cmake': CMakeApp,
         'make': MakeApp,
     }
-    _LOADED_MODULE_APPS: t.ClassVar[t.Dict[str, t.Type[App]]] = {}
+    _LOADED_MODULE_APPS: t.ClassVar[dict[str, type[App]]] = {}
 
-    paths: t.List[str] = field(
+    paths: list[str] = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             shorthand='-p',
@@ -463,7 +464,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         description='Filter the apps by target. By default set to "all"',
         default='all',  # type: ignore
     )
-    extra_pythonpaths: t.Optional[t.List[str]] = field(
+    extra_pythonpaths: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             nargs='+',
@@ -472,7 +473,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         'Will be injected into the head of sys.path.',
         default=None,  # type: ignore
     )
-    build_system: t.Union[str, t.Type[App]] = field(
+    build_system: str | type[App] = field(
         None,
         description='Filter the apps by build system. By default set to "cmake". '
         'Can be either "cmake", "make" or a custom App class path in format "module:class"',
@@ -485,7 +486,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         description='Search for apps recursively under the specified paths',
         default=False,  # type: ignore
     )
-    exclude: t.Optional[t.List[str]] = field(
+    exclude: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             nargs='+',
@@ -494,7 +495,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         validation_alias=AliasChoices('exclude', 'exclude_list'),
         default=None,  # type: ignore
     )
-    work_dir: t.Optional[str] = field(
+    work_dir: str | None = field(
         None,
         description='Copy the app to this directory before building. '
         'By default set to the app directory. Can expand placeholders',
@@ -507,7 +508,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         'Can expand placeholders',
         default='build',  # type: ignore
     )
-    build_log_filename: t.Optional[str] = field(
+    build_log_filename: str | None = field(
         FieldMetadata(
             deprecates={'build_log': {}},
         ),
@@ -515,7 +516,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         validation_alias=AliasChoices('build_log_filename', 'build_log'),
         default=None,  # type: ignore
     )
-    size_json_filename: t.Optional[str] = field(
+    size_json_filename: str | None = field(
         FieldMetadata(
             deprecates={'size_file': {}},
         ),
@@ -523,14 +524,14 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         validation_alias=AliasChoices('size_json_filename', 'size_file'),
         default=None,  # type: ignore
     )
-    size_json_extra_args: t.Optional[t.List[str]] = field(
+    size_json_extra_args: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
         ),
         description='Additional arguments to pass to esp_idf_size tool',
         default=None,  # type: ignore
     )
-    config_rules: t.Optional[t.List[str]] = field(
+    config_rules: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             deprecates={
@@ -548,18 +549,18 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         validation_alias=AliasChoices('config_rules', 'config_rules_str', 'config'),
         default=None,  # type: ignore
     )
-    override_sdkconfig_items: t.Optional[str] = field(
+    override_sdkconfig_items: str | None = field(
         None,
         description='A comma-separated list of key=value pairs to override the sdkconfig items',
         default=None,  # type: ignore
     )
-    override_sdkconfig_files: t.Optional[str] = field(
+    override_sdkconfig_files: str | None = field(
         None,
         description='A comma-separated list of sdkconfig files to override the sdkconfig items. '
         'When set to relative path, it will be treated as relative to the current directory',
         default=None,  # type: ignore
     )
-    sdkconfig_defaults: t.Optional[str] = field(
+    sdkconfig_defaults: str | None = field(
         None,
         description='A semicolon-separated list of sdkconfig files passed to `idf.py -DSDKCONFIG_DEFAULTS`. '
         'SDKCONFIG_DEFAULTS environment variable is used when not specified',
@@ -572,7 +573,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         description='Check for warnings in the build output. Fail if any warnings are found',
         default=False,  # type: ignore
     )
-    default_build_targets: t.Optional[t.List[str]] = field(
+    default_build_targets: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             nargs='+',
@@ -581,7 +582,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         'When not specified, the default value is the targets listed by `idf.py --list-targets`.',
         default=None,  # type: ignore
     )
-    additional_build_targets: t.Optional[t.List[str]] = field(
+    additional_build_targets: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             nargs='+',
@@ -596,7 +597,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         description='When enabled, PREVIEW_TARGETS will be added to the default enabled build targets',
         default=False,  # type: ignore
     )
-    disable_targets: t.Optional[t.List[str]] = field(
+    disable_targets: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             nargs='+',
@@ -639,7 +640,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         reset_default_build_targets()  # reset first then judge again
 
         # Build the target set by combining the options
-        default_build_targets: t.List[str] = []
+        default_build_targets: list[str] = []
         # Step 1: Determine base targets
         if self.default_build_targets:
             LOGGER.info('--default-build-targets is set, using `%s`', self.default_build_targets)
@@ -729,7 +730,7 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
 
 
 class FindArguments(FindBuildArguments):
-    output: t.Optional[str] = field(
+    output: str | None = field(
         FieldMetadata(
             shorthand='-o',
         ),
@@ -807,7 +808,7 @@ class BuildArguments(FindBuildArguments):
         description='Do not preserve the build directory after a successful build',
         default=False,  # type: ignore
     )
-    ignore_warning_strs: t.Optional[t.List[str]] = field(
+    ignore_warning_strs: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             deprecates={
@@ -819,7 +820,7 @@ class BuildArguments(FindBuildArguments):
         validation_alias=AliasChoices('ignore_warning_strs', 'ignore_warning_str'),
         default=None,  # type: ignore
     )
-    ignore_warning_files: t.Optional[t.List[t.Union[str, TextIOWrapper]]] = field(
+    ignore_warning_files: list[str | TextIOWrapper] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             deprecates={
@@ -843,7 +844,7 @@ class BuildArguments(FindBuildArguments):
     )
 
     # Attrs that support placeholders
-    collect_size_info_filename: t.Optional[str] = field(
+    collect_size_info_filename: str | None = field(
         FieldMetadata(
             deprecates={'collect_size_info': {}},
             hidden=True,
@@ -854,7 +855,7 @@ class BuildArguments(FindBuildArguments):
         default=None,  # type: ignore
         exclude=True,  # computed field is used
     )
-    collect_app_info_filename: t.Optional[str] = field(
+    collect_app_info_filename: str | None = field(
         FieldMetadata(
             deprecates={'collect_app_info': {}},
             hidden=True,
@@ -865,7 +866,7 @@ class BuildArguments(FindBuildArguments):
         default=None,  # type: ignore
         exclude=True,  # computed field is used
     )
-    junitxml_filename: t.Optional[str] = field(
+    junitxml_filename: str | None = field(
         FieldMetadata(
             deprecates={'junitxml': {}},
             hidden=True,
@@ -897,7 +898,7 @@ class BuildArguments(FindBuildArguments):
 
     @computed_field  # type: ignore
     @property
-    def collect_size_info(self) -> t.Optional[str]:
+    def collect_size_info(self) -> str | None:
         if self.collect_size_info_filename:
             return self.collect_size_info_filename.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
 
@@ -905,7 +906,7 @@ class BuildArguments(FindBuildArguments):
 
     @computed_field  # type: ignore
     @property
-    def collect_app_info(self) -> t.Optional[str]:
+    def collect_app_info(self) -> str | None:
         if self.collect_app_info_filename:
             return self.collect_app_info_filename.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
 
@@ -913,7 +914,7 @@ class BuildArguments(FindBuildArguments):
 
     @computed_field  # type: ignore
     @property
-    def junitxml(self) -> t.Optional[str]:
+    def junitxml(self) -> str | None:
         if self.junitxml_filename:
             return self.junitxml_filename.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
 
@@ -921,7 +922,7 @@ class BuildArguments(FindBuildArguments):
 
 
 class DumpManifestShaArguments(GlobalArguments):
-    manifest_files: t.Optional[t.List[str]] = field(
+    manifest_files: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             nargs='+',
@@ -931,7 +932,7 @@ class DumpManifestShaArguments(GlobalArguments):
         default=None,  # type: ignore
     )
 
-    output: t.Optional[str] = field(
+    output: str | None = field(
         FieldMetadata(
             shorthand='-o',
             required=True,
@@ -953,7 +954,7 @@ def _snake_case_to_cli_arg_name(s: str) -> str:
     return f'--{s.replace("_", "-")}'
 
 
-def add_args_to_parser(argument_cls: t.Type[BaseArguments], parser: argparse.ArgumentParser) -> None:
+def add_args_to_parser(argument_cls: type[BaseArguments], parser: argparse.ArgumentParser) -> None:
     """
     Add arguments to the parser from the argument class.
 
@@ -989,7 +990,7 @@ def add_args_to_parser(argument_cls: t.Type[BaseArguments], parser: argparse.Arg
         if f_meta and f_meta.shorthand:
             names.append(f_meta.shorthand)
 
-        kwargs: t.Dict[str, t.Any] = {}
+        kwargs: dict[str, t.Any] = {}
         if f_meta:
             if f_meta.type:
                 kwargs['type'] = f_meta.type
@@ -1018,7 +1019,7 @@ def add_args_to_parser(argument_cls: t.Type[BaseArguments], parser: argparse.Arg
         )
 
 
-def add_args_to_obj_doc_as_params(argument_cls: t.Type[GlobalArguments], obj: t.Any = None) -> None:
+def add_args_to_obj_doc_as_params(argument_cls: type[GlobalArguments], obj: t.Any = None) -> None:
     """
     Add arguments to the function as parameters.
 
@@ -1038,8 +1039,8 @@ def add_args_to_obj_doc_as_params(argument_cls: t.Type[GlobalArguments], obj: t.
     _obj.__doc__ = _doc_str
 
 
-def apply_config_file(config_file: t.Optional[str] = None, reset: bool = False) -> None:
-    def _subclasses(klass: t.Type[T]) -> t.Set[t.Type[T]]:
+def apply_config_file(config_file: str | None = None, reset: bool = False) -> None:
+    def _subclasses(klass: type[T]) -> set[type[T]]:
         return set(klass.__subclasses__()).union([s for c in klass.__subclasses__() for s in _subclasses(c)])
 
     if reset:
