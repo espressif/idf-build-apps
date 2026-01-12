@@ -9,7 +9,7 @@ import yaml
 from ..utils import PathLike
 
 
-def parse_postfixes(manifest_dict: t.Dict):
+def parse_postfixes(manifest_dict: dict):
     for folder, folder_rule in manifest_dict.items():
         if folder.startswith('.'):
             continue
@@ -17,7 +17,7 @@ def parse_postfixes(manifest_dict: t.Dict):
         if not folder_rule:
             continue
 
-        updated_folder: t.Dict = {}
+        updated_folder: dict = {}
         sorted_keys = sorted(folder_rule)
         for key in sorted_keys:
             if not key.endswith(('+', '-')):
@@ -30,7 +30,7 @@ def parse_postfixes(manifest_dict: t.Dict):
             other_dict_obj = []
             str_obj = set()
             for obj in updated_folder[key[:-1]]:
-                if isinstance(obj, t.Dict):
+                if isinstance(obj, dict):
                     if 'if' in obj:
                         if_dict_obj.append(obj)
                     else:
@@ -39,7 +39,7 @@ def parse_postfixes(manifest_dict: t.Dict):
                     str_obj.add(obj)
 
             for obj in folder_rule[key]:
-                if isinstance(obj, t.Dict):
+                if isinstance(obj, dict):
                     _l = obj['if']
                     if isinstance(_l, str):
                         _l = _l.replace(' ', '')
@@ -86,7 +86,7 @@ def replace_common_components(data: str, root_components: t.Sequence[str]):
     return data
 
 
-def parse(path: PathLike, *, root_components: t.Optional[t.Sequence[str]] = None) -> t.Dict:
+def parse(path: PathLike, *, root_components: t.Sequence[str] | None = None) -> dict:
     with open(path) as f:
         data = replace_common_components(f.read(), root_components=root_components or [])
         manifest_dict = yaml.safe_load(data) or {}

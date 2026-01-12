@@ -1,6 +1,6 @@
 # PYTHON_ARGCOMPLETE_OK
 
-# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2026 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -56,13 +56,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 def find_apps(
-    paths: t.Union[t.List[str], str, None] = None,
-    target: t.Optional[str] = None,
+    paths: list[str] | str | None = None,
+    target: str | None = None,
     *,
-    find_arguments: t.Optional[FindArguments] = None,
-    config_file: t.Optional[str] = None,
+    find_arguments: FindArguments | None = None,
+    config_file: str | None = None,
     **kwargs,
-) -> t.List[App]:
+) -> list[App]:
     """
     Find apps in the given paths for the specified target. For all kwargs, please refer to `FindArguments`
 
@@ -87,7 +87,7 @@ def find_apps(
             **kwargs,
         )
 
-    apps: t.Set[App] = set()
+    apps: set[App] = set()
     if find_arguments.target == 'all':
         targets = DEFAULT_BUILD_TARGETS.get()
         LOGGER.info('Searching for apps by default build targets: %s', targets)
@@ -113,10 +113,10 @@ def find_apps(
 
 
 def build_apps(
-    apps: t.Union[t.List[App], App, None] = None,
+    apps: list[App] | App | None = None,
     *,
-    build_arguments: t.Optional[BuildArguments] = None,
-    config_file: t.Optional[str] = None,
+    build_arguments: BuildArguments | None = None,
+    config_file: str | None = None,
     **kwargs,
 ) -> int:
     """
@@ -459,7 +459,7 @@ def main():
         sys.exit(ret_code)
 
 
-def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = None) -> App:
+def json_to_app(json_str: str, extra_classes: list[type[App]] | None = None) -> App:
     """
     Deserialize json string to App object
 
@@ -498,9 +498,9 @@ def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = 
 
 
 def json_list_files_to_apps(
-    json_list_filepaths: t.List[str],
-    extra_classes: t.Optional[t.List[t.Type[App]]] = None,
-) -> t.List[App]:
+    json_list_filepaths: list[str],
+    extra_classes: list[type[App]] | None = None,
+) -> list[App]:
     """
     Deserialize a list of json strings to App objects
 
