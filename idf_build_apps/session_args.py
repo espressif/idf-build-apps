@@ -4,15 +4,14 @@
 import logging
 import os
 import re
-import typing as t
 
 LOGGER = logging.getLogger(__name__)
 
 
 class SessionArgs:
     workdir: str = os.getcwd()
-    override_sdkconfig_items: t.Dict[str, t.Any] = {}
-    override_sdkconfig_file_path: t.Optional[str] = None
+    override_sdkconfig_items: dict[str, object] = {}
+    override_sdkconfig_file_path: str | None = None
 
     def set(self, parsed_args, *, workdir=None):
         if workdir:
@@ -37,8 +36,8 @@ class SessionArgs:
         override_sdkconfig_merged_file = self._create_override_sdkconfig_merged_file(self.override_sdkconfig_items)
         self.override_sdkconfig_file_path = override_sdkconfig_merged_file
 
-    def _get_override_sdkconfig_files_items(self, override_sdkconfig_files: t.Tuple[str]) -> t.Dict:
-        d = {}
+    def _get_override_sdkconfig_files_items(self, override_sdkconfig_files: tuple[str, ...]) -> dict[str, object]:
+        d: dict[str, object] = {}
         for f in override_sdkconfig_files:
             # use filepath if abs/rel already point to itself
             if not os.path.isfile(f):
@@ -57,15 +56,15 @@ class SessionArgs:
                     d[m.group(1)] = m.group(2)
         return d
 
-    def _get_override_sdkconfig_items(self, override_sdkconfig_items: t.Tuple[str]) -> t.Dict:
-        d = {}
+    def _get_override_sdkconfig_items(self, override_sdkconfig_items: tuple[str, ...]) -> dict[str, object]:
+        d: dict[str, object] = {}
         for line in override_sdkconfig_items:
             m = re.compile(r'^([^=]+)=([^\n]*)\n*$').match(line)
             if m:
                 d[m.group(1)] = m.group(2)
         return d
 
-    def _create_override_sdkconfig_merged_file(self, override_sdkconfig_merged_items) -> t.Optional[str]:
+    def _create_override_sdkconfig_merged_file(self, override_sdkconfig_merged_items: dict[str, object]) -> str | None:
         if not override_sdkconfig_merged_items:
             return None
         f_path = os.path.join(self.workdir, 'override-result.sdkconfig')

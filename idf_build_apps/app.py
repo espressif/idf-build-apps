@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import (
     Path,
 )
+from typing import Literal
 
 from packaging.version import (
     Version,
@@ -45,7 +46,6 @@ from .manifest.manifest import (
 from .utils import (
     BaseModel,
     BuildError,
-    Literal,
     files_matches_patterns,
     find_first_match,
     rmdir,
@@ -68,13 +68,13 @@ class App(BaseModel):
     SDKCONFIG_LINE_REGEX: t.ClassVar[t.Pattern] = re.compile(r'^([^=]+)=\"?([^\"\n]*)\"?\n*$')
 
     # could be assigned later, used for filtering out apps by supported_targets
-    MANIFEST: t.ClassVar[t.Optional[Manifest]] = None
+    MANIFEST: t.ClassVar[Manifest | None] = None
     # This RE will match GCC errors and many other fatal build errors and warnings as well
     LOG_ERROR_WARNING_REGEX: t.ClassVar[t.Pattern] = re.compile(r'(?:error|warning):', re.MULTILINE | re.IGNORECASE)
     # Log this many trailing lines from a failed build log, also
     LOG_DEBUG_LINES: t.ClassVar[int] = 25
     # IGNORE_WARNING_REGEX is a regex for warnings to be ignored. Could be assigned later
-    IGNORE_WARNS_REGEXES: t.ClassVar[t.List[t.Pattern]] = []
+    IGNORE_WARNS_REGEXES: t.ClassVar[list[t.Pattern]] = []
 
     # ------------------
     # Instance variables
@@ -83,19 +83,19 @@ class App(BaseModel):
 
     app_dir: str
     target: str
-    sdkconfig_path: t.Optional[str] = None
-    config_name: t.Optional[str] = None
-    sdkconfig_defaults_str: t.Optional[str] = None
+    sdkconfig_path: str | None = None
+    config_name: str | None = None
+    sdkconfig_defaults_str: str | None = None
     # all parameters
-    _kwargs: t.Dict[str, t.Any]
+    _kwargs: dict[str, t.Any]
 
     # Attrs that support placeholders
-    _work_dir: t.Optional[str] = None
-    _build_dir: t.Optional[str] = None
+    _work_dir: str | None = None
+    _build_dir: str | None = None
 
-    _build_log_filename: t.Optional[str] = None
-    _size_json_filename: t.Optional[str] = None
-    size_json_extra_args: t.Optional[t.List[str]] = None
+    _build_log_filename: str | None = None
+    _size_json_filename: str | None = None
+    size_json_extra_args: list[str] | None = None
 
     dry_run: bool = False
     verbose: bool = False
@@ -104,15 +104,15 @@ class App(BaseModel):
     copy_sdkconfig: bool = False
 
     # build_apps() related
-    index: t.Optional[int] = None
+    index: int | None = None
 
     build_status: BuildStatus = BuildStatus.UNKNOWN
-    build_comment: t.Optional[str] = None
-    test_comment: t.Optional[str] = None
+    build_comment: str | None = None
+    test_comment: str | None = None
     checked_should_build: bool = False
 
     _build_duration: float = 0
-    _build_timestamp: t.Optional[datetime] = None
+    _build_timestamp: datetime | None = None
 
     __EQ_IGNORE_FIELDS__ = [
         'build_comment',
@@ -130,10 +130,10 @@ class App(BaseModel):
         app_dir: str,
         target: str,
         *,
-        work_dir: t.Optional[str] = None,
+        work_dir: str | None = None,
         build_dir: str = 'build',
-        build_log_filename: t.Optional[str] = None,
-        size_json_filename: t.Optional[str] = None,
+        build_log_filename: str | None = None,
+        size_json_filename: str | None = None,
         **kwargs: t.Any,
     ) -> None:
         kwargs.update(
@@ -209,7 +209,7 @@ class App(BaseModel):
         return default_fmt.format(*default_args)
 
     @property
-    def sdkconfig_defaults_candidates(self) -> t.List[str]:
+    def sdkconfig_defaults_candidates(self) -> list[str]:
         if self.sdkconfig_defaults_str is not None:
             return self.sdkconfig_defaults_str.split(';')
 
@@ -288,7 +288,7 @@ class App(BaseModel):
 
     @computed_field  # type: ignore
     @property
-    def build_log_filename(self) -> t.Optional[str]:
+    def build_log_filename(self) -> str | None:
         return self._expand(self._build_log_filename)
 
     @property
@@ -301,7 +301,7 @@ class App(BaseModel):
 
     @computed_field  # type: ignore
     @property
-    def size_json_filename(self) -> t.Optional[str]:
+    def size_json_filename(self) -> str | None:
         if self.target == 'linux':
             # esp-idf-size does not support linux target
             return None
@@ -309,18 +309,18 @@ class App(BaseModel):
         return self._expand(self._size_json_filename)
 
     @property
-    def size_json_path(self) -> t.Optional[str]:
+    def size_json_path(self) -> str | None:
         if self.size_json_filename:
             return os.path.join(self.build_path, self.size_json_filename)
 
         return None
 
-    def _process_sdkconfig_files(self) -> t.Tuple[t.List[str], t.Optional[str]]:
+    def _process_sdkconfig_files(self) -> tuple[list[str], str | None]:
         """
         Expand environment variables in default sdkconfig files and remove some CI related settings.
         """
-        real_sdkconfig_files: t.List[str] = []
-        sdkconfig_files_defined_target: t.Optional[str] = None
+        real_sdkconfig_files: list[str] = []
+        sdkconfig_files_defined_target: str | None = None
 
         # put the expanded variable files in a temporary directory
         # will remove if the content is the same as the original one
@@ -386,20 +386,21 @@ class App(BaseModel):
         if SESSION_ARGS.override_sdkconfig_file_path:
             real_sdkconfig_files.append(SESSION_ARGS.override_sdkconfig_file_path)
             if 'CONFIG_IDF_TARGET' in SESSION_ARGS.override_sdkconfig_items:
-                sdkconfig_files_defined_target = SESSION_ARGS.override_sdkconfig_items['CONFIG_IDF_TARGET']
+                _override_target = SESSION_ARGS.override_sdkconfig_items['CONFIG_IDF_TARGET']
+                sdkconfig_files_defined_target = _override_target if isinstance(_override_target, str) else None
 
         return real_sdkconfig_files, sdkconfig_files_defined_target
 
     @property
-    def sdkconfig_files_defined_idf_target(self) -> t.Optional[str]:
+    def sdkconfig_files_defined_idf_target(self) -> str | None:
         return self._sdkconfig_files_defined_target
 
     @property
-    def sdkconfig_files(self) -> t.List[str]:
+    def sdkconfig_files(self) -> list[str]:
         return [os.path.abspath(file) for file in self._sdkconfig_files]
 
     @property
-    def depends_components(self) -> t.List[str]:
+    def depends_components(self) -> list[str]:
         if self.MANIFEST:
             return self.MANIFEST.depends_components(
                 self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
@@ -408,7 +409,7 @@ class App(BaseModel):
         return []
 
     @property
-    def depends_filepatterns(self) -> t.List[str]:
+    def depends_filepatterns(self) -> list[str]:
         if self.MANIFEST:
             return self.MANIFEST.depends_filepatterns(
                 self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
@@ -417,7 +418,7 @@ class App(BaseModel):
         return []
 
     @property
-    def supported_targets(self) -> t.List[str]:
+    def supported_targets(self) -> list[str]:
         if self.MANIFEST:
             return self.MANIFEST.enable_build_targets(
                 self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
@@ -429,7 +430,7 @@ class App(BaseModel):
         return DEFAULT_BUILD_TARGETS.get()
 
     @property
-    def verified_targets(self) -> t.List[str]:
+    def verified_targets(self) -> list[str]:
         if self.MANIFEST:
             return self.MANIFEST.enable_test_targets(
                 self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
@@ -502,9 +503,9 @@ class App(BaseModel):
     def build(
         self,
         *,
-        manifest_rootpath: t.Optional[str] = None,
-        modified_components: t.Union[t.List[str], str, None] = None,
-        modified_files: t.Union[t.List[str], str, None] = None,
+        manifest_rootpath: str | None = None,
+        modified_components: list[str] | str | None = None,
+        modified_files: list[str] | str | None = None,
         check_app_dependencies: bool = False,
     ) -> None:
         if self.build_status not in (
@@ -624,9 +625,9 @@ class App(BaseModel):
     def _build(
         self,
         *,
-        manifest_rootpath: t.Optional[str] = None,
-        modified_components: t.Optional[t.List[str]] = None,
-        modified_files: t.Optional[t.List[str]] = None,
+        manifest_rootpath: str | None = None,
+        modified_components: list[str] | None = None,
+        modified_files: list[str] | None = None,
         check_app_dependencies: bool = False,
     ) -> None:
         pass
@@ -704,7 +705,7 @@ class App(BaseModel):
     def to_json(self) -> str:
         return self.model_dump_json()
 
-    def is_error_or_warning(self, line: str) -> t.Tuple[bool, bool]:
+    def is_error_or_warning(self, line: str) -> tuple[bool, bool]:
         if not self.LOG_ERROR_WARNING_REGEX.search(line):
             return False, False
 
@@ -720,7 +721,7 @@ class App(BaseModel):
     def is_app(cls, path: str) -> bool:
         raise NotImplementedError('Please implement this function in sub classes')
 
-    def is_modified(self, modified_files: t.Optional[t.List[str]]) -> bool:
+    def is_modified(self, modified_files: list[str] | None) -> bool:
         _app_dir_fullpath = to_absolute_path(self.app_dir)
         if modified_files:
             for f in modified_files:
@@ -740,11 +741,11 @@ class App(BaseModel):
     def check_should_build(
         self,
         *,
-        manifest_rootpath: t.Optional[str] = None,
-        modified_manifest_rules_folders: t.Optional[t.Set[str]] = None,
+        manifest_rootpath: str | None = None,
+        modified_manifest_rules_folders: set[str] | None = None,
         check_app_dependencies: bool = False,
-        modified_components: t.Optional[t.List[str]] = None,
-        modified_files: t.Optional[t.List[str]] = None,
+        modified_components: list[str] | None = None,
+        modified_files: list[str] | None = None,
     ) -> None:
         """Check if this app should be built based on the modified files and components."""
         if self.build_status != BuildStatus.UNKNOWN:
@@ -877,7 +878,7 @@ class MakeApp(App):
     build_system: Literal['make'] = 'make'  # type: ignore
 
     @property
-    def supported_targets(self) -> t.List[str]:
+    def supported_targets(self) -> list[str]:
         if self.MANIFEST:
             return self.MANIFEST.enable_build_targets(
                 self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
@@ -891,9 +892,9 @@ class MakeApp(App):
     def _build(
         self,
         *,
-        manifest_rootpath: t.Optional[str] = None,
-        modified_components: t.Optional[t.List[str]] = None,
-        modified_files: t.Optional[t.List[str]] = None,
+        manifest_rootpath: str | None = None,
+        modified_components: list[str] | None = None,
+        modified_files: list[str] | None = None,
         check_app_dependencies: bool = False,
     ) -> None:
         super()._build(
@@ -945,14 +946,14 @@ class MakeApp(App):
 
 class CMakeApp(App):
     # If these keys are present in sdkconfig.defaults, they will be extracted and passed to CMake
-    SDKCONFIG_TEST_OPTS: t.ClassVar[t.List[str]] = [
+    SDKCONFIG_TEST_OPTS: t.ClassVar[list[str]] = [
         'EXCLUDE_COMPONENTS',
         'TEST_EXCLUDE_COMPONENTS',
         'TEST_COMPONENTS',
     ]
 
     # These keys in sdkconfig.defaults are not propagated to the final sdkconfig file:
-    SDKCONFIG_IGNORE_OPTS: t.ClassVar[t.List[str]] = ['TEST_GROUPS']
+    SDKCONFIG_IGNORE_OPTS: t.ClassVar[list[str]] = ['TEST_GROUPS']
 
     # While ESP-IDF component CMakeLists files can be identified by the presence of 'idf_component_register' string,
     # there is no equivalent for the project CMakeLists files. This seems to be the best option...
@@ -960,14 +961,14 @@ class CMakeApp(App):
 
     build_system: Literal['cmake'] = 'cmake'  # type: ignore
 
-    cmake_vars: t.Dict[str, str] = {}
+    cmake_vars: dict[str, str] = {}
 
     def _build(
         self,
         *,
-        manifest_rootpath: t.Optional[str] = None,
-        modified_components: t.Optional[t.List[str]] = None,
-        modified_files: t.Optional[t.List[str]] = None,
+        manifest_rootpath: str | None = None,
+        modified_components: list[str] | None = None,
+        modified_files: list[str] | None = None,
         check_app_dependencies: bool = False,
     ) -> None:
         super()._build(
@@ -1071,15 +1072,15 @@ class CMakeApp(App):
 
 
 class AppDeserializer(BaseModel):
-    app: t.Union[App, CMakeApp, MakeApp] = Field(discriminator='build_system')
+    app: App | CMakeApp | MakeApp = Field(discriminator='build_system')
 
     @classmethod
-    def from_json(cls, json_data: t.Union[str, bytes, bytearray]) -> App:
+    def from_json(cls, json_data: str | bytes | bytearray) -> App:
         json_dict = json.loads(json_data.strip())
         return cls.model_validate({'app': json_dict}).app
 
     @classmethod
-    def from_json_list(cls, json_list: t.Sequence[t.Union[str, bytes, bytearray]]) -> t.List[App]:
+    def from_json_list(cls, json_list: t.Sequence[str | bytes | bytearray]) -> list[App]:
         apps = []
         for app_json in json_list:
             apps.append(cls.from_json(app_json))

@@ -22,14 +22,6 @@ from pydantic import BaseModel as _BaseModel
 
 LOGGER = logging.getLogger(__name__)
 
-if sys.version_info < (3, 8):
-    from typing_extensions import (
-        Literal,
-    )
-else:
-    from typing import (
-        Literal,  # noqa
-    )
 
 if sys.version_info < (3, 11):
     from typing_extensions import (
@@ -407,4 +399,4 @@ def drop_none_kwargs(d: dict) -> dict:
     return {k: v for k, v in d.items() if v is not None}
 
 
-PathLike = t.Union[str, Path]
+PathLike = str | Path
