@@ -63,6 +63,17 @@ Here is an example of a manifest file:
      depends_filepatterns:
        - "common_header_files/**/*"
 
+You may also reuse a common set of component dependencies by using the special placeholder ``- *common_components`` inside ``depends_components``. This placeholder is expanded when loading the manifest file, using the values provided via the CLI option ``--common-components`` (or the ``common_components`` argument to :meth:`~idf_build_apps.manifest.manifest.Manifest.from_file`).
+
+.. code:: yaml
+
+   # rules.yml
+   examples/foo:
+     depends_components:
+       - *common_components
+       - "some_1"
+       - "some_2"
+
 The apps under folder ``examples/foo`` will be built with the following CLI options:
 
 -  ``--manifest-files rules.yml --modified-files examples/foo/main/foo.c``

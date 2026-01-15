@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2026 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import contextvars
 import logging
@@ -342,12 +342,19 @@ class Manifest:
         self._rule_paths = {rule.folder: rule for rule in self.rules}
 
     @classmethod
-    def from_files(cls, paths: t.Iterable[PathLike], *, root_path: str = os.curdir) -> 'Manifest':
+    def from_files(
+        cls,
+        paths: t.Iterable[PathLike],
+        *,
+        root_path: str = os.curdir,
+        common_components: t.Optional[t.Sequence[str]] = None,
+    ) -> 'Manifest':
         """
         Create a Manifest instance from multiple manifest files
 
         :param paths: manifest file paths
         :param root_path: root path for relative paths in manifest files
+        :param common_components: sequence of strings to expand the ``- *common_components`` placeholder in manifests
         :return: Manifest instance
         """
         # folder, defined as dict
@@ -356,7 +363,7 @@ class Manifest:
         rules: t.List[FolderRule] = []
         for path in paths:
             LOGGER.debug('Loading manifest file %s', path)
-            _manifest = cls.from_file(path, root_path=root_path)
+            _manifest = cls.from_file(path, root_path=root_path, common_components=common_components)
 
             for rule in _manifest.rules:
                 if rule.folder in _known_folders:
@@ -373,15 +380,22 @@ class Manifest:
         return Manifest(rules, root_path=root_path)
 
     @classmethod
-    def from_file(cls, path: PathLike, *, root_path: str = os.curdir) -> 'Manifest':
+    def from_file(
+        cls,
+        path: PathLike,
+        *,
+        root_path: str = os.curdir,
+        common_components: t.Optional[t.Sequence[str]] = None,
+    ) -> 'Manifest':
         """
         Create a Manifest instance from a manifest file
 
         :param path: path to the manifest file
         :param root_path: root path for relative paths in manifest file
+        :param common_components: sequence of strings to expand the ``{{root_components}}`` placeholder in manifests
         :return: Manifest instance
         """
-        manifest_dict = parse(path)
+        manifest_dict = parse(path, common_components=common_components)
 
         rules: t.List[FolderRule] = []
         for folder, folder_rule in manifest_dict.items():

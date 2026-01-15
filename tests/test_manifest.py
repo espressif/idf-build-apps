@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2026 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import os
 
@@ -175,6 +175,33 @@ test5:
         assert manifest.depends_components('test5', 'esp32', 'BBB') == ['some_1', 'some_2', 'some_3']
         assert manifest.depends_components('test5', 'esp32', '123123') == ['some_1', 'some_2', 'some_3']
         assert manifest.depends_components('test5', None, None) == ['some_1', 'some_2', 'some_3']
+
+    def test_manifest_common_components(self, tmp_path):
+        common_components = ['hello', 'world', 123]
+
+        yaml_file = tmp_path / 'test.yml'
+        yaml_file.write_text(
+            """
+test5:
+  depends_components:
+    - *common_components
+    - "some_1"
+    - "some_2"
+    - "some_3"
+
+""",
+            encoding='utf8',
+        )
+
+        manifest = Manifest.from_file(yaml_file, common_components=common_components)
+        assert manifest.depends_components('test5', None, None) == [
+            'hello',
+            'world',
+            '123',
+            'some_1',
+            'some_2',
+            'some_3',
+        ]
 
     def test_manifest_switch_clause_with_postfix(self, tmp_path):
         yaml_file = tmp_path / 'test.yml'

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2024-2026 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -302,6 +302,19 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         ),
         default=None,  # type: ignore
     )
+    common_components: t.Optional[t.List[str]] = field(
+        FieldMetadata(
+            validate_method=[ValidateMethod.TO_LIST],
+            type=semicolon_separated_str_to_list,
+            shorthand='-rc',
+        ),
+        description='semicolon-separated list of components. '
+        'expand the `- *common_components` placeholder in manifests. '
+        'Must be specified together with --modified-components. '
+        'If set to "", the value would be considered as None. '
+        'If set to ";", the value would be considered as an empty list.',
+        default=None,  # type: ignore
+    )
     deactivate_dependency_driven_build_by_filepatterns: t.Optional[t.List[str]] = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
@@ -374,6 +387,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
             App.MANIFEST = Manifest.from_files(
                 self.manifest_files,
                 root_path=to_absolute_path(self.manifest_rootpath),
+                common_components=self.common_components,
             )
 
     @property

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2024-2026 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import os
 from tempfile import NamedTemporaryFile
@@ -168,6 +168,20 @@ modified_files = [
     assert args.modified_files == ['file1']
     assert args.verbose == 3
     assert args.deactivate_dependency_driven_build_by_components == ['baz']
+
+
+def test_func_common_components():
+    with open(IDF_BUILD_APPS_TOML_FN, 'w') as fw:
+        fw.write("""
+common_components = [
+    'hello',
+    'world'
+]
+        """)
+
+    args = FindArguments()
+
+    assert args.common_components == ['hello', 'world']
 
 
 def test_combination_validation():
