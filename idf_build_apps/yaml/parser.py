@@ -80,7 +80,7 @@ def flatten_common_components(manifest_dict: t.Dict):
             if isinstance(item, t.List):
                 flattened.extend(map(str, item))
             else:
-                flattened.append(str(item))
+                flattened.append(item)
 
         folder_rule['depends_components'] = flattened
 
