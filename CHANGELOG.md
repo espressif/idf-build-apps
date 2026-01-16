@@ -1,9 +1,47 @@
-# Changelog
+<a href="https://www.espressif.com">
+    <img src="https://www.espressif.com/sites/all/themes/espressif/logo-black.svg" align="right" height="20" />
+</a>
 
-All notable changes to this project will be documented in this file.
+# CHANGELOG
+
+> All notable changes to this project are documented in this file.
+> This list is not exhaustive - only important changes, fixes, and new features in the code are reflected here.
+
+<div style="text-align: center;">
+    <a href="https://keepachangelog.com/en/1.1.0/">
+        <img alt="Static Badge" src="https://img.shields.io/badge/Keep%20a%20Changelog-v1.1.0-salmon?logo=keepachangelog&logoColor=black&labelColor=white&link=https%3A%2F%2Fkeepachangelog.com%2Fen%2F1.1.0%2F">
+    </a>
+    <a href="https://www.conventionalcommits.org/en/v1.0.0/">
+        <img alt="Static Badge" src="https://img.shields.io/badge/Conventional%20Commits-v1.0.0-pink?logo=conventionalcommits&logoColor=black&labelColor=white&link=https%3A%2F%2Fwww.conventionalcommits.org%2Fen%2Fv1.0.0%2F">
+    </a>
+    <a href="https://semver.org/spec/v2.0.0.html">
+        <img alt="Static Badge" src="https://img.shields.io/badge/Semantic%20Versioning-v2.0.0-grey?logo=semanticrelease&logoColor=black&labelColor=white&link=https%3A%2F%2Fsemver.org%2Fspec%2Fv2.0.0.html">
+    </a>
+</div>
+<hr>
+
+## v2.14.0 (2026-01-16)
+
+### ✨ New Features
+
+- support root_components placeholder *(igor.udot - 104959e)*
+
+### 🐛 Bug Fixes
+
+- **pre-commit**: change mypy python_version from 3.9 to 3.10 *(Evgeny Torbin - bdf0788)*
+- fixed issue that parser_bool_expr thorws AttributeError not caught *(Xiao Xufeng - 3878948)*
+- `model_validate` does not support `extra` in python<=3.8 *(Fu Hanxi - 8a108a1)*
+- add disabled apps to junit with `--include-all-apps` flag *(Evgeny Torbin - 071d4e3)*
+
+### 📖 Documentation
+
+- base_components placeholder *(igor.udot - 7958201)*
+
+---
 
 ## v2.13.3 (2025-10-23)
 
+---
 
 ## v2.13.2 (2025-10-23)
 
@@ -12,6 +50,7 @@ All notable changes to this project will be documented in this file.
 - update broken tests for `size.json` *(Evgeny Torbin - c603221)*
 - change `idf_size.py --format json` to `--format json2` *(Evgeny Torbin - 49b9f3d)*
 
+---
 
 ## v2.13.1 (2025-09-29)
 
@@ -19,6 +58,7 @@ All notable changes to this project will be documented in this file.
 
 - path checking for modified apps *(Fu Hanxi - 18f554c)*
 
+---
 
 ## v2.13.0 (2025-09-26)
 
@@ -31,6 +71,7 @@ All notable changes to this project will be documented in this file.
 - **find_apps**: ignore target-specific sdkconfig files even without setting CONFIG_IDF_TARGET *(Fu Hanxi - 1861a7a)*
 - record `checked_should_build` *(Fu Hanxi - f37fff1)*
 
+---
 
 ## v2.12.3 (2025-09-16)
 
@@ -591,3 +632,15 @@ This is the last version to support ESP-IDF v4.1 since it's EOL on Feb. 24th, 20
 ### Added
 
 - Use `--format json` instead of `--json` with `idf_size.py`
+
+---
+
+<div style="text-align: center;">
+    <small>
+        <b>
+            <a href="https://www.github.com/espressif/cz-plugin-espressif">Commitizen Espressif plugin</a>
+        </b>
+    <br>
+        <sup><a href="https://www.espressif.com">Espressif Systems CO LTD. (2026)</a><sup>
+    </small>
+</div>
