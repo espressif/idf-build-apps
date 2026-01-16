@@ -1,5 +1,9 @@
 name: Test Build IDF Apps
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
+
 on:
   pull_request:
     paths:
@@ -39,7 +43,7 @@ jobs:
     needs: build-python-packages
     strategy:
       matrix:
-        idf-branch: [ release-v5.0, release-v5.1, release-v5.2, release-v5.3 ]
+        idf-branch: [ release-v5.1, release-v5.2, release-v5.3, release-v5.4, release-v5.5 ]
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:${{ matrix.idf-branch }}

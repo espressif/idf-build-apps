@@ -404,9 +404,7 @@ def main():
 
     # real call starts here
     # build also needs to find first
-    apps = find_apps(
-        args.paths, args.target, find_arguments=FindArguments.model_validate(kwargs_without_none, extra='ignore')
-    )
+    apps = find_apps(args.paths, args.target, find_arguments=FindArguments.model_validate(kwargs_without_none))
 
     if isinstance(arguments, FindArguments):  # find only
         if arguments.output:
