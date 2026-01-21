@@ -22,14 +22,6 @@ from pydantic import BaseModel as _BaseModel
 
 LOGGER = logging.getLogger(__name__)
 
-if sys.version_info < (3, 8):
-    from typing_extensions import (
-        Literal,
-    )
-else:
-    from typing import (
-        Literal,  # noqa
-    )
 
 if sys.version_info < (3, 11):
     from typing_extensions import (
@@ -62,7 +54,7 @@ class ConfigRule:
         self.config_name = config_name
 
 
-def config_rules_from_str(rule_strings: t.Optional[t.List[str]]) -> t.List[ConfigRule]:
+def config_rules_from_str(rule_strings: list[str] | None) -> list[ConfigRule]:
     """
     Helper function to convert strings like 'file_name=config_name' into `ConfigRule` objects
 
@@ -80,7 +72,7 @@ def config_rules_from_str(rule_strings: t.Optional[t.List[str]]) -> t.List[Confi
     return sorted(rules, key=lambda x: x.file_name)
 
 
-def get_parallel_start_stop(total: int, parallel_count: int, parallel_index: int) -> t.Tuple[int, int]:
+def get_parallel_start_stop(total: int, parallel_count: int, parallel_index: int) -> tuple[int, int]:
     """
     Calculate the start and stop indices for a parallel task (1-based).
 
@@ -125,7 +117,7 @@ class InvalidManifest(SystemExit):
     """Invalid manifest file"""
 
 
-def rmdir(path: t.Union[Path, str], exclude_file_patterns: t.Union[t.List[str], str, None] = None) -> None:
+def rmdir(path: Path | str, exclude_file_patterns: list[str] | str | None = None) -> None:
     if not exclude_file_patterns:
         shutil.rmtree(path, ignore_errors=True)
         return
@@ -147,7 +139,7 @@ def rmdir(path: t.Union[Path, str], exclude_file_patterns: t.Union[t.List[str], 
                 pass
 
 
-def find_first_match(pattern: str, path: str) -> t.Optional[str]:
+def find_first_match(pattern: str, path: str) -> str | None:
     for root, _, files in os.walk(path):
         res = fnmatch.filter(files, pattern)
         if res:
@@ -156,11 +148,11 @@ def find_first_match(pattern: str, path: str) -> t.Optional[str]:
 
 
 def subprocess_run(
-    cmd: t.List[str],
+    cmd: list[str],
     log_terminal: bool = True,
-    log_fs: t.Union[t.IO[str], str, None] = None,
+    log_fs: t.IO[str] | str | None = None,
     check: bool = False,
-    additional_env_dict: t.Optional[t.Dict[str, str]] = None,
+    additional_env_dict: dict[str, str] | None = None,
     **kwargs,
 ) -> int:
     """
@@ -182,7 +174,7 @@ def subprocess_run(
 
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=subprocess_env, **kwargs)
 
-    def _log_stdout(fs: t.Optional[t.IO[str]] = None):
+    def _log_stdout(fs: t.IO[str] | None = None):
         if p.stdout:
             for line in p.stdout:
                 if isinstance(line, bytes):
@@ -217,11 +209,11 @@ def to_list(s: None) -> None: ...
 
 
 @t.overload
-def to_list(s: t.Iterable[_T]) -> t.List[_T]: ...
+def to_list(s: t.Iterable[_T]) -> list[_T]: ...
 
 
 @t.overload
-def to_list(s: _T) -> t.List[_T]: ...
+def to_list(s: _T) -> list[_T]: ...
 
 
 def to_list(s):
@@ -253,11 +245,11 @@ def to_set(s: None) -> None: ...
 
 
 @t.overload
-def to_set(s: t.Iterable[_T]) -> t.Set[_T]: ...
+def to_set(s: t.Iterable[_T]) -> set[_T]: ...
 
 
 @t.overload
-def to_set(s: _T) -> t.Set[_T]: ...
+def to_set(s: _T) -> set[_T]: ...
 
 
 def to_set(s):
@@ -279,7 +271,7 @@ def to_set(s):
     return set(to_list(s))
 
 
-def semicolon_separated_str_to_list(s: t.Optional[str]) -> t.Optional[t.List[str]]:
+def semicolon_separated_str_to_list(s: str | None) -> list[str] | None:
     """
     Split a string by semicolon and strip each part
 
@@ -295,7 +287,7 @@ def semicolon_separated_str_to_list(s: t.Optional[str]) -> t.Optional[t.List[str
     return [p.strip() for p in s.strip().split(';') if p.strip()]
 
 
-def to_absolute_path(s: str, rootpath: t.Optional[str] = None) -> str:
+def to_absolute_path(s: str, rootpath: str | None = None) -> str:
     rp = os.path.abspath(os.path.expanduser(rootpath or '.'))
 
     sp = os.path.expanduser(s)
@@ -316,9 +308,9 @@ def to_version(s: t.Any) -> Version:
 
 
 def files_matches_patterns(
-    files: t.Union[t.List[str], str],
-    patterns: t.Union[t.List[str], str],
-    rootpath: t.Optional[str] = None,
+    files: list[str] | str,
+    patterns: list[str] | str,
+    rootpath: str | None = None,
 ) -> bool:
     # can't match an absolute pattern with a relative path
     # change all to absolute paths
@@ -339,8 +331,8 @@ class BaseModel(_BaseModel):
     BaseModel that is hashable
     """
 
-    __EQ_IGNORE_FIELDS__: t.List[str] = []
-    __EQ_TUNE_FIELDS__: t.Dict[str, t.Callable[[t.Any], t.Any]] = {}
+    __EQ_IGNORE_FIELDS__: list[str] = []
+    __EQ_TUNE_FIELDS__: dict[str, t.Callable[[t.Any], t.Any]] = {}
 
     def __lt__(self, other: t.Any) -> bool:
         if isinstance(other, self.__class__):
@@ -407,4 +399,4 @@ def drop_none_kwargs(d: dict) -> dict:
     return {k: v for k, v in d.items() if v is not None}
 
 
-PathLike = t.Union[str, Path]
+PathLike = str | Path

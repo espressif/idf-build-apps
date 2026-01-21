@@ -782,17 +782,15 @@ def test_find_apps_with_duplicated_paths(tmp_path):
 class TestFindWithExtraPythonPaths:
     custom_app_code = """
 import os
-import typing as t
+from typing import Literal
 from idf_build_apps import App
 from idf_build_apps.constants import BuildStatus
-from idf_build_apps.utils import Literal
-
 
 class ExtraPathTestApp(App):
     build_system: Literal['extra_path_test'] = 'extra_path_test'  # type: ignore
 
     @property
-    def supported_targets(self) -> t.List[str]:
+    def supported_targets(self) -> list[str]:
         return ['esp32', 'esp32s2', 'esp32c3']
 
     def build(self, *args, **kwargs):

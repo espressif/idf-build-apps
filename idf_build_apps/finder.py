@@ -5,7 +5,6 @@ import logging
 import os
 import os.path
 import re
-import typing as t
 from pathlib import (
     Path,
 )
@@ -39,9 +38,9 @@ def _get_apps_from_path(
     path: str,
     target: str,
     *,
-    app_cls: t.Type[App] = CMakeApp,
+    app_cls: type[App] = CMakeApp,
     args: FindArguments,
-) -> t.List[App]:
+) -> list[App]:
     if not app_cls.is_app(path):
         LOGGER.debug('Skipping. %s is not an app', path)
         return []
@@ -49,7 +48,7 @@ def _get_apps_from_path(
     config_rules = config_rules_from_str(args.config_rules)
 
     apps = []
-    app_configs: t.List[t.Tuple[t.Optional[str], str]] = []  # List of (sdkconfig_path, config_name) tuples
+    app_configs: list[tuple[str | None, str]] = []  # List of (sdkconfig_path, config_name) tuples
     default_config_name = ''
     sdkconfig_paths_matched = False
 
@@ -138,9 +137,9 @@ def _find_apps(
     path: str,
     target: str,
     *,
-    app_cls: t.Type[App] = CMakeApp,
+    app_cls: type[App] = CMakeApp,
     args: FindArguments,
-) -> t.List[App]:
+) -> list[App]:
     LOGGER.debug(
         'Looking for %s apps in %s%s with target %s',
         app_cls.__name__,

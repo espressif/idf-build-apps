@@ -9,7 +9,8 @@ import logging
 import os
 import sys
 import textwrap
-import typing as t
+from functools import reduce
+from operator import or_
 from pathlib import Path
 
 import argcomplete
@@ -56,13 +57,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 def find_apps(
-    paths: t.Union[t.List[str], str, None] = None,
-    target: t.Optional[str] = None,
+    paths: list[str] | str | None = None,
+    target: str | None = None,
     *,
-    find_arguments: t.Optional[FindArguments] = None,
-    config_file: t.Optional[str] = None,
+    find_arguments: FindArguments | None = None,
+    config_file: str | None = None,
     **kwargs,
-) -> t.List[App]:
+) -> list[App]:
     """
     Find apps in the given paths for the specified target. For all kwargs, please refer to `FindArguments`
 
@@ -87,7 +88,7 @@ def find_apps(
             **kwargs,
         )
 
-    apps: t.Set[App] = set()
+    apps: set[App] = set()
     if find_arguments.target == 'all':
         targets = DEFAULT_BUILD_TARGETS.get()
         LOGGER.info('Searching for apps by default build targets: %s', targets)
@@ -113,10 +114,10 @@ def find_apps(
 
 
 def build_apps(
-    apps: t.Union[t.List[App], App, None] = None,
+    apps: list[App] | App | None = None,
     *,
-    build_arguments: t.Optional[BuildArguments] = None,
-    config_file: t.Optional[str] = None,
+    build_arguments: BuildArguments | None = None,
+    config_file: str | None = None,
     **kwargs,
 ) -> int:
     """
@@ -457,7 +458,7 @@ def main():
         sys.exit(ret_code)
 
 
-def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = None) -> App:
+def json_to_app(json_str: str, extra_classes: list[type[App]] | None = None) -> App:
     """
     Deserialize json string to App object
 
@@ -486,9 +487,10 @@ def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = 
     if extra_classes:
         _known_classes.extend(extra_classes)
 
+    app_type_union = reduce(or_, _known_classes)
     custom_deserializer = create_model(
         '_CustomDeserializer',
-        app=(t.Union[tuple(_known_classes)], Field(discriminator='build_system')),
+        app=(app_type_union, Field(discriminator='build_system')),
         __base__=AppDeserializer,
     )
 
@@ -496,9 +498,9 @@ def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = 
 
 
 def json_list_files_to_apps(
-    json_list_filepaths: t.List[str],
-    extra_classes: t.Optional[t.List[t.Type[App]]] = None,
-) -> t.List[App]:
+    json_list_filepaths: list[str],
+    extra_classes: list[type[App]] | None = None,
+) -> list[App]:
     """
     Deserialize a list of json strings to App objects
 
@@ -510,9 +512,10 @@ def json_list_files_to_apps(
     if extra_classes:
         _known_classes.extend(extra_classes)
 
+    app_type_union = reduce(or_, _known_classes)
     custom_deserializer = create_model(
         '_CustomDeserializer',
-        app=(t.Union[tuple(_known_classes)], Field(discriminator='build_system')),
+        app=(app_type_union, Field(discriminator='build_system')),
         __base__=AppDeserializer,
     )
 

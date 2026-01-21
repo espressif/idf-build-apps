@@ -8,7 +8,7 @@ import yaml
 from ..utils import PathLike
 
 
-def parse_postfixes(manifest_dict: t.Dict):
+def parse_postfixes(manifest_dict: dict[str, t.Any]) -> None:
     for folder, folder_rule in manifest_dict.items():
         if folder.startswith('.'):
             continue
@@ -16,7 +16,7 @@ def parse_postfixes(manifest_dict: t.Dict):
         if not folder_rule:
             continue
 
-        updated_folder: t.Dict = {}
+        updated_folder: dict[str, t.Any] = {}
         sorted_keys = sorted(folder_rule)
         for key in sorted_keys:
             if not key.endswith(('+', '-')):
@@ -28,8 +28,8 @@ def parse_postfixes(manifest_dict: t.Dict):
             if_dict_obj = []
             other_dict_obj = []
             str_obj = set()
-            for obj in updated_folder[key[:-1]]:
-                if isinstance(obj, t.Dict):
+            for obj in updated_folder.get(key[:-1], []):
+                if isinstance(obj, dict):
                     if 'if' in obj:
                         if_dict_obj.append(obj)
                     else:
@@ -38,7 +38,7 @@ def parse_postfixes(manifest_dict: t.Dict):
                     str_obj.add(obj)
 
             for obj in folder_rule[key]:
-                if isinstance(obj, t.Dict):
+                if isinstance(obj, dict):
                     _l = obj['if']
                     if isinstance(_l, str):
                         _l = _l.replace(' ', '')
@@ -62,22 +62,22 @@ def parse_postfixes(manifest_dict: t.Dict):
         manifest_dict[folder] = updated_folder
 
 
-def flatten_common_components(manifest_dict: t.Dict):
+def flatten_common_components(manifest_dict: dict[str, t.Any]) -> None:
     """
     Flattens nested lists under `depends_components` into a single list of strings.
     """
 
     for folder, folder_rule in manifest_dict.items():
-        if not isinstance(folder_rule, t.Dict):
+        if not isinstance(folder_rule, dict):
             continue
 
         depends = folder_rule.get('depends_components')
-        if not isinstance(depends, t.List):
+        if not isinstance(depends, list):
             continue
 
-        flattened: t.List[str] = []
+        flattened: list[str] = []
         for item in depends:
-            if isinstance(item, t.List):
+            if isinstance(item, list):
                 flattened.extend(map(str, item))
             else:
                 flattened.append(item)
@@ -85,7 +85,7 @@ def flatten_common_components(manifest_dict: t.Dict):
         folder_rule['depends_components'] = flattened
 
 
-def parse(path: PathLike, *, common_components: t.Optional[t.Sequence[str]] = None) -> t.Dict:
+def parse(path: PathLike, *, common_components: t.Sequence[str] | None = None) -> dict[str, t.Any]:
     common_components_yaml = (
         '.common_components: &common_components\n' + '\n'.join(f'  - {component}' for component in common_components)
         if common_components

@@ -3,10 +3,11 @@
 import contextvars
 import logging
 import os
-import typing as t
 import warnings
+from collections.abc import Iterable, Sequence
 from functools import lru_cache
 from hashlib import sha512
+from typing import Any
 
 from esp_bool_parser import BoolStmt, parse_bool_expr
 from pyparsing import (
@@ -30,7 +31,7 @@ from ..yaml import (
 LOGGER = logging.getLogger(__name__)
 
 # Context variable for default build targets
-DEFAULT_BUILD_TARGETS: contextvars.ContextVar[t.List[str]] = contextvars.ContextVar(
+DEFAULT_BUILD_TARGETS: contextvars.ContextVar[list[str]] = contextvars.ContextVar(
     'default_build_targets', default=SUPPORTED_TARGETS
 )
 
@@ -41,7 +42,7 @@ def reset_default_build_targets() -> None:
 
 
 class IfClause:
-    def __init__(self, stmt: str, temporary: bool = False, reason: t.Optional[str] = None) -> None:
+    def __init__(self, stmt: str, temporary: bool = False, reason: str | None = None) -> None:
         try:
             self.stmt: BoolStmt = parse_bool_expr(stmt)
             self._stmt: str = stmt
@@ -72,19 +73,17 @@ class IfClause:
     def __repr__(self):
         return f'IfClause(stmt={self._stmt!r}, temporary={self.temporary!r}, reason={self.reason!r})'
 
-    def get_value(self, target: str, config_name: str) -> t.Any:
+    def get_value(self, target: str, config_name: str) -> Any:
         return self.stmt.get_value(target, config_name)
 
 
 class SwitchClause:
-    def __init__(
-        self, if_clauses: t.List[IfClause], contents: t.List[t.List[str]], default_clause: t.List[str]
-    ) -> None:
+    def __init__(self, if_clauses: list[IfClause], contents: list[list[str]], default_clause: list[str]) -> None:
         self.if_clauses = if_clauses
         self.contents = contents
         self.default_clause = default_clause
 
-    def get_value(self, target: str, config_name: str) -> t.Any:
+    def get_value(self, target: str, config_name: str) -> Any:
         for if_clause, content in zip(self.if_clauses, self.contents):
             if if_clause.get_value(target, config_name):
                 return content
@@ -99,7 +98,7 @@ class SwitchClause:
         )
 
 
-def _getattr_default_build_targets(name: str) -> t.Any:
+def _getattr_default_build_targets(name: str) -> Any:
     if name == 'DEFAULT_BUILD_TARGETS':
         warnings.warn(
             'FolderRule.DEFAULT_BUILD_TARGETS is deprecated. Use DEFAULT_BUILD_TARGETS.get() directly.',
@@ -110,7 +109,7 @@ def _getattr_default_build_targets(name: str) -> t.Any:
     return None
 
 
-def _setattr_default_build_targets(name: str, value: t.Any) -> bool:
+def _setattr_default_build_targets(name: str, value: Any) -> bool:
     if name == 'DEFAULT_BUILD_TARGETS':
         warnings.warn(
             'FolderRule.DEFAULT_BUILD_TARGETS is deprecated. Use DEFAULT_BUILD_TARGETS.set() directly.',
@@ -162,18 +161,18 @@ class FolderRule(metaclass=_FolderRuleMeta):
     def __init__(
         self,
         folder: str,
-        enable: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
-        disable: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
-        disable_test: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
-        depends_components: t.Optional[t.List[t.Union[str, t.Dict[str, t.Any]]]] = None,
-        depends_filepatterns: t.Optional[t.List[t.Union[str, t.Dict[str, t.Any]]]] = None,
-        manifest_filepath: t.Optional[str] = None,
+        enable: list[dict[str, Any]] | None = None,
+        disable: list[dict[str, Any]] | None = None,
+        disable_test: list[dict[str, Any]] | None = None,
+        depends_components: list[str | dict[str, Any]] | None = None,
+        depends_filepatterns: list[str | dict[str, Any]] | None = None,
+        manifest_filepath: str | None = None,
     ) -> None:
         self._manifest_filepath = manifest_filepath
 
         self.folder = os.path.abspath(folder)
 
-        def _clause_to_if_clause(clause: t.Dict[str, t.Any]) -> IfClause:
+        def _clause_to_if_clause(clause: dict[str, Any]) -> IfClause:
             _kwargs = {'stmt': clause['if']}
             if 'temporary' in clause:
                 _kwargs['temporary'] = clause['temporary']
@@ -182,15 +181,15 @@ class FolderRule(metaclass=_FolderRuleMeta):
             return IfClause(**_kwargs)
 
         def _clause_to_switch_or_list(
-            statements: t.Optional[t.List[t.Union[str, t.Dict[str, t.Any]]]],
-        ) -> t.Union[SwitchClause, t.List[str]]:
+            statements: list[str | dict[str, Any]] | None,
+        ) -> SwitchClause | list[str]:
             if not statements:
                 return []
 
             switch_statements = []
             str_statements = []
             for statement in statements:
-                if isinstance(statement, t.Dict):
+                if isinstance(statement, dict):
                     switch_statements.append(statement)
                 else:
                     str_statements.append(statement)
@@ -203,7 +202,7 @@ class FolderRule(metaclass=_FolderRuleMeta):
 
             return _clause_to_switch_clause(switch_statements)
 
-        def _clause_to_switch_clause(switch_statements: t.List[t.Dict[str, t.Any]]) -> SwitchClause:
+        def _clause_to_switch_clause(switch_statements: list[dict[str, Any]]) -> SwitchClause:
             if_clauses = []
             contents = []
             default_clauses = []
@@ -250,7 +249,7 @@ class FolderRule(metaclass=_FolderRuleMeta):
         return f'FolderRule({self.folder})'
 
     @property
-    def by_manifest_file(self) -> t.Optional[str]:
+    def by_manifest_file(self) -> str | None:
         return self._manifest_filepath
 
     @lru_cache(None)
@@ -274,7 +273,7 @@ class FolderRule(metaclass=_FolderRuleMeta):
 
     @lru_cache(None)
     def _enable_test(
-        self, target: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
+        self, target: str, default_sdkconfig_target: str | None = None, config_name: str | None = None
     ) -> bool:
         res = target in self.enable_build_targets(default_sdkconfig_target, config_name)
 
@@ -288,8 +287,8 @@ class FolderRule(metaclass=_FolderRuleMeta):
 
     @lru_cache(None)
     def enable_build_targets(
-        self, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
-    ) -> t.List[str]:
+        self, default_sdkconfig_target: str | None = None, config_name: str | None = None
+    ) -> list[str]:
         res = []
         for target in ALL_TARGETS:
             if self._enable_build(target, config_name or ''):
@@ -315,8 +314,8 @@ class FolderRule(metaclass=_FolderRuleMeta):
 
     @lru_cache(None)
     def enable_test_targets(
-        self, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
-    ) -> t.List[str]:
+        self, default_sdkconfig_target: str | None = None, config_name: str | None = None
+    ) -> list[str]:
         res = []
         for target in ALL_TARGETS:
             if self._enable_test(target, default_sdkconfig_target, config_name):
@@ -334,7 +333,7 @@ class Manifest:
     # could be reassigned later
     CHECK_MANIFEST_RULES = False
 
-    def __init__(self, rules: t.Iterable[FolderRule], *, root_path: str = os.curdir) -> None:
+    def __init__(self, rules: Iterable[FolderRule], *, root_path: str = os.curdir) -> None:
         self.rules = sorted(rules, key=lambda x: x.folder)
         self._root_path = to_absolute_path(root_path)
 
@@ -344,10 +343,10 @@ class Manifest:
     @classmethod
     def from_files(
         cls,
-        paths: t.Iterable[PathLike],
+        paths: Iterable[PathLike],
         *,
         root_path: str = os.curdir,
-        common_components: t.Optional[t.Sequence[str]] = None,
+        common_components: Sequence[str] | None = None,
     ) -> 'Manifest':
         """
         Create a Manifest instance from multiple manifest files
@@ -358,9 +357,9 @@ class Manifest:
         :return: Manifest instance
         """
         # folder, defined as dict
-        _known_folders: t.Dict[str, PathLike] = dict()
+        _known_folders: dict[str, PathLike] = dict()
 
-        rules: t.List[FolderRule] = []
+        rules: list[FolderRule] = []
         for path in paths:
             LOGGER.debug('Loading manifest file %s', path)
             _manifest = cls.from_file(path, root_path=root_path, common_components=common_components)
@@ -385,7 +384,7 @@ class Manifest:
         path: PathLike,
         *,
         root_path: str = os.curdir,
-        common_components: t.Optional[t.Sequence[str]] = None,
+        common_components: Sequence[str] | None = None,
     ) -> 'Manifest':
         """
         Create a Manifest instance from a manifest file
@@ -397,7 +396,7 @@ class Manifest:
         """
         manifest_dict = parse(path, common_components=common_components)
 
-        rules: t.List[FolderRule] = []
+        rules: list[FolderRule] = []
         for folder, folder_rule in manifest_dict.items():
             # not a folder, but an anchor
             if folder.startswith('.'):
@@ -431,7 +430,7 @@ class Manifest:
         with open(sha_filepath, 'w') as fw:
             fw.writelines(f'{os.path.relpath(rule.folder, self._root_path)}:{rule.sha}\n' for rule in self.rules)
 
-    def diff_sha_with_filepath(self, sha_filepath: str, use_abspath: bool = False) -> t.Set[str]:
+    def diff_sha_with_filepath(self, sha_filepath: str, use_abspath: bool = False) -> set[str]:
         """
         Compare the SHA recorded in the file with the current Manifest instance.
 
@@ -495,26 +494,26 @@ class Manifest:
         return DefaultRule(folder)
 
     def enable_build_targets(
-        self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
-    ) -> t.List[str]:
+        self, folder: str, default_sdkconfig_target: str | None = None, config_name: str | None = None
+    ) -> list[str]:
         return self.most_suitable_rule(folder).enable_build_targets(default_sdkconfig_target, config_name)
 
     def enable_test_targets(
-        self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
-    ) -> t.List[str]:
+        self, folder: str, default_sdkconfig_target: str | None = None, config_name: str | None = None
+    ) -> list[str]:
         return self.most_suitable_rule(folder).enable_test_targets(default_sdkconfig_target, config_name)
 
     def depends_components(
-        self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
-    ) -> t.List[str]:
+        self, folder: str, default_sdkconfig_target: str | None = None, config_name: str | None = None
+    ) -> list[str]:
         res = self.most_suitable_rule(folder).depends_components
         if isinstance(res, list):
             return res
         return res.get_value(default_sdkconfig_target or '', config_name or '')
 
     def depends_filepatterns(
-        self, folder: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
-    ) -> t.List[str]:
+        self, folder: str, default_sdkconfig_target: str | None = None, config_name: str | None = None
+    ) -> list[str]:
         res = self.most_suitable_rule(folder).depends_filepatterns
         if isinstance(res, list):
             return res
