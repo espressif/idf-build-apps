@@ -85,7 +85,7 @@ def flatten_common_components(manifest_dict: dict[str, t.Any]) -> None:
         folder_rule['depends_components'] = flattened
 
 
-def parse(path: PathLike, *, common_components: t.Optional[t.Sequence[str]] = None) -> dict[str, t.Any]:
+def parse(path: PathLike, *, common_components: t.Sequence[str] | None = None) -> dict[str, t.Any]:
     common_components_yaml = (
         '.common_components: &common_components\n' + '\n'.join(f'  - {component}' for component in common_components)
         if common_components

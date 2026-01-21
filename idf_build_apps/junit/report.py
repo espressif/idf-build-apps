@@ -65,12 +65,12 @@ class TestCase:
         self,
         name: str,
         *,
-        error_reason: t.Optional[str] = None,
-        failure_reason: t.Optional[str] = None,
-        skipped_reason: t.Optional[str] = None,
-        properties: t.Optional[t.Dict[str, str]] = None,
+        error_reason: str | None = None,
+        failure_reason: str | None = None,
+        skipped_reason: str | None = None,
+        properties: dict[str, str] | None = None,
         duration_sec: float = 0,
-        timestamp: t.Optional[datetime] = None,
+        timestamp: datetime | None = None,
     ) -> None:
         self.name = name
 
@@ -94,7 +94,7 @@ class TestCase:
                 f'Please finish the build process first.'
             )
 
-        kwargs: t.Dict[str, t.Any] = {
+        kwargs: dict[str, t.Any] = {
             'name': app.build_path,
             'duration_sec': app._build_duration,
             'timestamp': app._build_timestamp,
@@ -151,7 +151,7 @@ class TestSuite:
     def __init__(self, name: str) -> None:
         self.name = name
 
-        self.test_cases: t.List[TestCase] = []
+        self.test_cases: list[TestCase] = []
 
         self.tests = 0  # passed, actually
         self.errors = 0  # setup error
@@ -199,8 +199,8 @@ class TestSuite:
 
 
 class TestReport:
-    def __init__(self, test_suites: t.List[TestSuite], filepath: str) -> None:
-        self.test_suites: t.List[TestSuite] = test_suites
+    def __init__(self, test_suites: list[TestSuite], filepath: str) -> None:
+        self.test_suites: list[TestSuite] = test_suites
 
         self.filepath = filepath
 

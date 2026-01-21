@@ -6,7 +6,6 @@ import platform
 import re
 import socket
 import sys
-import typing as t
 
 
 def get_size(b: float) -> str:
@@ -35,7 +34,7 @@ def get_processor_name():
     return ''
 
 
-def get_sys_info() -> t.Dict[str, str]:
+def get_sys_info() -> dict[str, str]:
     info = {
         'platform': platform.system(),
         'platform-release': platform.release(),

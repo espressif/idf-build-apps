@@ -164,7 +164,9 @@ class BaseArguments(BaseSettings):
             config_file = cls._find_config_file()
             if config_file:
                 sources += (TomlConfigSettingsSource(settings_cls, toml_file=config_file),)
-                sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=config_file.parent / 'pyproject.toml'),)
+                sources += (
+                    PyprojectTomlConfigSettingsSource(settings_cls, toml_file=config_file.parent / 'pyproject.toml'),
+                )
             else:
                 sources += (TomlConfigSettingsSource(settings_cls, toml_file=Path(IDF_BUILD_APPS_TOML_FN)),)
                 sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=Path('pyproject.toml')),)
@@ -182,12 +184,12 @@ class BaseArguments(BaseSettings):
             config_file = current / IDF_BUILD_APPS_TOML_FN
             if config_file.exists():
                 return config_file
-            
+
             # Stop at filesystem root
             if current == current.parent:
                 break
             current = current.parent
-        
+
         return None
 
     @field_validator('*', mode='before')
@@ -325,7 +327,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         ),
         default=None,  # type: ignore
     )
-    common_components: t.Optional[t.List[str]] = field(
+    common_components: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             type=semicolon_separated_str_to_list,
