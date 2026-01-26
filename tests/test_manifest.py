@@ -203,6 +203,30 @@ test5:
             'some_3',
         ]
 
+    def test_manifest_empty_common_components(self, tmp_path):
+        common_components = None
+
+        yaml_file = tmp_path / 'test.yml'
+        yaml_file.write_text(
+            """
+test5:
+  depends_components:
+    - *common_components
+    - "some_1"
+    - "some_2"
+    - "some_3"
+
+""",
+            encoding='utf8',
+        )
+
+        manifest = Manifest.from_file(yaml_file, common_components=common_components)
+        assert manifest.depends_components('test5', None, None) == [
+            'some_1',
+            'some_2',
+            'some_3',
+        ]
+
     def test_manifest_switch_clause_with_postfix(self, tmp_path):
         yaml_file = tmp_path / 'test.yml'
 
@@ -240,12 +264,12 @@ test1:
 
         yaml_file.write_text(
             """
-    test1:
-      depends_components:
-        - if: IDF_VERSION == "5.9.0"
-          content: [ "VVV" ]
-        - default: ["some_1", "some_2", "some_3"]
-        - hello: 123
+test1:
+  depends_components:
+    - if: IDF_VERSION == "5.9.0"
+      content: [ "VVV" ]
+    - default: ["some_1", "some_2", "some_3"]
+    - hello: 123
 
     """,
             encoding='utf8',
@@ -258,13 +282,13 @@ test1:
 
         yaml_file.write_text(
             """
-        test1:
-          depends_components:
-            - if: IDF_VERSION == "5.9.0"
-              content: [ "VVV" ]
-            - default: ["some_1", "some_2", "some_3"]
-            - 123
-            - 234
+test1:
+  depends_components:
+    - if: IDF_VERSION == "5.9.0"
+      content: [ "VVV" ]
+    - default: ["some_1", "some_2", "some_3"]
+    - 123
+    - 234
         """,
             encoding='utf8',
         )

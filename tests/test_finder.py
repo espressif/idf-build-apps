@@ -118,9 +118,9 @@ examples/get-started:
         yaml_file = tmp_path / 'test.yml'
         yaml_file.write_text(
             f"""
-        {test_dir}:
-            enable:
-                - if: IDF_TARGET == "esp32s2"
+{test_dir}:
+    enable:
+        - if: IDF_TARGET == "esp32s2"
         """,
             encoding='utf8',
         )
