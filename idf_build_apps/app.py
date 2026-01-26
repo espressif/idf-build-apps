@@ -956,7 +956,11 @@ class CMakeApp(App):
 
     # While ESP-IDF component CMakeLists files can be identified by the presence of 'idf_component_register' string,
     # there is no equivalent for the project CMakeLists files. This seems to be the best option...
-    CMAKE_PROJECT_LINE: t.ClassVar[str] = r'include($ENV{IDF_PATH}/tools/cmake/project.cmake)'
+    # Support both build system v1 and v2 patterns
+    CMAKE_PROJECT_LINE: t.ClassVar[t.List[str]] = [
+        r'include($ENV{IDF_PATH}/tools/cmake/project.cmake)',
+        r'include($ENV{IDF_PATH}/tools/cmakev2/idf.cmake)',
+    ]
 
     build_system: Literal['cmake'] = 'cmake'  # type: ignore
 
@@ -1064,10 +1068,12 @@ class CMakeApp(App):
         if not cmakelists_file_content:
             return False
 
-        if cls.CMAKE_PROJECT_LINE not in cmakelists_file_content:
-            return False
+        # Check if any of the supported build system patterns are present
+        for pattern in cls.CMAKE_PROJECT_LINE:
+            if pattern in cmakelists_file_content:
+                return True
 
-        return True
+        return False
 
 
 class AppDeserializer(BaseModel):
