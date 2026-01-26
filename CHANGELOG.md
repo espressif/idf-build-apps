@@ -20,6 +20,18 @@
 </div>
 <hr>
 
+## v2.15.0 (2026-01-26)
+
+### ✨ New Features
+
+- support detection of ESP-IDF build system v2 projects *(Sudeep Mohanty - 16479c0)*
+
+### 🐛 Bug Fixes
+
+- mock common_components when it is none *(igor.udot - 273e603)*
+
+---
+
 ## v2.14.0 (2026-01-16)
 
 ### ✨ New Features
@@ -40,8 +52,6 @@
 ---
 
 ## v2.13.3 (2025-10-23)
-
-- No updates in this release.
 
 ---
 
