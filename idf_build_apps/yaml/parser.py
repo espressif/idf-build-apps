@@ -77,6 +77,8 @@ def flatten_common_components(manifest_dict: t.Dict):
 
         flattened: t.List[str] = []
         for item in depends:
+            if not item:
+                continue
             if isinstance(item, t.List):
                 flattened.extend(map(str, item))
             else:
@@ -89,7 +91,7 @@ def parse(path: PathLike, *, common_components: t.Optional[t.Sequence[str]] = No
     common_components_yaml = (
         '.common_components: &common_components\n' + '\n'.join(f'  - {component}' for component in common_components)
         if common_components
-        else ''
+        else '.common_components: &common_components\n  null'
     )
 
     with open(path, encoding='utf-8') as f:
