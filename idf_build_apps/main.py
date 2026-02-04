@@ -394,7 +394,9 @@ def main():
 
     if action == 'dump-manifest-sha':
         arguments = DumpManifestShaArguments(**kwargs_without_none)
-        Manifest.from_files(arguments.manifest_files).dump_sha_values(arguments.output)
+        Manifest.from_files(arguments.manifest_files, common_components=arguments.common_components).dump_sha_values(
+            arguments.output
+        )
         sys.exit(0)
 
     if action == 'find':

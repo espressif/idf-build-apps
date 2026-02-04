@@ -929,6 +929,18 @@ class DumpManifestShaArguments(GlobalArguments):
         description='Path to the manifest files which contains the build test rules of the apps',
         default=None,  # type: ignore
     )
+    common_components: t.Optional[t.List[str]] = field(
+        FieldMetadata(
+            validate_method=[ValidateMethod.TO_LIST],
+            type=semicolon_separated_str_to_list,
+            shorthand='-rc',
+        ),
+        description='semicolon-separated list of components. '
+        'expand the `- *common_components` placeholder in manifests. '
+        'If set to "", the value would be considered as None. '
+        'If set to ";", the value would be considered as an empty list.',
+        default=None,  # type: ignore
+    )
 
     output: t.Optional[str] = field(
         FieldMetadata(
