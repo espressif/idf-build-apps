@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2024-2026 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import os
+import subprocess
 import sys
 from pathlib import Path
 from textwrap import dedent
@@ -71,6 +72,41 @@ foobar:
                 f'foo:{sha_of_enable_only_esp32}\n'
                 f'foobar:{sha_of_enable_esp32_or_esp32s2}\n'
             )
+
+
+def test_manifest_dump_sha_values_with_common_components():
+    Path('.idf_build_apps.toml').write_text(
+        """
+common_components = ["foo", "bar"]
+"""
+    )
+    Path('test.yml').write_text(
+        """
+foo:
+  depends_components:
+    - *common_components
+""",
+        encoding='utf8',
+    )
+    subprocess.run(
+        ['idf-build-apps', 'dump-manifest-sha', '--manifest-files', 'test.yml', '--output', 'test.sha1'], check=True
+    )
+
+    os.remove('.idf_build_apps.toml')
+    Path('test2.yml').write_text(
+        """
+foo:
+  depends_components:
+    - foo
+    - bar
+""",
+        encoding='utf8',
+    )
+    subprocess.run(
+        ['idf-build-apps', 'dump-manifest-sha', '--manifest-files', 'test2.yml', '--output', 'test2.sha1'], check=True
+    )
+    with open('test.sha1') as f1, open('test2.sha1') as f2:
+        assert f1.read() == f2.read()
 
 
 def test_manifest_patterns(tmp_path, monkeypatch, capsys):
