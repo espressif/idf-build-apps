@@ -20,6 +20,17 @@
 </div>
 <hr>
 
+## v2.15.1 (2026-02-04)
+
+### 🐛 Bug Fixes
+
+- dump-manifest-sha with common_components *(Fu Hanxi - f5e6414)*
+
+### 📖 Documentation
+
+- fix the changelog *(Fu Hanxi - 13e53c1)*
+
+
 ## v2.15.0 (2026-01-26)
 
 ### ✨ New Features
