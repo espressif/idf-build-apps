@@ -53,6 +53,10 @@
 
 ## v2.13.3 (2025-10-23)
 
+### 🏗️ Changes
+
+- Remove non-production code
+
 ---
 
 ## v2.13.2 (2025-10-23)
