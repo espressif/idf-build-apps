@@ -7,7 +7,7 @@ repos:
       - id: mixed-line-ending
         args: [ '-f=lf' ]
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.5.5
+    rev: v1.5.6
     hooks:
       - id: insert-license
         files: \.py$
@@ -17,7 +17,7 @@ repos:
           - --use-current-year
         exclude: 'idf_build_apps/vendors/'
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.14.11'
+    rev: 'v0.15.1'
     hooks:
       - id: ruff-check
         args: ['--fix']
