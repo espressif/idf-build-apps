@@ -120,9 +120,9 @@ class App(BaseModel):
         'checked_should_build',
     ]
     __EQ_TUNE_FIELDS__ = {
-        'app_dir': lambda x: (os.path.realpath(os.path.expanduser(x))),
-        'work_dir': lambda x: (os.path.realpath(os.path.expanduser(x))),
-        'build_dir': lambda x: (os.path.realpath(os.path.expanduser(x))),
+        'app_dir': lambda x: os.path.realpath(os.path.expanduser(x)),
+        'work_dir': lambda x: os.path.realpath(os.path.expanduser(x)),
+        'build_dir': lambda x: os.path.realpath(os.path.expanduser(x)),
     }
 
     def __init__(
