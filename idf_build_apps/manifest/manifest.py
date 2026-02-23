@@ -414,7 +414,7 @@ class Manifest:
                     LOGGER.warning(msg)
 
             try:
-                rules.append(FolderRule(folder, **folder_rule if folder_rule else {}, manifest_filepath=str(path)))
+                rules.append(FolderRule(folder, **folder_rule or {}, manifest_filepath=str(path)))
             except InvalidIfClause as e:
                 raise InvalidManifest(f'Invalid manifest file {path}: {e}')
 
