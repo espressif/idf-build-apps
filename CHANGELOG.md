@@ -20,6 +20,13 @@
 </div>
 <hr>
 
+## v2.16.0 (2026-02-23)
+
+### ✨ New Features
+
+- support negation flags *(Fu Hanxi - a781872)*
+
+
 ## v2.15.1 (2026-02-04)
 
 ### 🐛 Bug Fixes
