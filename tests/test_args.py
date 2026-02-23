@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2024-2026 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
+import argparse
 import os
 from tempfile import NamedTemporaryFile
 from xml.etree import ElementTree
@@ -15,6 +16,7 @@ from idf_build_apps.args import (
     DependencyDrivenBuildArguments,
     FindArguments,
     FindBuildArguments,
+    add_args_to_parser,
     expand_vars,
 )
 from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN, PREVIEW_TARGETS, SUPPORTED_TARGETS
@@ -94,6 +96,18 @@ target = "esp32s2"
 def test_empty_argument():
     args = FindArguments()
     assert args.config_rules is None
+
+
+def test_add_args_to_parser_no_store_true_flags():
+    parser = argparse.ArgumentParser()
+    add_args_to_parser(BuildArguments, parser)
+
+    option_strings = {opt for action in parser._actions for opt in action.option_strings}
+    dry_run_no_action = next(action for action in parser._actions if '--no-dry-run' in action.option_strings)
+    assert '--no-dry-run' in option_strings
+    assert '--no-no-color' not in option_strings
+    assert '--no-no-preserve' not in option_strings
+    assert dry_run_no_action.help == 'Disable --dry-run'
 
 
 def test_build_args_expansion(monkeypatch):

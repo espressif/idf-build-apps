@@ -1028,6 +1028,16 @@ def add_args_to_parser(argument_cls: t.Type[BaseArguments], parser: argparse.Arg
             help=f.description,
         )
 
+        if f_meta and f_meta.action == 'store_true' and not f_name.startswith('no_'):
+            no_name = f'--no-{f_name.replace("_", "-")}'
+            parser.add_argument(
+                no_name,
+                dest=f_name,
+                action='store_false',
+                default=None,
+                help=f'Disable {_snake_case_to_cli_arg_name(f_name)}',
+            )
+
 
 def add_args_to_obj_doc_as_params(argument_cls: t.Type[GlobalArguments], obj: t.Any = None) -> None:
     """
