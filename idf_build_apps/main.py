@@ -18,12 +18,15 @@ from pydantic import (
     Field,
     create_model,
 )
+from pydantic_settings import (
+    CliApp,
+    CliSettingsSource,
+)
 
 from idf_build_apps.args import (
     BuildArguments,
     DumpManifestShaArguments,
     FindArguments,
-    add_args_to_parser,
     apply_config_file,
 )
 
@@ -48,7 +51,6 @@ from .manifest.manifest import (
 from .utils import (
     AutocompleteActivationError,
     InvalidCommand,
-    drop_none_kwargs,
     get_parallel_start_stop,
     to_list,
 )
@@ -280,7 +282,7 @@ class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
         return _help
 
 
-def get_parser() -> argparse.ArgumentParser:
+def get_parser_and_settings_sources() -> tuple[argparse.ArgumentParser, dict[str, CliSettingsSource]]:
     parser = argparse.ArgumentParser(
         description='Tools for building ESP-IDF related apps. '
         'Some CLI options can be expanded by the following placeholders, like "--work-dir", "--build-dir", etc.:\n'
@@ -311,7 +313,9 @@ def get_parser() -> argparse.ArgumentParser:
         formatter_class=IdfBuildAppsCliFormatter,
         parents=[common_args],
     )
-    add_args_to_parser(FindArguments, find_parser)
+    cli_find_arguments: CliSettingsSource = CliSettingsSource(
+        FindArguments, root_parser=find_parser, cli_kebab_case=True, cli_hide_none_type=True
+    )
 
     #########
     # Build #
@@ -324,7 +328,9 @@ def get_parser() -> argparse.ArgumentParser:
         formatter_class=IdfBuildAppsCliFormatter,
         parents=[common_args],
     )
-    add_args_to_parser(BuildArguments, build_parser)
+    cli_build_arguments: CliSettingsSource = CliSettingsSource(
+        BuildArguments, root_parser=build_parser, cli_kebab_case=True, cli_hide_none_type=True
+    )
 
     ###############
     # Completions #
@@ -361,8 +367,22 @@ def get_parser() -> argparse.ArgumentParser:
         'This could be useful in CI to check if the manifest files are changed.',
         parents=[common_args],
     )
-    add_args_to_parser(DumpManifestShaArguments, dump_manifest_parser)
+    cli_dump_manifest_sha_arguments: CliSettingsSource = CliSettingsSource(
+        DumpManifestShaArguments,
+        root_parser=dump_manifest_parser,
+        cli_kebab_case=True,
+        cli_hide_none_type=True,
+    )
 
+    return parser, {
+        'find': cli_find_arguments,
+        'build': cli_build_arguments,
+        'dump-manifest-sha': cli_dump_manifest_sha_arguments,
+    }
+
+
+def get_parser() -> argparse.ArgumentParser:
+    parser, _ = get_parser_and_settings_sources()
     return parser
 
 
@@ -378,7 +398,7 @@ def handle_completions(args: argparse.Namespace) -> None:
 
 
 def main():
-    parser = get_parser()
+    parser, cli_settings_sources = get_parser_and_settings_sources()
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
@@ -386,28 +406,41 @@ def main():
         handle_completions(args)
         sys.exit(0)
 
-    kwargs = vars(args)
-    kwargs_without_none = drop_none_kwargs(kwargs)
-    action = kwargs.pop('action')
-    config_file = kwargs.pop('config_file')
+    action = args.action
+    config_file = args.config_file
     if config_file:
         apply_config_file(config_file)
 
     if action == 'dump-manifest-sha':
-        arguments = DumpManifestShaArguments(**kwargs_without_none)
+        arguments = CliApp.run(
+            DumpManifestShaArguments,
+            cli_args=args,
+            cli_settings_source=cli_settings_sources[action],
+        )
         Manifest.from_files(arguments.manifest_files, common_components=arguments.common_components).dump_sha_values(
             arguments.output
         )
+        Manifest.from_files(arguments.manifest_files).dump_sha_values(arguments.output)
         sys.exit(0)
 
     if action == 'find':
-        arguments = FindArguments(**kwargs_without_none)
+        arguments = CliApp.run(
+            FindArguments,
+            cli_args=args,
+            cli_settings_source=cli_settings_sources[action],
+        )
+        find_arguments = arguments
     else:
-        arguments = BuildArguments(**kwargs_without_none)
+        arguments = CliApp.run(
+            BuildArguments,
+            cli_args=args,
+            cli_settings_source=cli_settings_sources[action],
+        )
+        find_arguments = FindArguments(**arguments.model_dump())
 
     # real call starts here
     # build also needs to find first
-    apps = find_apps(args.paths, args.target, find_arguments=FindArguments.model_validate(kwargs_without_none))
+    apps = find_apps(find_arguments=find_arguments)
 
     if isinstance(arguments, FindArguments):  # find only
         if arguments.output:
