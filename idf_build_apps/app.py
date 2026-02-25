@@ -958,7 +958,7 @@ class CMakeApp(App):
     # While ESP-IDF component CMakeLists files can be identified by the presence of 'idf_component_register' string,
     # there is no equivalent for the project CMakeLists files. This seems to be the best option...
     # Support both build system v1 and v2 patterns
-    CMAKE_PROJECT_LINE: t.ClassVar[t.List[str]] = [
+    CMAKE_PROJECT_LINE: t.ClassVar[list[str]] = [
         r'include($ENV{IDF_PATH}/tools/cmake/project.cmake)',
         r'include($ENV{IDF_PATH}/tools/cmakev2/idf.cmake)',
     ]
