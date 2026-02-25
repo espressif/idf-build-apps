@@ -46,7 +46,7 @@ class ValidateMethod(str, enum.Enum):
 class FieldMetadata:
     """
     dataclass field metadata. All fields are optional.
-    Some fields are used in argparse while running :func:`add_args_to_parser`.
+    Some fields are used to customize CLI argument behavior.
 
     :param validate_method: validate method for the field
     :param deprecates: deprecates field names, used in argparse

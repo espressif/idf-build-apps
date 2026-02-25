@@ -314,7 +314,15 @@ def get_parser_and_settings_sources() -> tuple[argparse.ArgumentParser, dict[str
         parents=[common_args],
     )
     cli_find_arguments: CliSettingsSource = CliSettingsSource(
-        FindArguments, root_parser=find_parser, cli_kebab_case=True, cli_hide_none_type=True
+        FindArguments,
+        root_parser=find_parser,
+        cli_kebab_case=True,
+        cli_hide_none_type=True,
+        cli_shortcuts={
+            'verbose': 'v',
+            'target': 't',
+            'paths': 'p',
+        },
     )
 
     #########
@@ -329,7 +337,15 @@ def get_parser_and_settings_sources() -> tuple[argparse.ArgumentParser, dict[str
         parents=[common_args],
     )
     cli_build_arguments: CliSettingsSource = CliSettingsSource(
-        BuildArguments, root_parser=build_parser, cli_kebab_case=True, cli_hide_none_type=True
+        BuildArguments,
+        root_parser=build_parser,
+        cli_kebab_case=True,
+        cli_hide_none_type=True,
+        cli_shortcuts={
+            'verbose': 'v',
+            'target': 't',
+            'paths': 'p',
+        },
     )
 
     ###############
@@ -372,6 +388,9 @@ def get_parser_and_settings_sources() -> tuple[argparse.ArgumentParser, dict[str
         root_parser=dump_manifest_parser,
         cli_kebab_case=True,
         cli_hide_none_type=True,
+        cli_shortcuts={
+            'output': 'o',
+        },
     )
 
     return parser, {
@@ -397,10 +416,23 @@ def handle_completions(args: argparse.Namespace) -> None:
         print(completion_instructions)
 
 
+def _normalize_cli_argv(argv: list[str]) -> list[str]:
+    """Convert ``-v``/``-vv``/... to ``--verbose <count>`` for find/build."""
+
+    normalized: list[str] = []
+    for token in argv:
+        if token.startswith('-') and not token.startswith('--') and token[1:] and set(token[1:]) == {'v'}:
+            normalized.extend(['--verbose', str(len(token) - 1)])
+        else:
+            normalized.append(token)
+
+    return normalized
+
+
 def main():
     parser, cli_settings_sources = get_parser_and_settings_sources()
     argcomplete.autocomplete(parser)
-    args = parser.parse_args()
+    args = parser.parse_args(_normalize_cli_argv(sys.argv[1:]))
 
     if args.action == 'completions':
         handle_completions(args)
