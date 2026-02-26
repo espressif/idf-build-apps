@@ -171,12 +171,11 @@ class BaseArguments(BaseSettings):
         sources: tuple[PydanticBaseSettingsSource, ...] = (init_settings,)
         if cls.CONFIG_FILE_PATH is None:
             toml_file = _find_config_file_upwards(IDF_BUILD_APPS_TOML_FN)
-            pyproject_toml_file = _find_config_file_upwards('pyproject.toml')
+            pyproject_toml_file = _find_config_file_upwards('pyproject.toml') or Path('pyproject.toml')
 
             if toml_file is not None:
                 sources += (TomlConfigSettingsSource(settings_cls, toml_file=toml_file),)
-            if pyproject_toml_file is not None:
-                sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=pyproject_toml_file),)
+            sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=pyproject_toml_file),)
         else:
             sources += (TomlConfigSettingsSource(settings_cls, toml_file=Path(cls.CONFIG_FILE_PATH)),)
             sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=Path(cls.CONFIG_FILE_PATH)),)
@@ -949,23 +948,23 @@ class DumpManifestShaArguments(GlobalArguments):
         default=None,  # type: ignore
     )
 
-    manifest_files: list[str] | None = field(
+    manifest_files: list[str] = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
             nargs='+',
             required=True,
         ),
+        ...,
         description='Path to the manifest files which contains the build test rules of the apps',
-        default=None,  # type: ignore
     )
 
-    output: str | None = field(
+    output: str = field(
         FieldMetadata(
             shorthand='-o',
             required=True,
         ),
+        ...,
         description='Path to the output file to record the sha256 hash of the manifest rules',
-        default=None,  # type: ignore
     )
 
     def model_post_init(self, __context: Any) -> None:

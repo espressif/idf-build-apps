@@ -19,6 +19,7 @@ from pydantic import (
     create_model,
 )
 from pydantic_settings import (
+    BaseSettings,
     CliApp,
     CliSettingsSource,
 )
@@ -26,8 +27,10 @@ from pydantic_settings import (
 from idf_build_apps.args import (
     BuildArguments,
     DumpManifestShaArguments,
+    FieldMetadata,
     FindArguments,
     apply_config_file,
+    get_meta,
 )
 
 from .app import (
@@ -56,6 +59,49 @@ from .utils import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _extend_metadata(settings_cls: type[BaseSettings]):
+    metadata_map: dict[str, FieldMetadata] = {}
+    for field_name, field_info in settings_cls.model_fields.items():
+        for meta in field_info.metadata:
+            if isinstance(meta, FieldMetadata):
+                metadata_map[f'--{field_name.replace("_", "-")}'] = meta
+                break
+
+    def add_argument_with_metadata(parser_obj, *args, **kwargs):
+        metadata = next((metadata_map[arg] for arg in args if isinstance(arg, str) and arg in metadata_map), None)
+        if metadata is not None:
+            kwargs = kwargs.copy()
+            if metadata.nargs:
+                kwargs.pop('action', None)
+                kwargs['nargs'] = metadata.nargs
+            if metadata.required:
+                kwargs['required'] = True
+
+        return argparse.ArgumentParser.add_argument(parser_obj, *args, **kwargs)
+
+    return add_argument_with_metadata
+
+
+def _collect_normalization_options_from_metadata(
+    argument_cls: type[FindArguments] | type[BuildArguments],
+) -> tuple[set[str], set[str]]:
+    """Collect CLI options that need argv normalization from FieldMetadata."""
+
+    multi_value_options: set[str] = set()
+    implicit_bool_options: set[str] = set()
+
+    for field_name, field in argument_cls.model_fields.items():
+        meta = get_meta(field)
+        if not meta:
+            continue
+
+        option = f'--{field_name.replace("_", "-")}'
+        if meta.nargs in {'+', '*'}:
+            multi_value_options.add(option)
+
+    return multi_value_options, implicit_bool_options
 
 
 def find_apps(
@@ -318,11 +364,14 @@ def get_parser_and_settings_sources() -> tuple[argparse.ArgumentParser, dict[str
         root_parser=find_parser,
         cli_kebab_case=True,
         cli_hide_none_type=True,
+        cli_implicit_flags=True,
+        cli_avoid_json=True,
         cli_shortcuts={
             'verbose': 'v',
             'target': 't',
             'paths': 'p',
         },
+        add_argument_method=_extend_metadata(FindArguments),
     )
 
     #########
@@ -341,11 +390,14 @@ def get_parser_and_settings_sources() -> tuple[argparse.ArgumentParser, dict[str
         root_parser=build_parser,
         cli_kebab_case=True,
         cli_hide_none_type=True,
+        cli_implicit_flags=True,
+        cli_avoid_json=True,
         cli_shortcuts={
             'verbose': 'v',
             'target': 't',
             'paths': 'p',
         },
+        add_argument_method=_extend_metadata(BuildArguments),
     )
 
     ###############
@@ -388,9 +440,13 @@ def get_parser_and_settings_sources() -> tuple[argparse.ArgumentParser, dict[str
         root_parser=dump_manifest_parser,
         cli_kebab_case=True,
         cli_hide_none_type=True,
+        cli_enforce_required=True,
+        cli_implicit_flags=True,
+        cli_avoid_json=True,
         cli_shortcuts={
             'output': 'o',
         },
+        add_argument_method=_extend_metadata(DumpManifestShaArguments),
     )
 
     return parser, {
