@@ -30,7 +30,6 @@ from idf_build_apps.args import (
     FieldMetadata,
     FindArguments,
     apply_config_file,
-    get_meta,
 )
 
 from .app import (
@@ -82,26 +81,6 @@ def _extend_metadata(settings_cls: type[BaseSettings]):
         return argparse.ArgumentParser.add_argument(parser_obj, *args, **kwargs)
 
     return add_argument_with_metadata
-
-
-def _collect_normalization_options_from_metadata(
-    argument_cls: type[FindArguments] | type[BuildArguments],
-) -> tuple[set[str], set[str]]:
-    """Collect CLI options that need argv normalization from FieldMetadata."""
-
-    multi_value_options: set[str] = set()
-    implicit_bool_options: set[str] = set()
-
-    for field_name, field in argument_cls.model_fields.items():
-        meta = get_meta(field)
-        if not meta:
-            continue
-
-        option = f'--{field_name.replace("_", "-")}'
-        if meta.nargs in {'+', '*'}:
-            multi_value_options.add(option)
-
-    return multi_value_options, implicit_bool_options
 
 
 def find_apps(
