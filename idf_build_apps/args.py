@@ -146,6 +146,7 @@ class BaseArguments(BaseSettings):
         # these below two are supported in pydantic 2.6
         pyproject_toml_table_header=('tool', 'idf-build-apps'),
         pyproject_toml_depth=sys.maxsize,
+        arbitrary_types_allowed=True,
         extra='ignore',  # we're supporting pydantic <2.6 as well, so we ignore extra fields
     )
 
@@ -158,10 +159,24 @@ class BaseArguments(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,  # noqa: ARG003
         file_secret_settings: PydanticBaseSettingsSource,  # noqa: ARG003
     ) -> tuple[PydanticBaseSettingsSource, ...]:
+        def _find_config_file_upwards(filename: str) -> Path | None:
+            current = Path.cwd().resolve()
+            for directory in [current, *current.parents]:
+                candidate = directory / filename
+                if candidate.is_file():
+                    return candidate
+
+            return None
+
         sources: tuple[PydanticBaseSettingsSource, ...] = (init_settings,)
         if cls.CONFIG_FILE_PATH is None:
-            sources += (TomlConfigSettingsSource(settings_cls, toml_file=Path(IDF_BUILD_APPS_TOML_FN)),)
-            sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=Path('pyproject.toml')),)
+            toml_file = _find_config_file_upwards(IDF_BUILD_APPS_TOML_FN)
+            pyproject_toml_file = _find_config_file_upwards('pyproject.toml')
+
+            if toml_file is not None:
+                sources += (TomlConfigSettingsSource(settings_cls, toml_file=toml_file),)
+            if pyproject_toml_file is not None:
+                sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=pyproject_toml_file),)
         else:
             sources += (TomlConfigSettingsSource(settings_cls, toml_file=Path(cls.CONFIG_FILE_PATH)),)
             sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=Path(cls.CONFIG_FILE_PATH)),)
@@ -921,15 +936,6 @@ class BuildArguments(FindBuildArguments):
 
 
 class DumpManifestShaArguments(GlobalArguments):
-    manifest_files: list[str] | None = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
-            nargs='+',
-            required=True,
-        ),
-        description='Path to the manifest files which contains the build test rules of the apps',
-        default=None,  # type: ignore
-    )
     common_components: list[str] | None = field(
         FieldMetadata(
             validate_method=[ValidateMethod.TO_LIST],
@@ -940,6 +946,16 @@ class DumpManifestShaArguments(GlobalArguments):
         'expand the `- *common_components` placeholder in manifests. '
         'If set to "", the value would be considered as None. '
         'If set to ";", the value would be considered as an empty list.',
+        default=None,  # type: ignore
+    )
+
+    manifest_files: list[str] | None = field(
+        FieldMetadata(
+            validate_method=[ValidateMethod.TO_LIST],
+            nargs='+',
+            required=True,
+        ),
+        description='Path to the manifest files which contains the build test rules of the apps',
         default=None,  # type: ignore
     )
 

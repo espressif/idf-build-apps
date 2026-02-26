@@ -419,6 +419,9 @@ def handle_completions(args: argparse.Namespace) -> None:
 def _normalize_cli_argv(argv: list[str]) -> list[str]:
     """Convert ``-v``/``-vv``/... to ``--verbose <count>`` for find/build."""
 
+    if not argv or argv[0] not in {'find', 'build'}:
+        return argv
+
     normalized: list[str] = []
     for token in argv:
         if token.startswith('-') and not token.startswith('--') and token[1:] and set(token[1:]) == {'v'}:
@@ -452,7 +455,6 @@ def main():
         Manifest.from_files(arguments.manifest_files, common_components=arguments.common_components).dump_sha_values(
             arguments.output
         )
-        Manifest.from_files(arguments.manifest_files).dump_sha_values(arguments.output)
         sys.exit(0)
 
     if action == 'find':
