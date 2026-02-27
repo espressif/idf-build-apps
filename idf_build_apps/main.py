@@ -71,12 +71,43 @@ def _extend_metadata(settings_cls: type[BaseSettings]):
     def add_argument_with_metadata(parser_obj, *args, **kwargs):
         metadata = next((metadata_map[arg] for arg in args if isinstance(arg, str) and arg in metadata_map), None)
         if metadata is not None:
+            deprecated_options = {
+                f'--{deprecated_name.replace("_", "-")}' for deprecated_name in (metadata.deprecates or {})
+            }
+            canonical_args = tuple(
+                arg for arg in args if not (isinstance(arg, str) and arg.startswith('--') and arg in deprecated_options)
+            )
+            if not canonical_args:
+                canonical_args = args
+
             kwargs = kwargs.copy()
             if metadata.nargs:
                 kwargs.pop('action', None)
                 kwargs['nargs'] = metadata.nargs
             if metadata.required:
                 kwargs['required'] = True
+
+            action = argparse.ArgumentParser.add_argument(parser_obj, *canonical_args, **kwargs)
+
+            if metadata.deprecates:
+                for deprecated_name, deprecated_kwargs in metadata.deprecates.items():
+                    deprecated_option = f'--{deprecated_name.replace("_", "-")}'
+                    if deprecated_option in canonical_args or deprecated_option in parser_obj._option_string_actions:
+                        continue
+
+                    alias_kwargs = kwargs.copy()
+                    # preserve legacy deprecated behavior unless explicitly overridden
+                    alias_kwargs.pop('nargs', None)
+                    alias_kwargs.pop('required', None)
+                    alias_kwargs.pop('action', None)
+                    alias_kwargs.update(deprecated_kwargs)
+                    shorthand = alias_kwargs.pop('shorthand', None)
+                    if shorthand:
+                        argparse.ArgumentParser.add_argument(parser_obj, deprecated_option, shorthand, **alias_kwargs)
+                    else:
+                        argparse.ArgumentParser.add_argument(parser_obj, deprecated_option, **alias_kwargs)
+
+            return action
 
         return argparse.ArgumentParser.add_argument(parser_obj, *args, **kwargs)
 
