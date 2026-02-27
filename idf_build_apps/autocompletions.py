@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Optional
 
 from .utils import AutocompleteActivationError
 
@@ -23,7 +22,7 @@ def append_to_file(file_path: str, content: str) -> None:
     print(f'Autocompletion added to {file_path}')
 
 
-def activate_completions(shell_type: Optional[str]) -> None:
+def activate_completions(shell_type: str | None) -> None:
     """Activates autocompletion for supported shells.
 
     :raises AutocompleteActivationError: if the $SHELL env variable is empty, or if the detected shell is unsupported.

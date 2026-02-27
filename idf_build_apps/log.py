@@ -18,12 +18,12 @@ class _OneLineLogRender(LogRender):
         self,
         console: Console,
         renderables: t.Iterable[ConsoleRenderable],
-        log_time: t.Optional[datetime] = None,
-        time_format: t.Optional[t.Union[str, t.Callable[[datetime], Text]]] = None,
+        log_time: datetime | None = None,
+        time_format: str | t.Callable[[datetime], Text] | None = None,
         level: TextType = '',
-        path: t.Optional[str] = None,
-        line_no: t.Optional[int] = None,
-        link_path: t.Optional[str] = None,
+        path: str | None = None,
+        line_no: int | None = None,
+        link_path: str | None = None,
     ) -> Text:
         output = Text(no_wrap=True)
         if self.show_time:
@@ -89,7 +89,7 @@ def get_rich_log_handler(level: int = logging.WARNING, no_color: bool = False) -
     return handler
 
 
-def setup_logging(verbose: int = 0, log_file: t.Optional[str] = None, colored: bool = True) -> None:
+def setup_logging(verbose: int = 0, log_file: str | None = None, colored: bool = True) -> None:
     """
     Setup logging stream handler
 

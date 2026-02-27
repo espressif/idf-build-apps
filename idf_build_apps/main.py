@@ -9,7 +9,8 @@ import logging
 import os
 import sys
 import textwrap
-import typing as t
+from functools import reduce
+from operator import or_
 from pathlib import Path
 
 import argcomplete
@@ -17,12 +18,17 @@ from pydantic import (
     Field,
     create_model,
 )
+from pydantic_settings import (
+    BaseSettings,
+    CliApp,
+    CliSettingsSource,
+)
 
 from idf_build_apps.args import (
     BuildArguments,
     DumpManifestShaArguments,
+    FieldMetadata,
     FindArguments,
-    add_args_to_parser,
     apply_config_file,
 )
 
@@ -47,7 +53,6 @@ from .manifest.manifest import (
 from .utils import (
     AutocompleteActivationError,
     InvalidCommand,
-    drop_none_kwargs,
     get_parallel_start_stop,
     to_list,
 )
@@ -55,14 +60,68 @@ from .utils import (
 LOGGER = logging.getLogger(__name__)
 
 
+def _extend_metadata(settings_cls: type[BaseSettings]):
+    metadata_map: dict[str, FieldMetadata] = {}
+    for field_name, field_info in settings_cls.model_fields.items():
+        for meta in field_info.metadata:
+            if isinstance(meta, FieldMetadata):
+                metadata_map[f'--{field_name.replace("_", "-")}'] = meta
+                break
+
+    def add_argument_with_metadata(parser_obj, *args, **kwargs):
+        metadata = next((metadata_map[arg] for arg in args if isinstance(arg, str) and arg in metadata_map), None)
+        if metadata is not None:
+            deprecated_options = {
+                f'--{deprecated_name.replace("_", "-")}' for deprecated_name in (metadata.deprecates or {})
+            }
+            canonical_args = tuple(
+                arg for arg in args if not (isinstance(arg, str) and arg.startswith('--') and arg in deprecated_options)
+            )
+            if not canonical_args:
+                canonical_args = args
+
+            kwargs = kwargs.copy()
+            if metadata.nargs:
+                kwargs.pop('action', None)
+                kwargs['nargs'] = metadata.nargs
+            if metadata.required:
+                kwargs['required'] = True
+
+            action = argparse.ArgumentParser.add_argument(parser_obj, *canonical_args, **kwargs)
+
+            if metadata.deprecates:
+                for deprecated_name, deprecated_kwargs in metadata.deprecates.items():
+                    deprecated_option = f'--{deprecated_name.replace("_", "-")}'
+                    if deprecated_option in canonical_args or deprecated_option in parser_obj._option_string_actions:
+                        continue
+
+                    alias_kwargs = kwargs.copy()
+                    # preserve legacy deprecated behavior unless explicitly overridden
+                    alias_kwargs.pop('nargs', None)
+                    alias_kwargs.pop('required', None)
+                    alias_kwargs.pop('action', None)
+                    alias_kwargs.update(deprecated_kwargs)
+                    shorthand = alias_kwargs.pop('shorthand', None)
+                    if shorthand:
+                        argparse.ArgumentParser.add_argument(parser_obj, deprecated_option, shorthand, **alias_kwargs)
+                    else:
+                        argparse.ArgumentParser.add_argument(parser_obj, deprecated_option, **alias_kwargs)
+
+            return action
+
+        return argparse.ArgumentParser.add_argument(parser_obj, *args, **kwargs)
+
+    return add_argument_with_metadata
+
+
 def find_apps(
-    paths: t.Union[t.List[str], str, None] = None,
-    target: t.Optional[str] = None,
+    paths: list[str] | str | None = None,
+    target: str | None = None,
     *,
-    find_arguments: t.Optional[FindArguments] = None,
-    config_file: t.Optional[str] = None,
+    find_arguments: FindArguments | None = None,
+    config_file: str | None = None,
     **kwargs,
-) -> t.List[App]:
+) -> list[App]:
     """
     Find apps in the given paths for the specified target. For all kwargs, please refer to `FindArguments`
 
@@ -87,7 +146,7 @@ def find_apps(
             **kwargs,
         )
 
-    apps: t.Set[App] = set()
+    apps: set[App] = set()
     if find_arguments.target == 'all':
         targets = DEFAULT_BUILD_TARGETS.get()
         LOGGER.info('Searching for apps by default build targets: %s', targets)
@@ -113,10 +172,10 @@ def find_apps(
 
 
 def build_apps(
-    apps: t.Union[t.List[App], App, None] = None,
+    apps: list[App] | App | None = None,
     *,
-    build_arguments: t.Optional[BuildArguments] = None,
-    config_file: t.Optional[str] = None,
+    build_arguments: BuildArguments | None = None,
+    config_file: str | None = None,
     **kwargs,
 ) -> int:
     """
@@ -279,7 +338,7 @@ class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
         return _help
 
 
-def get_parser() -> argparse.ArgumentParser:
+def get_parser_and_settings_sources() -> tuple[argparse.ArgumentParser, dict[str, CliSettingsSource]]:
     parser = argparse.ArgumentParser(
         description='Tools for building ESP-IDF related apps. '
         'Some CLI options can be expanded by the following placeholders, like "--work-dir", "--build-dir", etc.:\n'
@@ -310,7 +369,20 @@ def get_parser() -> argparse.ArgumentParser:
         formatter_class=IdfBuildAppsCliFormatter,
         parents=[common_args],
     )
-    add_args_to_parser(FindArguments, find_parser)
+    cli_find_arguments: CliSettingsSource = CliSettingsSource(
+        FindArguments,
+        root_parser=find_parser,
+        cli_kebab_case=True,
+        cli_hide_none_type=True,
+        cli_implicit_flags=True,
+        cli_avoid_json=True,
+        cli_shortcuts={
+            'verbose': 'v',
+            'target': 't',
+            'paths': 'p',
+        },
+        add_argument_method=_extend_metadata(FindArguments),
+    )
 
     #########
     # Build #
@@ -323,7 +395,20 @@ def get_parser() -> argparse.ArgumentParser:
         formatter_class=IdfBuildAppsCliFormatter,
         parents=[common_args],
     )
-    add_args_to_parser(BuildArguments, build_parser)
+    cli_build_arguments: CliSettingsSource = CliSettingsSource(
+        BuildArguments,
+        root_parser=build_parser,
+        cli_kebab_case=True,
+        cli_hide_none_type=True,
+        cli_implicit_flags=True,
+        cli_avoid_json=True,
+        cli_shortcuts={
+            'verbose': 'v',
+            'target': 't',
+            'paths': 'p',
+        },
+        add_argument_method=_extend_metadata(BuildArguments),
+    )
 
     ###############
     # Completions #
@@ -360,8 +445,29 @@ def get_parser() -> argparse.ArgumentParser:
         'This could be useful in CI to check if the manifest files are changed.',
         parents=[common_args],
     )
-    add_args_to_parser(DumpManifestShaArguments, dump_manifest_parser)
+    cli_dump_manifest_sha_arguments: CliSettingsSource = CliSettingsSource(
+        DumpManifestShaArguments,
+        root_parser=dump_manifest_parser,
+        cli_kebab_case=True,
+        cli_hide_none_type=True,
+        cli_enforce_required=True,
+        cli_implicit_flags=True,
+        cli_avoid_json=True,
+        cli_shortcuts={
+            'output': 'o',
+        },
+        add_argument_method=_extend_metadata(DumpManifestShaArguments),
+    )
 
+    return parser, {
+        'find': cli_find_arguments,
+        'build': cli_build_arguments,
+        'dump-manifest-sha': cli_dump_manifest_sha_arguments,
+    }
+
+
+def get_parser() -> argparse.ArgumentParser:
+    parser, _ = get_parser_and_settings_sources()
     return parser
 
 
@@ -376,37 +482,65 @@ def handle_completions(args: argparse.Namespace) -> None:
         print(completion_instructions)
 
 
+def _normalize_cli_argv(argv: list[str]) -> list[str]:
+    """Convert ``-v``/``-vv``/... to ``--verbose <count>`` for find/build."""
+
+    if not argv or argv[0] not in {'find', 'build'}:
+        return argv
+
+    normalized: list[str] = []
+    for token in argv:
+        if token.startswith('-') and not token.startswith('--') and token[1:] and set(token[1:]) == {'v'}:
+            normalized.extend(['--verbose', str(len(token) - 1)])
+        else:
+            normalized.append(token)
+
+    return normalized
+
+
 def main():
-    parser = get_parser()
+    parser, cli_settings_sources = get_parser_and_settings_sources()
     argcomplete.autocomplete(parser)
-    args = parser.parse_args()
+    args = parser.parse_args(_normalize_cli_argv(sys.argv[1:]))
 
     if args.action == 'completions':
         handle_completions(args)
         sys.exit(0)
 
-    kwargs = vars(args)
-    kwargs_without_none = drop_none_kwargs(kwargs)
-    action = kwargs.pop('action')
-    config_file = kwargs.pop('config_file')
+    action = args.action
+    config_file = args.config_file
     if config_file:
         apply_config_file(config_file)
 
     if action == 'dump-manifest-sha':
-        arguments = DumpManifestShaArguments(**kwargs_without_none)
+        arguments = CliApp.run(
+            DumpManifestShaArguments,
+            cli_args=args,
+            cli_settings_source=cli_settings_sources[action],
+        )
         Manifest.from_files(arguments.manifest_files, common_components=arguments.common_components).dump_sha_values(
             arguments.output
         )
         sys.exit(0)
 
     if action == 'find':
-        arguments = FindArguments(**kwargs_without_none)
+        arguments = CliApp.run(
+            FindArguments,
+            cli_args=args,
+            cli_settings_source=cli_settings_sources[action],
+        )
+        find_arguments = arguments
     else:
-        arguments = BuildArguments(**kwargs_without_none)
+        arguments = CliApp.run(
+            BuildArguments,
+            cli_args=args,
+            cli_settings_source=cli_settings_sources[action],
+        )
+        find_arguments = FindArguments(**arguments.model_dump())
 
     # real call starts here
     # build also needs to find first
-    apps = find_apps(args.paths, args.target, find_arguments=FindArguments.model_validate(kwargs_without_none))
+    apps = find_apps(find_arguments=find_arguments)
 
     if isinstance(arguments, FindArguments):  # find only
         if arguments.output:
@@ -459,7 +593,7 @@ def main():
         sys.exit(ret_code)
 
 
-def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = None) -> App:
+def json_to_app(json_str: str, extra_classes: list[type[App]] | None = None) -> App:
     """
     Deserialize json string to App object
 
@@ -488,9 +622,10 @@ def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = 
     if extra_classes:
         _known_classes.extend(extra_classes)
 
+    app_type_union = reduce(or_, _known_classes)
     custom_deserializer = create_model(
         '_CustomDeserializer',
-        app=(t.Union[tuple(_known_classes)], Field(discriminator='build_system')),
+        app=(app_type_union, Field(discriminator='build_system')),
         __base__=AppDeserializer,
     )
 
@@ -498,9 +633,9 @@ def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = 
 
 
 def json_list_files_to_apps(
-    json_list_filepaths: t.List[str],
-    extra_classes: t.Optional[t.List[t.Type[App]]] = None,
-) -> t.List[App]:
+    json_list_filepaths: list[str],
+    extra_classes: list[type[App]] | None = None,
+) -> list[App]:
     """
     Deserialize a list of json strings to App objects
 
@@ -512,9 +647,10 @@ def json_list_files_to_apps(
     if extra_classes:
         _known_classes.extend(extra_classes)
 
+    app_type_union = reduce(or_, _known_classes)
     custom_deserializer = create_model(
         '_CustomDeserializer',
-        app=(t.Union[tuple(_known_classes)], Field(discriminator='build_system')),
+        app=(app_type_union, Field(discriminator='build_system')),
         __base__=AppDeserializer,
     )
 
