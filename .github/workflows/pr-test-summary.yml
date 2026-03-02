@@ -1,0 +1,40 @@
+name: PR Test Summary
+
+on:
+  workflow_run:
+    workflows:
+      - Test Python Package
+    types:
+      - completed
+
+permissions:
+  actions: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download test report
+        uses: dawidd6/action-download-artifact@v14
+        with:
+          name: test-results
+          workflow: ${{ github.event.workflow_run.workflow_id }}
+          run_id: ${{ github.event.workflow_run.id }}
+
+      - name: Read PR number
+        run: |
+          if [ -f pr_number.txt ]; then
+            echo "PR_NUMBER=$(cat pr_number.txt)" >> $GITHUB_ENV
+          else
+            echo "pr_number.txt not found, skipping comment."
+            exit 0
+          fi
+
+      - name: Comment on PR
+        uses: MishaKav/pytest-coverage-comment@v1
+        with:
+          pytest-coverage-path: ./pytest-coverage.txt
+          junitxml-path: ./pytest.xml
+          issue-number: ${{ env.PR_NUMBER }}
