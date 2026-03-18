@@ -246,7 +246,11 @@ class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
             return _help
 
         if action.default is not argparse.SUPPRESS:
-            if action.default is None:
+            if isinstance(action, (argparse._StoreTrueAction, argparse._StoreFalseAction)):
+                default_type = bool
+            elif action.type is not None:
+                default_type = action.type
+            elif action.default is None:
                 default_type = str
             else:
                 default_type = type(action.default)
