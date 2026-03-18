@@ -873,13 +873,8 @@ class BuildArguments(FindBuildArguments):
         t.Optional[t.List[t.Union[str, TextIOWrapper]]],
         TO_LIST_VALIDATOR,
         CliOption(
-            deprecates={
-                'ignore_warning_file': {
-                    'type': argparse.FileType('r'),
-                }
-            },
+            deprecates={'ignore_warning_file': {}},
             nargs='+',
-            type=argparse.FileType('r'),
         ),
     ] = Field(
         description='Path to the files containing the patterns to ignore the warnings in the build output',
