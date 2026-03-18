@@ -2,26 +2,31 @@
 # SPDX-License-Identifier: Apache-2.0
 import argparse
 import os
+import typing as t
 from tempfile import NamedTemporaryFile
+from typing import Annotated
 from xml.etree import ElementTree
 
 import pytest
-from conftest import (
-    create_project,
-)
+from conftest import create_project
+from pydantic import Field
 
 from idf_build_apps import App
-from idf_build_apps.args import (
-    BuildArguments,
-    DependencyDrivenBuildArguments,
-    FindArguments,
-    FindBuildArguments,
-    add_args_to_parser,
-    expand_vars,
-)
-from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN, PREVIEW_TARGETS, SUPPORTED_TARGETS
+from idf_build_apps.args import BaseArguments
+from idf_build_apps.args import BuildArguments
+from idf_build_apps.args import CliOption
+from idf_build_apps.args import DependencyDrivenBuildArguments
+from idf_build_apps.args import DumpManifestShaArguments
+from idf_build_apps.args import FindArguments
+from idf_build_apps.args import FindBuildArguments
+from idf_build_apps.args import add_args_to_parser
+from idf_build_apps.args import expand_vars
+from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN
+from idf_build_apps.constants import PREVIEW_TARGETS
+from idf_build_apps.constants import SUPPORTED_TARGETS
 from idf_build_apps.main import main
-from idf_build_apps.manifest.manifest import DEFAULT_BUILD_TARGETS, FolderRule, reset_default_build_targets
+from idf_build_apps.manifest.manifest import DEFAULT_BUILD_TARGETS
+from idf_build_apps.manifest.manifest import reset_default_build_targets
 
 
 def test_init_attr_deprecated_by():
@@ -93,11 +98,6 @@ target = "esp32s2"
     assert FindArguments().target == 'esp32'
 
 
-def test_empty_argument():
-    args = FindArguments()
-    assert args.config_rules is None
-
-
 def test_add_args_to_parser_no_store_true_flags():
     parser = argparse.ArgumentParser()
     add_args_to_parser(BuildArguments, parser)
@@ -108,6 +108,91 @@ def test_add_args_to_parser_no_store_true_flags():
     assert '--no-no-color' not in option_strings
     assert '--no-no-preserve' not in option_strings
     assert dry_run_no_action.help == 'Disable --dry-run'
+
+
+def test_settings_model_config_uses_explicit_alias_validation(recwarn):
+    FindArguments()
+
+    pyproject_warnings = [warning for warning in recwarn if 'pyproject_toml_' in str(warning.message)]
+    assert not pyproject_warnings
+    assert FindArguments.model_config.get('validate_by_alias') is True
+    assert FindArguments.model_config.get('validate_by_name') is True
+
+
+def test_add_args_to_parser_deprecated_shorthand_reentrant():
+    class DeprecatedAliasArguments(BaseArguments):
+        value: Annotated[
+            t.Optional[str],
+            CliOption(
+                deprecates={
+                    'old_value': {
+                        'shorthand': '-o',
+                    }
+                }
+            ),
+        ] = Field(description='Value', default=None)
+
+    first_parser = argparse.ArgumentParser()
+    second_parser = argparse.ArgumentParser()
+
+    add_args_to_parser(DeprecatedAliasArguments, first_parser)
+    add_args_to_parser(DeprecatedAliasArguments, second_parser)
+
+    for parser in (first_parser, second_parser):
+        option_strings = {opt for action in parser._actions for opt in action.option_strings}
+        assert '--old-value' in option_strings
+        assert '-o' in option_strings
+
+
+def test_add_args_to_parser_keeps_explicit_falsy_defaults():
+    class FalsyDefaultArguments(BaseArguments):
+        retry_count: Annotated[
+            int,
+            CliOption(default=0),
+        ] = Field(description='Retry count', default=3)
+        dry_run: Annotated[
+            bool,
+            CliOption(action='store_true', default=False),
+        ] = Field(description='Dry run', default=True)
+
+    parser = argparse.ArgumentParser()
+    add_args_to_parser(FalsyDefaultArguments, parser)
+    args = parser.parse_args([])
+
+    assert args.retry_count == 0
+    assert args.dry_run is False
+
+
+def test_add_args_to_parser_hidden_fields_keep_deprecated_aliases():
+    parser = argparse.ArgumentParser()
+    add_args_to_parser(BuildArguments, parser)
+
+    option_strings = {opt for action in parser._actions for opt in action.option_strings}
+
+    assert '--collect-size-info-filename' not in option_strings
+    assert '--collect-app-info-filename' not in option_strings
+    assert '--junitxml-filename' not in option_strings
+
+    assert '--collect-size-info' in option_strings
+    assert '--collect-app-info' in option_strings
+    assert '--junitxml' in option_strings
+
+
+def test_add_args_to_parser_marks_required_options():
+    parser = argparse.ArgumentParser()
+    add_args_to_parser(DumpManifestShaArguments, parser)
+
+    required_actions = {
+        option: action.required
+        for action in parser._actions
+        for option in action.option_strings
+        if option in {'--manifest-files', '--output'}
+    }
+
+    assert required_actions == {
+        '--manifest-files': True,
+        '--output': True,
+    }
 
 
 def test_build_args_expansion(monkeypatch):
@@ -196,44 +281,6 @@ common_components = [
     args = FindArguments()
 
     assert args.common_components == ['hello', 'world']
-
-
-def test_combination_validation():
-    """Test that target options can now be combined"""
-    # Mock targets for consistent testing
-    mock_supported = ['esp32', 'esp32s2']
-    mock_preview = ['esp32h2']
-    mock_all = mock_supported + mock_preview
-
-    import idf_build_apps.args
-    import idf_build_apps.constants
-
-    original_supported = idf_build_apps.constants.SUPPORTED_TARGETS
-    original_preview = idf_build_apps.constants.PREVIEW_TARGETS
-    original_all = idf_build_apps.constants.ALL_TARGETS
-
-    try:
-        idf_build_apps.constants.SUPPORTED_TARGETS = mock_supported
-        idf_build_apps.constants.PREVIEW_TARGETS = mock_preview
-        idf_build_apps.constants.ALL_TARGETS = mock_all
-        idf_build_apps.args.SUPPORTED_TARGETS = mock_supported
-        idf_build_apps.args.PREVIEW_TARGETS = mock_preview
-        idf_build_apps.args.ALL_TARGETS = mock_all
-
-        # Test combination: default + preview
-        args = FindBuildArguments(enable_preview_targets=True, default_build_targets=['esp32'], paths=['.'])
-
-        # Should combine: ['esp32'] + ['esp32h2'] = ['esp32', 'esp32h2']
-        expected = ['esp32', 'esp32h2']
-        assert args.default_build_targets == expected
-
-    finally:
-        idf_build_apps.constants.SUPPORTED_TARGETS = original_supported
-        idf_build_apps.constants.PREVIEW_TARGETS = original_preview
-        idf_build_apps.constants.ALL_TARGETS = original_all
-        idf_build_apps.args.SUPPORTED_TARGETS = original_supported
-        idf_build_apps.args.PREVIEW_TARGETS = original_preview
-        idf_build_apps.args.ALL_TARGETS = original_all
 
 
 def test_build_targets_cli(tmp_path, monkeypatch):
@@ -523,19 +570,6 @@ class TestDefaultBuildTargetsContextVar:
         # Test setting to ALL_TARGETS
         DEFAULT_BUILD_TARGETS.set(self.ALL_TARGETS)
         assert DEFAULT_BUILD_TARGETS.get() == self.ALL_TARGETS
-
-    def test_folder_rule_backward_compatibility(self):
-        # Test setting via contextvar
-        other_targets = ['esp32h2', 'esp32p4']
-        DEFAULT_BUILD_TARGETS.set(other_targets)
-        assert FolderRule.DEFAULT_BUILD_TARGETS == other_targets
-        assert DEFAULT_BUILD_TARGETS.get() == other_targets
-
-        # Test setting via FolderRule
-        test_targets = ['esp32c3', 'esp32c6']
-        FolderRule.DEFAULT_BUILD_TARGETS = test_targets
-        assert DEFAULT_BUILD_TARGETS.get() == test_targets
-        assert FolderRule.DEFAULT_BUILD_TARGETS == test_targets
 
     def test_default_behavior(self):
         args = FindBuildArguments(paths=['.'])

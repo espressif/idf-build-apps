@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import enum
 import glob
 import importlib
 import inspect
@@ -16,98 +15,72 @@ from dataclasses import dataclass
 from io import TextIOWrapper
 from pathlib import Path
 from string import Template
+from typing import Annotated
 from typing import Any
 
-from pydantic import AliasChoices, Field, computed_field, field_validator
+from pydantic import AliasChoices
+from pydantic import BeforeValidator
+from pydantic import Field
+from pydantic import computed_field
+from pydantic import field_validator
 from pydantic.fields import FieldInfo
 from pydantic_core.core_schema import ValidationInfo
-from pydantic_settings import (
-    BaseSettings,
-    PydanticBaseSettingsSource,
-    SettingsConfigDict,
-)
-from typing_extensions import Concatenate, ParamSpec
+from pydantic_settings import BaseSettings
+from pydantic_settings import PydanticBaseSettingsSource
+from pydantic_settings import SettingsConfigDict
 
-from . import SESSION_ARGS, App, CMakeApp, MakeApp, setup_logging
-from .constants import ALL_TARGETS, IDF_BUILD_APPS_TOML_FN, PREVIEW_TARGETS, SUPPORTED_TARGETS
-from .manifest.manifest import DEFAULT_BUILD_TARGETS, Manifest, reset_default_build_targets
-from .utils import InvalidCommand, files_matches_patterns, semicolon_separated_str_to_list, to_absolute_path, to_list
-from .vendors.pydantic_sources import PyprojectTomlConfigSettingsSource, TomlConfigSettingsSource
+from . import SESSION_ARGS
+from . import App
+from . import CMakeApp
+from . import MakeApp
+from . import setup_logging
+from .constants import ALL_TARGETS
+from .constants import IDF_BUILD_APPS_TOML_FN
+from .constants import PREVIEW_TARGETS
+from .constants import SUPPORTED_TARGETS
+from .manifest.manifest import DEFAULT_BUILD_TARGETS
+from .manifest.manifest import Manifest
+from .manifest.manifest import reset_default_build_targets
+from .utils import InvalidCommand
+from .utils import files_matches_patterns
+from .utils import semicolon_separated_str_to_list
+from .utils import to_absolute_path
+from .utils import to_list
+from .vendors.pydantic_sources import PyprojectTomlConfigSettingsSource
+from .vendors.pydantic_sources import TomlConfigSettingsSource
 
 LOGGER = logging.getLogger(__name__)
-
-
-class ValidateMethod(str, enum.Enum):
-    TO_LIST = 'to_list'
+CLI_DEFAULT_UNSET = object()
 
 
 @dataclass
-class FieldMetadata:
-    """
-    dataclass field metadata. All fields are optional.
-    Some fields are used in argparse while running :func:`add_args_to_parser`.
+class CliOption:
+    """Argparse-only metadata attached via ``Annotated``."""
 
-    :param validate_method: validate method for the field
-    :param deprecates: deprecates field names, used in argparse
-    :param shorthand: shorthand for the argument, used in argparse
-    :param action: action for the argument, used in argparse
-    :param nargs: nargs for the argument, used in argparse
-    :param choices: choices for the argument, used in argparse
-    :param type: type for the argument, used in argparse
-    :param required: whether the argument is required, used in argparse
-    :param default: default value for the argument, used in argparse
-    :param hidden: whether the argument is hidden, used in argparse
-    """
-
-    # validate method
-    validate_method: t.Optional[t.List[str]] = None
-    # the field description will be copied from the deprecates field if not specified
     deprecates: t.Optional[t.Dict[str, t.Dict[str, t.Any]]] = None
     shorthand: t.Optional[str] = None
-    # argparse_kwargs
     action: t.Optional[str] = None
     nargs: t.Optional[str] = None
     choices: t.Optional[t.List[str]] = None
     type: t.Optional[t.Callable] = None
     required: bool = False
-    # usually default is not needed. only set it when different from the default value of the field
-    default: t.Any = None
-    # hidden field, use deprecated instead, or hide it in the argparse
+    default: t.Any = CLI_DEFAULT_UNSET
     hidden: bool = False
 
 
-P = ParamSpec('P')
 T = t.TypeVar('T')
+TO_LIST_VALIDATOR = BeforeValidator(to_list)
 
 
-def _wrap_with_metadata(
-    _: t.Callable[P, t.Any],
-) -> t.Callable[[t.Callable[..., T]], t.Callable[Concatenate[t.Optional[FieldMetadata], P], T]]:
-    """Patch the function signature with metadata args"""
-
-    def return_func(func: t.Callable[..., T]) -> t.Callable[Concatenate[t.Optional[FieldMetadata], P], T]:
-        return t.cast(t.Callable[Concatenate[t.Optional[FieldMetadata], P], T], func)
-
-    return return_func
-
-
-@_wrap_with_metadata(Field)
-def field(meta: t.Optional[FieldMetadata], *args, **kwargs):
-    """field with metadata"""
-    f = Field(*args, **kwargs)
-    f.metadata.append(meta)
-    return f
-
-
-def get_meta(f: FieldInfo) -> t.Optional[FieldMetadata]:
+def get_cli_option(f: FieldInfo) -> t.Optional[CliOption]:
     """
-    Get the metadata of the field
+    Get the Annotated argparse metadata of the field.
 
     :param f: field
     :return: metadata of the field if exists, None otherwise
     """
     for m in f.metadata:
-        if isinstance(m, FieldMetadata):
+        if isinstance(m, CliOption):
             return m
 
     return None
@@ -140,12 +113,13 @@ class BaseArguments(BaseSettings):
     """Base settings class for all settings classes"""
 
     CONFIG_FILE_PATH: t.ClassVar[t.Optional[Path]] = None
+    PYPROJECT_TOML_TABLE_HEADER: t.ClassVar[t.Tuple[str, ...]] = ('tool', 'idf-build-apps')
+    PYPROJECT_TOML_DEPTH: t.ClassVar[int] = sys.maxsize
 
     model_config = SettingsConfigDict(
-        # these below two are supported in pydantic 2.6
-        pyproject_toml_table_header=('tool', 'idf-build-apps'),
-        pyproject_toml_depth=sys.maxsize,
         extra='ignore',  # we're supporting pydantic <2.6 as well, so we ignore extra fields
+        validate_by_alias=True,
+        validate_by_name=True,
     )
 
     @classmethod
@@ -159,59 +133,77 @@ class BaseArguments(BaseSettings):
     ) -> t.Tuple[PydanticBaseSettingsSource, ...]:
         sources: t.Tuple[PydanticBaseSettingsSource, ...] = (init_settings,)
         if cls.CONFIG_FILE_PATH is None:
-            sources += (TomlConfigSettingsSource(settings_cls, toml_file=Path(IDF_BUILD_APPS_TOML_FN)),)
-            sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=Path('pyproject.toml')),)
+            sources += (
+                TomlConfigSettingsSource(
+                    settings_cls,
+                    toml_file=Path(IDF_BUILD_APPS_TOML_FN),
+                    search_depth=cls.PYPROJECT_TOML_DEPTH,
+                ),
+            )
+            sources += (
+                PyprojectTomlConfigSettingsSource(
+                    settings_cls,
+                    toml_file=Path('pyproject.toml'),
+                    search_depth=cls.PYPROJECT_TOML_DEPTH,
+                    table_header=cls.PYPROJECT_TOML_TABLE_HEADER,
+                ),
+            )
         else:
-            sources += (TomlConfigSettingsSource(settings_cls, toml_file=Path(cls.CONFIG_FILE_PATH)),)
-            sources += (PyprojectTomlConfigSettingsSource(settings_cls, toml_file=Path(cls.CONFIG_FILE_PATH)),)
+            sources += (
+                TomlConfigSettingsSource(
+                    settings_cls,
+                    toml_file=Path(cls.CONFIG_FILE_PATH),
+                    search_depth=cls.PYPROJECT_TOML_DEPTH,
+                ),
+            )
+            sources += (
+                PyprojectTomlConfigSettingsSource(
+                    settings_cls,
+                    toml_file=Path(cls.CONFIG_FILE_PATH),
+                    search_depth=cls.PYPROJECT_TOML_DEPTH,
+                    table_header=cls.PYPROJECT_TOML_TABLE_HEADER,
+                ),
+            )
 
         return sources
 
     @field_validator('*', mode='before')
     @classmethod
-    def validate_by_validate_methods(cls, v: t.Any, info: ValidationInfo):
-        if info.field_name and info.field_name in cls.model_fields:
-            f = cls.model_fields[info.field_name]
-            meta = get_meta(f)
+    def expand_field_vars(cls, v: t.Any, info: ValidationInfo):
+        if not info.field_name or info.field_name not in cls.model_fields:
+            return v
 
-            # always expand vars for all fields
-            if isinstance(v, str):
-                v = expand_vars(v)
-            elif isinstance(v, list):
-                v = [expand_vars(item) if isinstance(item, str) else item for item in v]
-
-            if meta and meta.validate_method:
-                for method in meta.validate_method:
-                    if method == ValidateMethod.TO_LIST:
-                        v = to_list(v)
-                    else:
-                        raise NotImplementedError(f'Unknown validate method: {method}')
-
-                return v
+        if isinstance(v, str):
+            return expand_vars(v)
+        if isinstance(v, list):
+            return [expand_vars(item) if isinstance(item, str) else item for item in v]
 
         return v
 
 
 class GlobalArguments(BaseArguments):
-    verbose: int = field(
-        FieldMetadata(
+    verbose: Annotated[
+        int,
+        CliOption(
             shorthand='-v',
             action='count',
         ),
+    ] = Field(
         description='Verbosity level. By default set to WARNING. Specify -v for INFO, -vv for DEBUG',
-        default=0,  # type: ignore
+        default=0,
     )
-    log_file: t.Optional[str] = field(
-        None,
+    log_file: t.Optional[str] = Field(
         description='Path to the log file, if not specified logs will be printed to stderr',
-        default=None,  # type: ignore
+        default=None,
     )
-    no_color: bool = field(
-        FieldMetadata(
+    no_color: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='Disable colored output',
-        default=False,  # type: ignore
+        default=False,
     )
 
     def model_post_init(self, __context: Any) -> None:
@@ -221,9 +213,10 @@ class GlobalArguments(BaseArguments):
 
 
 class DependencyDrivenBuildArguments(GlobalArguments):
-    manifest_files: t.Optional[t.List[t.Union[Path, str]]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    manifest_files: Annotated[
+        t.Optional[t.List[t.Union[Path, str]]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             deprecates={
                 'manifest_file': {
                     'nargs': '+',
@@ -231,58 +224,67 @@ class DependencyDrivenBuildArguments(GlobalArguments):
             },
             nargs='+',
         ),
+    ] = Field(
         description='Path to the manifest files which contains the build test rules of the apps',
         validation_alias=AliasChoices('manifest_files', 'manifest_file'),
-        default=None,  # type: ignore
+        default=None,
     )
-    manifest_filepatterns: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    manifest_filepatterns: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             nargs='+',
         ),
+    ] = Field(
         description='space-separated list of file glob patterns to search for the manifest files. '
         'The matched files will be loaded as the manifest files.',
-        default=None,  # type: ignore
+        default=None,
     )
-    manifest_exclude_regexes: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    manifest_exclude_regexes: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             nargs='+',
         ),
+    ] = Field(
         description='space-separated list of regex to exclude when searching for manifest files. '
         'Files matching these patterns will be ignored. '
         'By default excludes files under "managed_components" directories.',
-        default=['/managed_components/'],  # type: ignore
+        default=['/managed_components/'],
     )
-    manifest_rootpath: str = field(
-        None,
+    manifest_rootpath: str = Field(
         description='Root path to resolve the relative paths defined in the manifest files. '
         'By default set to the current directory.',
-        default=os.curdir,  # type: ignore
+        default=os.curdir,
     )
-    modified_components: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    modified_components: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             type=semicolon_separated_str_to_list,
         ),
+    ] = Field(
         description='semicolon-separated list of modified components. '
         'If set to "", the value would be considered as None. '
         'If set to ";", the value would be considered as an empty list.',
-        default=None,  # type: ignore
+        default=None,
     )
-    modified_files: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    modified_files: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             type=semicolon_separated_str_to_list,
         ),
+    ] = Field(
         description='semicolon-separated list of modified files. '
         'If set to "", the value would be considered as None. '
         'If set to ";", the value would be considered as an empty list.',
-        default=None,  # type: ignore
+        default=None,
     )
-    deactivate_dependency_driven_build_by_components: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    deactivate_dependency_driven_build_by_components: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             deprecates={
                 'ignore_app_dependencies_components': {
                     'type': semicolon_separated_str_to_list,
@@ -292,6 +294,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
             type=semicolon_separated_str_to_list,
             shorthand='-dc',
         ),
+    ] = Field(
         description='semicolon-separated list of components. '
         'dependency-driven build feature will be deactivated when any of these components are modified. '
         'Must be specified together with --modified-components. '
@@ -300,24 +303,27 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         validation_alias=AliasChoices(
             'deactivate_dependency_driven_build_by_components', 'ignore_app_dependencies_components'
         ),
-        default=None,  # type: ignore
+        default=None,
     )
-    common_components: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    common_components: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             type=semicolon_separated_str_to_list,
             shorthand='-rc',
         ),
+    ] = Field(
         description='semicolon-separated list of components. '
         'expand the `- *common_components` placeholder in manifests. '
         'Must be specified together with --modified-components. '
         'If set to "", the value would be considered as None. '
         'If set to ";", the value would be considered as an empty list.',
-        default=None,  # type: ignore
+        default=None,
     )
-    deactivate_dependency_driven_build_by_filepatterns: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    deactivate_dependency_driven_build_by_filepatterns: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             deprecates={
                 'ignore_app_dependencies_filepatterns': {
                     'type': semicolon_separated_str_to_list,
@@ -327,6 +333,7 @@ class DependencyDrivenBuildArguments(GlobalArguments):
             type=semicolon_separated_str_to_list,
             shorthand='-df',
         ),
+    ] = Field(
         description='semicolon-separated list of file patterns. '
         'dependency-driven build feature will be deactivated when any of matched files are modified. '
         'Must be specified together with --modified-files. '
@@ -335,21 +342,22 @@ class DependencyDrivenBuildArguments(GlobalArguments):
         validation_alias=AliasChoices(
             'deactivate_dependency_driven_build_by_filepatterns', 'ignore_app_dependencies_filepatterns'
         ),
-        default=None,  # type: ignore
+        default=None,
     )
-    check_manifest_rules: bool = field(
-        FieldMetadata(
+    check_manifest_rules: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='Check if all folders defined in the manifest files exist. Fail if not',
-        default=False,  # type: ignore
+        default=False,
     )
-    compare_manifest_sha_filepath: t.Optional[str] = field(
-        None,
+    compare_manifest_sha_filepath: t.Optional[str] = Field(
         description='Path to the file containing the hash of the manifest rules. '
         'Compare the hash with the current manifest rules. '
         'All matched apps will be built if the corresponding manifest rule is modified',
-        default=None,  # type: ignore
+        default=None,
     )
 
     def model_post_init(self, __context: Any) -> None:
@@ -446,97 +454,111 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
     }
     _LOADED_MODULE_APPS: t.ClassVar[t.Dict[str, t.Type[App]]] = {}
 
-    paths: t.List[str] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    paths: Annotated[
+        t.List[str],
+        TO_LIST_VALIDATOR,
+        CliOption(
             shorthand='-p',
             nargs='*',
         ),
+    ] = Field(
         description='Paths to the directories containing the apps. By default set to the current directory',
         default=os.curdir,  # type: ignore
     )
-    target: str = field(
-        FieldMetadata(
+    target: Annotated[
+        str,
+        CliOption(
             shorthand='-t',
         ),
+    ] = Field(
         description='Filter the apps by target. By default set to "all"',
-        default='all',  # type: ignore
+        default='all',
     )
-    extra_pythonpaths: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    extra_pythonpaths: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             nargs='+',
         ),
+    ] = Field(
         description='space-separated list of additional Python paths to search for the app classes. '
         'Will be injected into the head of sys.path.',
-        default=None,  # type: ignore
+        default=None,
     )
-    build_system: t.Union[str, t.Type[App]] = field(
-        None,
+    build_system: t.Union[str, t.Type[App]] = Field(
         description='Filter the apps by build system. By default set to "cmake". '
         'Can be either "cmake", "make" or a custom App class path in format "module:class"',
-        default='cmake',  # type: ignore
+        default='cmake',
     )
-    recursive: bool = field(
-        FieldMetadata(
+    recursive: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='Search for apps recursively under the specified paths',
-        default=False,  # type: ignore
+        default=False,
     )
-    exclude: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    exclude: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             nargs='+',
         ),
+    ] = Field(
         description='Ignore the specified directories while searching recursively',
         validation_alias=AliasChoices('exclude', 'exclude_list'),
-        default=None,  # type: ignore
+        default=None,
     )
-    work_dir: t.Optional[str] = field(
-        None,
+    work_dir: t.Optional[str] = Field(
         description='Copy the app to this directory before building. '
         'By default set to the app directory. Can expand placeholders',
-        default=None,  # type: ignore
+        default=None,
     )
-    build_dir: str = field(
-        None,
+    build_dir: str = Field(
         description='Build directory for the app. By default set to "build". '
         'When set to relative path, it will be treated as relative to the app directory. '
         'Can expand placeholders',
-        default='build',  # type: ignore
+        default='build',
     )
-    build_log_filename: t.Optional[str] = field(
-        FieldMetadata(
+    build_log_filename: Annotated[
+        t.Optional[str],
+        CliOption(
             deprecates={'build_log': {}},
         ),
+    ] = Field(
         description='Log filename under the build directory instead of stdout. Can expand placeholders',
         validation_alias=AliasChoices('build_log_filename', 'build_log'),
-        default=None,  # type: ignore
+        default=None,
     )
-    size_json_filename: t.Optional[str] = field(
-        FieldMetadata(
+    size_json_filename: Annotated[
+        t.Optional[str],
+        CliOption(
             deprecates={'size_file': {}},
         ),
+    ] = Field(
         description='`idf.py size` output file under the build directory when specified. Can expand placeholders',
         validation_alias=AliasChoices('size_json_filename', 'size_file'),
-        default=None,  # type: ignore
+        default=None,
     )
-    size_json_extra_args: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
-        ),
+    size_json_extra_args: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(),
+    ] = Field(
         description='Additional arguments to pass to esp_idf_size tool',
-        default=None,  # type: ignore
+        default=None,
     )
-    config_rules: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    config_rules: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             deprecates={
                 'config': {'nargs': '+'},
             },
             nargs='+',
         ),
+    ] = Field(
         description='Defines the rules of building the project with pre-set sdkconfig files. '
         'Supports FILENAME[=NAME] or FILEPATTERN format. '
         'FILENAME is the filename of the sdkconfig file, relative to the app directory. '
@@ -545,84 +567,97 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         'FILEPATTERN is the filename of the sdkconfig file with a single wildcard character (*). '
         'The NAME is the value matched by the wildcard',
         validation_alias=AliasChoices('config_rules', 'config_rules_str', 'config'),
-        default=None,  # type: ignore
+        default=None,
     )
-    override_sdkconfig_items: t.Optional[str] = field(
-        None,
+    override_sdkconfig_items: t.Optional[str] = Field(
         description='A comma-separated list of key=value pairs to override the sdkconfig items',
-        default=None,  # type: ignore
+        default=None,
     )
-    override_sdkconfig_files: t.Optional[str] = field(
-        None,
+    override_sdkconfig_files: t.Optional[str] = Field(
         description='A comma-separated list of sdkconfig files to override the sdkconfig items. '
         'When set to relative path, it will be treated as relative to the current directory',
-        default=None,  # type: ignore
+        default=None,
     )
-    sdkconfig_defaults: t.Optional[str] = field(
-        None,
+    sdkconfig_defaults: t.Optional[str] = Field(
         description='A semicolon-separated list of sdkconfig files passed to `idf.py -DSDKCONFIG_DEFAULTS`. '
         'SDKCONFIG_DEFAULTS environment variable is used when not specified',
-        default=os.getenv('SDKCONFIG_DEFAULTS', None),  # type: ignore
+        default=os.getenv('SDKCONFIG_DEFAULTS', None),
     )
-    check_warnings: bool = field(
-        FieldMetadata(
+    check_warnings: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='Check for warnings in the build output. Fail if any warnings are found',
-        default=False,  # type: ignore
+        default=False,
     )
-    default_build_targets: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    default_build_targets: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             nargs='+',
         ),
+    ] = Field(
         description='space-separated list of the default enabled build targets for the apps. '
         'When not specified, the default value is the targets listed by `idf.py --list-targets`.',
-        default=None,  # type: ignore
+        default=None,
     )
-    additional_build_targets: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    additional_build_targets: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             nargs='+',
         ),
+    ] = Field(
         description='space-separated list of additional build targets to add to the default enabled build targets',
-        default=None,  # type: ignore
+        default=None,
     )
-    enable_preview_targets: bool = field(
-        FieldMetadata(
+    enable_preview_targets: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='When enabled, PREVIEW_TARGETS will be added to the default enabled build targets',
-        default=False,  # type: ignore
+        default=False,
     )
-    disable_targets: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    disable_targets: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             nargs='+',
         ),
+    ] = Field(
         description='space-separated list of targets that should be disabled to all apps.',
-        default=None,  # type: ignore
+        default=None,
     )
-    include_skipped_apps: bool = field(
-        FieldMetadata(
+    include_skipped_apps: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='Include the skipped apps in the output, together with the enabled ones',
-        default=False,  # type: ignore
+        default=False,
     )
-    include_disabled_apps: bool = field(
-        FieldMetadata(
+    include_disabled_apps: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='Include the disabled apps in the output, together with the enabled ones',
-        default=False,  # type: ignore
+        default=False,
     )
-    include_all_apps: bool = field(
-        FieldMetadata(
+    include_all_apps: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='Include skipped, and disabled apps in the output, together with the enabled ones',
-        default=False,  # type: ignore
+        default=False,
     )
 
     def model_post_init(self, __context: Any) -> None:
@@ -728,21 +763,23 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
 
 
 class FindArguments(FindBuildArguments):
-    output: t.Optional[str] = field(
-        FieldMetadata(
+    output: Annotated[
+        t.Optional[str],
+        CliOption(
             shorthand='-o',
         ),
+    ] = Field(
         description='Record the found apps to the specified file instead of stdout',
-        default=None,  # type: ignore
+        default=None,
     )
-    output_format: str = field(
-        FieldMetadata(
-            choices=['raw', 'json'],
-        ),
+    output_format: Annotated[
+        t.Literal['raw', 'json'],
+        CliOption(choices=['raw', 'json']),
+    ] = Field(
         description='Output format of the found apps. '
         'In "raw" format, each line is a json string serialized from the app model. '
         'In "json" format, the output is a json list of the serialized app models',
-        default='raw',  # type: ignore
+        default='raw',
     )
 
     def model_post_init(self, __context: Any) -> None:
@@ -758,120 +795,139 @@ class FindArguments(FindBuildArguments):
 
 
 class BuildArguments(FindBuildArguments):
-    build_verbose: bool = field(
-        FieldMetadata(
+    build_verbose: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='Enable verbose output of the build system',
-        default=False,  # type: ignore
+        default=False,
     )
-    parallel_count: int = field(
-        FieldMetadata(
+    parallel_count: Annotated[
+        int,
+        CliOption(
             type=int,
         ),
+    ] = Field(
         description='Number of parallel build jobs in total. '
         'Specified together with --parallel-index. '
         'The given apps will be divided into parallel_count parts, '
         'and the current run will build the parallel_index-th part',
-        default=1,  # type: ignore
+        default=1,
     )
-    parallel_index: int = field(
-        FieldMetadata(
+    parallel_index: Annotated[
+        int,
+        CliOption(
             type=int,
         ),
+    ] = Field(
         description='Index (1-based) of the parallel build job. '
         'Specified together with --parallel-count. '
         'The given apps will be divided into parallel_count parts, '
         'and the current run will build the parallel_index-th part',
-        default=1,  # type: ignore
+        default=1,
     )
-    dry_run: bool = field(
-        FieldMetadata(
+    dry_run: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='Skip the actual build, only print the build process',
-        default=False,  # type: ignore
+        default=False,
     )
-    keep_going: bool = field(
-        FieldMetadata(
+    keep_going: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='Continue building the next app when the current build fails',
-        default=False,  # type: ignore
+        default=False,
     )
-    no_preserve: bool = field(
-        FieldMetadata(
+    no_preserve: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='Do not preserve the build directory after a successful build',
-        default=False,  # type: ignore
+        default=False,
     )
-    ignore_warning_strs: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    ignore_warning_strs: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             deprecates={
                 'ignore_warning_str': {'nargs': '+'},
             },
             nargs='+',
         ),
+    ] = Field(
         description='space-separated list of patterns. Ignore the warnings in the build output that match the patterns',
         validation_alias=AliasChoices('ignore_warning_strs', 'ignore_warning_str'),
-        default=None,  # type: ignore
+        default=None,
     )
-    ignore_warning_files: t.Optional[t.List[t.Union[str, TextIOWrapper]]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
-            deprecates={
-                'ignore_warning_file': {
-                    'type': argparse.FileType('r'),
-                }
-            },
+    ignore_warning_files: Annotated[
+        t.Optional[t.List[t.Union[str, TextIOWrapper]]],
+        TO_LIST_VALIDATOR,
+        CliOption(
+            deprecates={'ignore_warning_file': {}},
             nargs='+',
-            type=argparse.FileType('r'),
         ),
+    ] = Field(
         description='Path to the files containing the patterns to ignore the warnings in the build output',
         validation_alias=AliasChoices('ignore_warning_files', 'ignore_warning_file'),
-        default=None,  # type: ignore
+        default=None,
     )
-    copy_sdkconfig: bool = field(
-        FieldMetadata(
+    copy_sdkconfig: Annotated[
+        bool,
+        CliOption(
             action='store_true',
         ),
+    ] = Field(
         description='Copy the sdkconfig file to the build directory',
-        default=False,  # type: ignore
+        default=False,
     )
 
     # Attrs that support placeholders
-    collect_size_info_filename: t.Optional[str] = field(
-        FieldMetadata(
+    collect_size_info_filename: Annotated[
+        t.Optional[str],
+        CliOption(
             deprecates={'collect_size_info': {}},
             hidden=True,
         ),
+    ] = Field(
         description='Record size json filepath of the built apps to the specified file. '
         'Each line is a json string. Can expand placeholders @p.',
         validation_alias=AliasChoices('collect_size_info_filename', 'collect_size_info'),
-        default=None,  # type: ignore
+        default=None,
         exclude=True,  # computed field is used
     )
-    collect_app_info_filename: t.Optional[str] = field(
-        FieldMetadata(
+    collect_app_info_filename: Annotated[
+        t.Optional[str],
+        CliOption(
             deprecates={'collect_app_info': {}},
             hidden=True,
         ),
+    ] = Field(
         description='Record serialized app model of the built apps to the specified file. '
         'Each line is a json string. Can expand placeholders @p.',
         validation_alias=AliasChoices('collect_app_info_filename', 'collect_app_info'),
-        default=None,  # type: ignore
+        default=None,
         exclude=True,  # computed field is used
     )
-    junitxml_filename: t.Optional[str] = field(
-        FieldMetadata(
+    junitxml_filename: Annotated[
+        t.Optional[str],
+        CliOption(
             deprecates={'junitxml': {}},
             hidden=True,
         ),
+    ] = Field(
         description='Path to the junitxml file to record the build results. Can expand placeholder @p.',
         validation_alias=AliasChoices('junitxml_filename', 'junitxml'),
-        default=None,  # type: ignore
+        default=None,
         exclude=True,  # computed field is used
     )
     # used for expanding placeholders
@@ -920,35 +976,41 @@ class BuildArguments(FindBuildArguments):
 
 
 class DumpManifestShaArguments(GlobalArguments):
-    manifest_files: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    manifest_files: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             nargs='+',
             required=True,
         ),
+    ] = Field(
         description='Path to the manifest files which contains the build test rules of the apps',
-        default=None,  # type: ignore
+        default=None,
     )
-    common_components: t.Optional[t.List[str]] = field(
-        FieldMetadata(
-            validate_method=[ValidateMethod.TO_LIST],
+    common_components: Annotated[
+        t.Optional[t.List[str]],
+        TO_LIST_VALIDATOR,
+        CliOption(
             type=semicolon_separated_str_to_list,
             shorthand='-rc',
         ),
+    ] = Field(
         description='semicolon-separated list of components. '
         'expand the `- *common_components` placeholder in manifests. '
         'If set to "", the value would be considered as None. '
         'If set to ";", the value would be considered as an empty list.',
-        default=None,  # type: ignore
+        default=None,
     )
 
-    output: t.Optional[str] = field(
-        FieldMetadata(
+    output: Annotated[
+        t.Optional[str],
+        CliOption(
             shorthand='-o',
             required=True,
         ),
+    ] = Field(
         description='Path to the output file to record the sha256 hash of the manifest rules',
-        default=None,  # type: ignore
+        default=None,
     )
 
     def model_post_init(self, __context: Any) -> None:
@@ -968,29 +1030,25 @@ def add_args_to_parser(argument_cls: t.Type[BaseArguments], parser: argparse.Arg
     """
     Add arguments to the parser from the argument class.
 
-    FieldMetadata is used to set the argparse options.
+    Annotated ``CliOption`` is used to set the argparse options.
 
     :param argument_cls: argument class
     :param parser: argparse parser
     """
     for f_name, f in argument_cls.model_fields.items():
-        f_meta = get_meta(f)
+        f_meta = get_cli_option(f)
         if f_meta and f_meta.deprecates:
             for dep_f_name, dep_f_kwargs in f_meta.deprecates.items():
                 _names = [_snake_case_to_cli_arg_name(dep_f_name)]
-                _shorthand = dep_f_kwargs.pop('shorthand', None)
+                dep_kwargs = dict(dep_f_kwargs)
+                _shorthand = dep_kwargs.pop('shorthand', None)
                 if _shorthand:
                     _names.append(_shorthand)
 
-                if f_meta.hidden:  # f is hidden, use deprecated field instead
-                    help_msg = f.description
-                else:
-                    help_msg = f'[Deprecated] Use {_snake_case_to_cli_arg_name(f_name)} instead'
-
                 parser.add_argument(
                     *_names,
-                    **dep_f_kwargs,
-                    help=help_msg,
+                    **dep_kwargs,
+                    help=argparse.SUPPRESS,
                 )
 
         if f_meta and f_meta.hidden:
@@ -1016,7 +1074,7 @@ def add_args_to_parser(argument_cls: t.Type[BaseArguments], parser: argparse.Arg
                 kwargs['nargs'] = f_meta.nargs
             if f_meta.choices:
                 kwargs['choices'] = f_meta.choices
-            if f_meta.default:
+            if f_meta.default is not CLI_DEFAULT_UNSET:
                 kwargs['default'] = f_meta.default
 
         # here in CLI arguments, don't set the default to field.default

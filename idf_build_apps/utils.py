@@ -10,35 +10,13 @@ import shutil
 import subprocess
 import sys
 import typing as t
-from copy import (
-    deepcopy,
-)
+from copy import deepcopy
 from pathlib import Path
 
-from packaging.version import (
-    Version,
-)
+from packaging.version import Version
 from pydantic import BaseModel as _BaseModel
 
 LOGGER = logging.getLogger(__name__)
-
-if sys.version_info < (3, 8):
-    from typing_extensions import (
-        Literal,
-    )
-else:
-    from typing import (
-        Literal,  # noqa
-    )
-
-if sys.version_info < (3, 11):
-    from typing_extensions import (
-        Self,
-    )
-else:
-    from typing import (
-        Self,  # noqa
-    )
 
 
 class ConfigRule:

@@ -5,12 +5,11 @@ import os
 import pytest
 
 import idf_build_apps
-from idf_build_apps import (
-    App,
-    setup_logging,
-)
+from idf_build_apps import App
+from idf_build_apps import setup_logging
 from idf_build_apps.args import apply_config_file
-from idf_build_apps.manifest.manifest import FolderRule, reset_default_build_targets
+from idf_build_apps.manifest.manifest import FolderRule
+from idf_build_apps.manifest.manifest import reset_default_build_targets
 
 
 @pytest.fixture(autouse=True)

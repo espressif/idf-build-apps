@@ -9,20 +9,14 @@ from esp_bool_parser.utils import to_version
 
 import idf_build_apps
 from idf_build_apps import setup_logging
-from idf_build_apps.constants import (
-    SUPPORTED_TARGETS,
-)
-from idf_build_apps.manifest.manifest import (
-    IfClause,
-    Manifest,
-)
-from idf_build_apps.utils import (
-    InvalidIfClause,
-    InvalidManifest,
-)
-from idf_build_apps.yaml import (
-    parse,
-)
+from idf_build_apps.constants import SUPPORTED_TARGETS
+from idf_build_apps.manifest.manifest import DEFAULT_BUILD_TARGETS
+from idf_build_apps.manifest.manifest import IfClause
+from idf_build_apps.manifest.manifest import Manifest
+from idf_build_apps.manifest.manifest import reset_default_build_targets
+from idf_build_apps.utils import InvalidIfClause
+from idf_build_apps.utils import InvalidManifest
+from idf_build_apps.yaml import parse
 
 
 class TestManifest:
@@ -33,6 +27,8 @@ class TestManifest:
         monkeypatch.setattr(esp_bool_parser.constants, 'IDF_VERSION_MAJOR', 5)
         monkeypatch.setattr(esp_bool_parser.constants, 'IDF_VERSION_MINOR', 9)
         monkeypatch.setattr(esp_bool_parser.constants, 'IDF_VERSION_PATCH', 0)
+
+        reset_default_build_targets()
 
     def test_manifest_from_file_warning(self, tmp_path, capsys, monkeypatch):
         setup_logging()
@@ -297,7 +293,7 @@ test1:
         except InvalidManifest as e:
             assert str(e) == 'Current manifest format has to fit either the switch format or the list format.'
 
-    def test_manifest_with_anchor(self, tmp_path, monkeypatch):
+    def test_manifest_with_anchor(self, tmp_path):
         yaml_file = tmp_path / 'test.yml'
         yaml_file.write_text(
             """
@@ -316,7 +312,7 @@ bar:
             encoding='utf8',
         )
 
-        monkeypatch.setattr(idf_build_apps.manifest.manifest.FolderRule, 'DEFAULT_BUILD_TARGETS', ['esp32'])
+        DEFAULT_BUILD_TARGETS.set(['esp32'])
         manifest = Manifest.from_file(yaml_file)
         assert manifest.enable_build_targets('bar') == []
 

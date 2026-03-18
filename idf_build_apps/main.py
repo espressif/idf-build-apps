@@ -13,44 +13,31 @@ import typing as t
 from pathlib import Path
 
 import argcomplete
-from pydantic import (
-    Field,
-    create_model,
-)
+from pydantic import Field
+from pydantic import create_model
 
-from idf_build_apps.args import (
-    BuildArguments,
-    DumpManifestShaArguments,
-    FindArguments,
-    add_args_to_parser,
-    apply_config_file,
-)
+from idf_build_apps.args import BuildArguments
+from idf_build_apps.args import DumpManifestShaArguments
+from idf_build_apps.args import FindArguments
+from idf_build_apps.args import add_args_to_parser
+from idf_build_apps.args import apply_config_file
 
-from .app import (
-    App,
-    AppDeserializer,
-)
+from .app import App
+from .app import AppDeserializer
 from .autocompletions import activate_completions
-from .constants import BuildStatus, completion_instructions
-from .finder import (
-    _find_apps,
-)
-from .junit import (
-    TestCase,
-    TestReport,
-    TestSuite,
-)
-from .manifest.manifest import (
-    DEFAULT_BUILD_TARGETS,
-    Manifest,
-)
-from .utils import (
-    AutocompleteActivationError,
-    InvalidCommand,
-    drop_none_kwargs,
-    get_parallel_start_stop,
-    to_list,
-)
+from .constants import BuildStatus
+from .constants import completion_instructions
+from .finder import _find_apps
+from .junit import TestCase
+from .junit import TestReport
+from .junit import TestSuite
+from .manifest.manifest import DEFAULT_BUILD_TARGETS
+from .manifest.manifest import Manifest
+from .utils import AutocompleteActivationError
+from .utils import InvalidCommand
+from .utils import drop_none_kwargs
+from .utils import get_parallel_start_stop
+from .utils import to_list
 
 LOGGER = logging.getLogger(__name__)
 
@@ -259,7 +246,11 @@ class IdfBuildAppsCliFormatter(argparse.HelpFormatter):
             return _help
 
         if action.default is not argparse.SUPPRESS:
-            if action.default is None:
+            if isinstance(action, (argparse._StoreTrueAction, argparse._StoreFalseAction)):
+                default_type = bool
+            elif action.type is not None:
+                default_type = action.type
+            elif action.default is None:
                 default_type = str
             else:
                 default_type = type(action.default)
@@ -406,7 +397,11 @@ def main():
 
     # real call starts here
     # build also needs to find first
-    apps = find_apps(args.paths, args.target, find_arguments=FindArguments.model_validate(kwargs_without_none))
+    apps = find_apps(
+        arguments.paths,
+        arguments.target,
+        find_arguments=FindArguments.model_validate(arguments.model_dump(exclude_none=True)),
+    )
 
     if isinstance(arguments, FindArguments):  # find only
         if arguments.output:

@@ -6,23 +6,15 @@ import os
 import os.path
 import re
 import typing as t
-from pathlib import (
-    Path,
-)
+from pathlib import Path
 
-from .app import (
-    App,
-    CMakeApp,
-)
+from .app import App
+from .app import CMakeApp
 from .args import FindArguments
-from .constants import (
-    ALL_TARGETS,
-    BuildStatus,
-)
-from .utils import (
-    config_rules_from_str,
-    to_absolute_path,
-)
+from .constants import ALL_TARGETS
+from .constants import BuildStatus
+from .utils import config_rules_from_str
+from .utils import to_absolute_path
 
 LOGGER = logging.getLogger(__name__)
 

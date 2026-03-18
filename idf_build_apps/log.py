@@ -7,10 +7,12 @@ from datetime import datetime
 
 from rich import get_console
 from rich._log_render import LogRender
-from rich.console import Console, ConsoleRenderable
+from rich.console import Console
+from rich.console import ConsoleRenderable
 from rich.containers import Renderables
 from rich.logging import RichHandler
-from rich.text import Text, TextType
+from rich.text import Text
+from rich.text import TextType
 
 
 class _OneLineLogRender(LogRender):
