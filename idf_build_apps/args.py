@@ -998,15 +998,10 @@ def add_args_to_parser(argument_cls: t.Type[BaseArguments], parser: argparse.Arg
                 if _shorthand:
                     _names.append(_shorthand)
 
-                if f_meta.hidden:  # f is hidden, use deprecated field instead
-                    help_msg = f.description
-                else:
-                    help_msg = f'[Deprecated] Use {_snake_case_to_cli_arg_name(f_name)} instead'
-
                 parser.add_argument(
                     *_names,
                     **dep_f_kwargs,
-                    help=help_msg,
+                    help=argparse.SUPPRESS,
                 )
 
         if f_meta and f_meta.hidden:
