@@ -20,7 +20,6 @@ from idf_build_apps.constants import PREVIEW_TARGETS
 from idf_build_apps.constants import SUPPORTED_TARGETS
 from idf_build_apps.main import main
 from idf_build_apps.manifest.manifest import DEFAULT_BUILD_TARGETS
-from idf_build_apps.manifest.manifest import FolderRule
 from idf_build_apps.manifest.manifest import reset_default_build_targets
 
 
@@ -523,19 +522,6 @@ class TestDefaultBuildTargetsContextVar:
         # Test setting to ALL_TARGETS
         DEFAULT_BUILD_TARGETS.set(self.ALL_TARGETS)
         assert DEFAULT_BUILD_TARGETS.get() == self.ALL_TARGETS
-
-    def test_folder_rule_backward_compatibility(self):
-        # Test setting via contextvar
-        other_targets = ['esp32h2', 'esp32p4']
-        DEFAULT_BUILD_TARGETS.set(other_targets)
-        assert FolderRule.DEFAULT_BUILD_TARGETS == other_targets
-        assert DEFAULT_BUILD_TARGETS.get() == other_targets
-
-        # Test setting via FolderRule
-        test_targets = ['esp32c3', 'esp32c6']
-        FolderRule.DEFAULT_BUILD_TARGETS = test_targets
-        assert DEFAULT_BUILD_TARGETS.get() == test_targets
-        assert FolderRule.DEFAULT_BUILD_TARGETS == test_targets
 
     def test_default_behavior(self):
         args = FindBuildArguments(paths=['.'])

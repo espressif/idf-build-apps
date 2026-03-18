@@ -4,7 +4,6 @@ import contextvars
 import logging
 import os
 import typing as t
-import warnings
 from functools import lru_cache
 from hashlib import sha512
 
@@ -92,66 +91,7 @@ class SwitchClause:
         )
 
 
-def _getattr_default_build_targets(name: str) -> t.Any:
-    if name == 'DEFAULT_BUILD_TARGETS':
-        warnings.warn(
-            'FolderRule.DEFAULT_BUILD_TARGETS is deprecated. Use DEFAULT_BUILD_TARGETS.get() directly.',
-            DeprecationWarning,
-            stacklevel=3,
-        )
-        return DEFAULT_BUILD_TARGETS.get()
-    return None
-
-
-def _setattr_default_build_targets(name: str, value: t.Any) -> bool:
-    if name == 'DEFAULT_BUILD_TARGETS':
-        warnings.warn(
-            'FolderRule.DEFAULT_BUILD_TARGETS is deprecated. Use DEFAULT_BUILD_TARGETS.set() directly.',
-            DeprecationWarning,
-            stacklevel=3,
-        )
-        if not isinstance(value, list):
-            raise TypeError('Default build targets must be a list')
-        DEFAULT_BUILD_TARGETS.set(value)
-        return True
-    return False
-
-
-class _FolderRuleMeta(type):
-    """Metaclass to handle class-level assignments to DEFAULT_BUILD_TARGETS"""
-
-    def __getattribute__(cls, name):
-        result = _getattr_default_build_targets(name)
-        if result is not None:
-            return result
-        return super().__getattribute__(name)
-
-    def __setattr__(cls, name, value):
-        if _setattr_default_build_targets(name, value):
-            return
-        super().__setattr__(name, value)
-
-    def __delattr__(cls, name):
-        if name == 'DEFAULT_BUILD_TARGETS':
-            # Don't actually delete anything, just ignore the deletion
-            # This handles monkeypatch teardown issues
-            pass
-        else:
-            super().__delattr__(name)
-
-
-class FolderRule(metaclass=_FolderRuleMeta):
-    def __getattribute__(self, name):  # instance attr
-        result = _getattr_default_build_targets(name)
-        if result is not None:
-            return result
-        return super().__getattribute__(name)
-
-    def __setattr__(self, name, value):
-        if _setattr_default_build_targets(name, value):
-            return
-        super().__setattr__(name, value)
-
+class FolderRule:
     def __init__(
         self,
         folder: str,
