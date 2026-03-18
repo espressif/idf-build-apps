@@ -5,7 +5,8 @@
 Manifest file
 """
 
-from .manifest import DEFAULT_BUILD_TARGETS, FolderRule
+from .manifest import DEFAULT_BUILD_TARGETS
+from .manifest import FolderRule
 
 __all__ = [
     'DEFAULT_BUILD_TARGETS',

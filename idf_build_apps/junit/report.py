@@ -36,26 +36,14 @@ import json
 import logging
 import os.path
 import typing as t
-from datetime import (
-    datetime,
-    timezone,
-)
-from xml.etree import (
-    ElementTree,
-)
-from xml.sax.saxutils import (
-    escape,
-)
+from datetime import datetime
+from datetime import timezone
+from xml.etree import ElementTree
+from xml.sax.saxutils import escape
 
-from ..app import (
-    App,
-)
-from ..constants import (
-    BuildStatus,
-)
-from .utils import (
-    get_sys_info,
-)
+from ..app import App
+from ..constants import BuildStatus
+from .utils import get_sys_info
 
 LOGGER = logging.getLogger(__name__)
 

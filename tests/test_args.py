@@ -6,22 +6,22 @@ from tempfile import NamedTemporaryFile
 from xml.etree import ElementTree
 
 import pytest
-from conftest import (
-    create_project,
-)
+from conftest import create_project
 
 from idf_build_apps import App
-from idf_build_apps.args import (
-    BuildArguments,
-    DependencyDrivenBuildArguments,
-    FindArguments,
-    FindBuildArguments,
-    add_args_to_parser,
-    expand_vars,
-)
-from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN, PREVIEW_TARGETS, SUPPORTED_TARGETS
+from idf_build_apps.args import BuildArguments
+from idf_build_apps.args import DependencyDrivenBuildArguments
+from idf_build_apps.args import FindArguments
+from idf_build_apps.args import FindBuildArguments
+from idf_build_apps.args import add_args_to_parser
+from idf_build_apps.args import expand_vars
+from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN
+from idf_build_apps.constants import PREVIEW_TARGETS
+from idf_build_apps.constants import SUPPORTED_TARGETS
 from idf_build_apps.main import main
-from idf_build_apps.manifest.manifest import DEFAULT_BUILD_TARGETS, FolderRule, reset_default_build_targets
+from idf_build_apps.manifest.manifest import DEFAULT_BUILD_TARGETS
+from idf_build_apps.manifest.manifest import FolderRule
+from idf_build_apps.manifest.manifest import reset_default_build_targets
 
 
 def test_init_attr_deprecated_by():

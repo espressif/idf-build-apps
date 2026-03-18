@@ -12,16 +12,14 @@ license = {file = "LICENSE"}
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dynamic = ["version", "description"]
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 
 dependencies = [
     "pyparsing",
@@ -31,7 +29,6 @@ dependencies = [
     "pydantic~=2.0",
     "pydantic_settings",
     "argcomplete>=3",
-    "typing-extensions; python_version < '3.11'",
     "esp-bool-parser>=0.1.2,<1",
     # debug/print
     "rich",
@@ -97,59 +94,14 @@ select = [
     'F',  # Pyflakes
     'E',  # pycodestyle
     'W',  # pycodestyle
-#    'C90',  # mccabe
     'I',  # isort
-#    'N',  # pep8-naming
-#    'D',  # pydocstyle
     'UP',  # pyupgrade
     'YTT',  # flake8-2020
-#    'ANN',  # flake8-annotations
-#    'ASYNC',  # flake8-async
-#    'TRIO',  # flake8-trio
-#    'S',  # flake8-bandit
-#    'BLE',  # flake8-blind-except
-#    'FBT',  # flake8-boolean-trap
-#    'B',  # flake8-bugbear
     'A',  # flake8-builtins
-#    'COM',  # flake8-commas
-#    'CPY',  # flake8-copyright
-#    'C4',  # flake8-comprehensions
-#    'DTZ',  # flake8-datetimez
-#    'T10',  # flake8-debugger
-#    'DJ',  # flake8-django
-#    'EM',  # flake8-errmsg
-#    'EXE',  # flake8-executable
-#    'FA',  # flake8-future-annotations
-#    'ISC',  # flake8-implicit-str-concat
-#    'ICN',  # flake8-import-conventions
-#    'G',  # flake8-logging-format
-#    'INP',  # flake8-no-pep420
-#    'PIE',  # flake8-pie
-#    'T20',  # flake8-print
-#    'PYI',  # flake8-pyi
-#    'PT',  # flake8-pytest-style
-#    'Q',  # flake8-quotes
-#    'RSE',  # flake8-raise
-#    'RET',  # flake8-return
-#    'SLF',  # flake8-self
-#    'SLOT',  # flake8-slots
-#    'SIM',  # flake8-simplify
-#    'TID',  # flake8-tidy-imports
-#    'TCH',  # flake8-type-checking
-#    'INT',  # flake8-gettext
     'ARG',  # flake8-unused-arguments
-#    'PTH',  # flake8-use-pathlib
     'TD',  # flake8-todos
     'FIX',  # flake8-fixme
     'ERA',  # eradicate
-#    'PD',  # pandas-vet
-#    'PGH',  # pygrep-hooks
-#    'PL',  # Pylint
-#    'TRY',  # tryceratops
-#    'FLY',  # flynt
-#    'NPY',  # NumPy-specific rules
-#    'AIR',  # Airflow
-#    'PERF',  # Perflint
     'FURB',  # refurb
     'LOG',  # flake8-logging
     'RUF',  # Ruff-specific rules
@@ -170,6 +122,9 @@ docstring-code-format = true
 
 [tool.ruff.lint.flake8-unused-arguments]
 ignore-variadic-names = true
+
+[tool.ruff.lint.isort]
+force-single-line = true
 
 [tool.mypy]
 python_version = "3.10"

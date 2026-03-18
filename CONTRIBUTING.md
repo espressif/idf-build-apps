@@ -7,13 +7,14 @@ Hi! We're glad that you're interested in contributing to `idf-build-apps`. This 
 Here's a table shows the supported ESP-IDF versions and the corresponding Python versions.
 
 | ESP-IDF Version | ESP-IDF Version EOL | ESP-IDF Minimum Python Version | idf-build-apps Releases |
-|-----------------|---------------------|--------------------------------|-------------------------|
+| --------------- | ------------------- | ------------------------------ | ----------------------- |
 | 5.1             | 2025.12.30          | 3.7                            | 2.x                     |
 | 5.2             | 2026.08.16          | 3.8                            | 2.x                     |
 | 5.3             | 2027.01.25          | 3.8                            | 2.x                     |
 | 5.4             | 2027.07.05          | 3.8                            | 2.x                     |
 | 5.5             | 2028.01.21          | 3.9                            | 2.x                     |
-| 6.0 (master)    | N/A                 | 3.10                           | 3.x WIP                 |
+| 6.0             | N/A                 | 3.10                           | 3.x                     |
+| 6.1 (master)    | N/A                 | 3.10                           | 3.x                     |
 
 `idf-build-apps` is following the semantic versioning. The major version of `idf-build-apps` is the same as the ESP-IDF version it supports. For example, `idf-build-apps` 1.x supports ESP-IDF 4.x, and `idf-build-apps` 2.x supports ESP-IDF 5.x.
 

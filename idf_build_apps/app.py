@@ -10,49 +10,35 @@ import re
 import shutil
 import sys
 import typing as t
-from datetime import datetime, timezone
-from pathlib import (
-    Path,
-)
+from datetime import datetime
+from datetime import timezone
+from pathlib import Path
 
-from packaging.version import (
-    Version,
-)
-from pydantic import (
-    Field,
-    computed_field,
-)
+from packaging.version import Version
+from pydantic import Field
+from pydantic import computed_field
 
-from . import (
-    SESSION_ARGS,
-)
-from .constants import (
-    DEFAULT_SDKCONFIG,
-    IDF_PY,
-    IDF_SIZE_PY,
-    IDF_VERSION,
-    IDF_VERSION_MAJOR,
-    IDF_VERSION_MINOR,
-    IDF_VERSION_PATCH,
-    PREVIEW_TARGETS,
-    PROJECT_DESCRIPTION_JSON,
-    BuildStatus,
-)
-from .manifest.manifest import (
-    DEFAULT_BUILD_TARGETS,
-    Manifest,
-)
-from .utils import (
-    BaseModel,
-    BuildError,
-    Literal,
-    files_matches_patterns,
-    find_first_match,
-    rmdir,
-    subprocess_run,
-    to_absolute_path,
-    to_list,
-)
+from . import SESSION_ARGS
+from .constants import DEFAULT_SDKCONFIG
+from .constants import IDF_PY
+from .constants import IDF_SIZE_PY
+from .constants import IDF_VERSION
+from .constants import IDF_VERSION_MAJOR
+from .constants import IDF_VERSION_MINOR
+from .constants import IDF_VERSION_PATCH
+from .constants import PREVIEW_TARGETS
+from .constants import PROJECT_DESCRIPTION_JSON
+from .constants import BuildStatus
+from .manifest.manifest import DEFAULT_BUILD_TARGETS
+from .manifest.manifest import Manifest
+from .utils import BaseModel
+from .utils import BuildError
+from .utils import files_matches_patterns
+from .utils import find_first_match
+from .utils import rmdir
+from .utils import subprocess_run
+from .utils import to_absolute_path
+from .utils import to_list
 
 LOGGER = logging.getLogger(__name__)
 
@@ -79,7 +65,7 @@ class App(BaseModel):
     # ------------------
     # Instance variables
     # ------------------
-    build_system: Literal['unknown'] = 'unknown'
+    build_system: t.Literal['unknown'] = 'unknown'
 
     app_dir: str
     target: str
@@ -874,7 +860,7 @@ class App(BaseModel):
 class MakeApp(App):
     MAKE_PROJECT_LINE: t.ClassVar[str] = r'include $(IDF_PATH)/make/project.mk'
 
-    build_system: Literal['make'] = 'make'  # type: ignore
+    build_system: t.Literal['make'] = 'make'  # type: ignore
 
     @property
     def supported_targets(self) -> t.List[str]:
@@ -962,7 +948,7 @@ class CMakeApp(App):
         r'include($ENV{IDF_PATH}/tools/cmakev2/idf.cmake)',
     ]
 
-    build_system: Literal['cmake'] = 'cmake'  # type: ignore
+    build_system: t.Literal['cmake'] = 'cmake'  # type: ignore
 
     cmake_vars: t.Dict[str, str] = {}
 

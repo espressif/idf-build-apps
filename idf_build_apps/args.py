@@ -18,21 +18,37 @@ from pathlib import Path
 from string import Template
 from typing import Any
 
-from pydantic import AliasChoices, Field, computed_field, field_validator
+from pydantic import AliasChoices
+from pydantic import Field
+from pydantic import computed_field
+from pydantic import field_validator
 from pydantic.fields import FieldInfo
 from pydantic_core.core_schema import ValidationInfo
-from pydantic_settings import (
-    BaseSettings,
-    PydanticBaseSettingsSource,
-    SettingsConfigDict,
-)
-from typing_extensions import Concatenate, ParamSpec
+from pydantic_settings import BaseSettings
+from pydantic_settings import PydanticBaseSettingsSource
+from pydantic_settings import SettingsConfigDict
+from typing_extensions import Concatenate
+from typing_extensions import ParamSpec
 
-from . import SESSION_ARGS, App, CMakeApp, MakeApp, setup_logging
-from .constants import ALL_TARGETS, IDF_BUILD_APPS_TOML_FN, PREVIEW_TARGETS, SUPPORTED_TARGETS
-from .manifest.manifest import DEFAULT_BUILD_TARGETS, Manifest, reset_default_build_targets
-from .utils import InvalidCommand, files_matches_patterns, semicolon_separated_str_to_list, to_absolute_path, to_list
-from .vendors.pydantic_sources import PyprojectTomlConfigSettingsSource, TomlConfigSettingsSource
+from . import SESSION_ARGS
+from . import App
+from . import CMakeApp
+from . import MakeApp
+from . import setup_logging
+from .constants import ALL_TARGETS
+from .constants import IDF_BUILD_APPS_TOML_FN
+from .constants import PREVIEW_TARGETS
+from .constants import SUPPORTED_TARGETS
+from .manifest.manifest import DEFAULT_BUILD_TARGETS
+from .manifest.manifest import Manifest
+from .manifest.manifest import reset_default_build_targets
+from .utils import InvalidCommand
+from .utils import files_matches_patterns
+from .utils import semicolon_separated_str_to_list
+from .utils import to_absolute_path
+from .utils import to_list
+from .vendors.pydantic_sources import PyprojectTomlConfigSettingsSource
+from .vendors.pydantic_sources import TomlConfigSettingsSource
 
 LOGGER = logging.getLogger(__name__)
 

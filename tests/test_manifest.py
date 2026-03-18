@@ -9,20 +9,12 @@ from esp_bool_parser.utils import to_version
 
 import idf_build_apps
 from idf_build_apps import setup_logging
-from idf_build_apps.constants import (
-    SUPPORTED_TARGETS,
-)
-from idf_build_apps.manifest.manifest import (
-    IfClause,
-    Manifest,
-)
-from idf_build_apps.utils import (
-    InvalidIfClause,
-    InvalidManifest,
-)
-from idf_build_apps.yaml import (
-    parse,
-)
+from idf_build_apps.constants import SUPPORTED_TARGETS
+from idf_build_apps.manifest.manifest import IfClause
+from idf_build_apps.manifest.manifest import Manifest
+from idf_build_apps.utils import InvalidIfClause
+from idf_build_apps.utils import InvalidManifest
+from idf_build_apps.yaml import parse
 
 
 class TestManifest:

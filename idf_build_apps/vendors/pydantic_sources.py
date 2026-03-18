@@ -18,38 +18,25 @@ Modifications:
 """
 
 import logging
-import os
 import sys
-from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Type
+from typing import Union
 
+from pydantic_settings import BaseSettings
 from pydantic_settings import InitSettingsSource
-from pydantic_settings.main import BaseSettings
+from pydantic_settings.sources import ConfigFileSourceMixin
 
 from idf_build_apps.constants import IDF_BUILD_APPS_TOML_FN
 
 PathType = Union[Path, str, List[Union[Path, str]], Tuple[Union[Path, str], ...]]
 DEFAULT_PATH = Path('')
 LOGGER = logging.getLogger(__name__)
-
-
-class ConfigFileSourceMixin(ABC):
-    def _read_files(self, files: Optional[PathType]) -> Dict[str, Any]:
-        if files is None:
-            return {}
-        if isinstance(files, (str, os.PathLike)):
-            files = [files]
-        kwargs: Dict[str, Any] = {}
-        for file in files:
-            file_path = Path(file).expanduser()
-            if file_path.is_file():
-                kwargs.update(self._read_file(file_path))
-        return kwargs
-
-    @abstractmethod
-    def _read_file(self, path: Optional[Path]) -> Dict[str, Any]:
-        pass
 
 
 class TomlConfigSettingsSource(InitSettingsSource, ConfigFileSourceMixin):

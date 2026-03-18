@@ -4,24 +4,16 @@
 import os
 import sys
 import tempfile
-from pathlib import (
-    Path,
-)
+from pathlib import Path
 
 import pytest
-from conftest import (
-    create_project,
-)
+from conftest import create_project
 
 import idf_build_apps
-from idf_build_apps.constants import (
-    DEFAULT_SDKCONFIG,
-    IDF_PATH,
-    BuildStatus,
-)
-from idf_build_apps.main import (
-    find_apps,
-)
+from idf_build_apps.constants import DEFAULT_SDKCONFIG
+from idf_build_apps.constants import IDF_PATH
+from idf_build_apps.constants import BuildStatus
+from idf_build_apps.main import find_apps
 from idf_build_apps.manifest.manifest import Manifest
 
 
@@ -575,9 +567,7 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
         (tmp_path / 'sdkconfig.override1').write_text(
             'CONFIG_IDF_TARGET=esp32\nCONFIG_A=5\nCONFIG_B=33', encoding='utf8'
         )
-        from collections import (
-            namedtuple,
-        )
+        from collections import namedtuple
 
         Args = namedtuple('Args', ['override_sdkconfig_items', 'override_sdkconfig_files'])
         args = Args(
@@ -785,7 +775,7 @@ import os
 import typing as t
 from idf_build_apps import App
 from idf_build_apps.constants import BuildStatus
-from idf_build_apps.utils import Literal
+from typing import Literal
 
 
 class ExtraPathTestApp(App):

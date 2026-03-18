@@ -8,24 +8,17 @@ import warnings
 from functools import lru_cache
 from hashlib import sha512
 
-from esp_bool_parser import BoolStmt, parse_bool_expr
-from pyparsing import (
-    ParseException,
-)
+from esp_bool_parser import BoolStmt
+from esp_bool_parser import parse_bool_expr
+from pyparsing import ParseException
 
-from ..constants import (
-    ALL_TARGETS,
-    SUPPORTED_TARGETS,
-)
-from ..utils import (
-    InvalidIfClause,
-    InvalidManifest,
-    PathLike,
-    to_absolute_path,
-)
-from ..yaml import (
-    parse,
-)
+from ..constants import ALL_TARGETS
+from ..constants import SUPPORTED_TARGETS
+from ..utils import InvalidIfClause
+from ..utils import InvalidManifest
+from ..utils import PathLike
+from ..utils import to_absolute_path
+from ..yaml import parse
 
 LOGGER = logging.getLogger(__name__)
 

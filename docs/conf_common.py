@@ -19,7 +19,7 @@ project_homepage = 'https://github.com/espressif/idf-build-apps'
 copyright = f'2023-{datetime.now().year}, Espressif Systems (Shanghai) Co., Ltd.'  # noqa: A001
 author = 'Fu Hanxi'
 languages = ['en']
-version = '2.x'
+version = '3.x'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -44,10 +44,6 @@ html_logo = '../_static/espressif-logo.svg'
 html_static_path = ['../_static']
 html_theme = 'sphinx_rtd_theme'
 
-# mermaid 10.2.0 will show syntax error
-# use fixed version instead
-mermaid_version = '10.6.1'
-
 autodoc_default_options = {
     'members': True,
     'member-order': 'bysource',
@@ -57,12 +53,11 @@ autodoc_default_options = {
 
 
 def generate_api_docs(language):
-    from idf_build_apps.args import (
-        BuildArguments,
-        FindArguments,
-        add_args_to_obj_doc_as_params,
-    )
-    from idf_build_apps.main import build_apps, find_apps
+    from idf_build_apps.args import BuildArguments
+    from idf_build_apps.args import FindArguments
+    from idf_build_apps.args import add_args_to_obj_doc_as_params
+    from idf_build_apps.main import build_apps
+    from idf_build_apps.main import find_apps
 
     docs_dir = os.path.dirname(__file__)
     api_dir = os.path.join(docs_dir, language, 'references', 'api')

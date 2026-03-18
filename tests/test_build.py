@@ -5,33 +5,21 @@ import json
 import os
 import shutil
 import subprocess
-from copy import (
-    deepcopy,
-)
+from copy import deepcopy
 from pathlib import Path
-from xml.etree import (
-    ElementTree,
-)
+from typing import Literal
+from xml.etree import ElementTree
 
 import pytest
-from conftest import (
-    create_project,
-)
+from conftest import create_project
 
-from idf_build_apps import (
-    build_apps,
-    find_apps,
-)
-from idf_build_apps.app import (
-    App,
-    CMakeApp,
-)
+from idf_build_apps import build_apps
+from idf_build_apps import find_apps
+from idf_build_apps.app import App
+from idf_build_apps.app import CMakeApp
 from idf_build_apps.args import BuildArguments
-from idf_build_apps.constants import (
-    IDF_PATH,
-    BuildStatus,
-)
-from idf_build_apps.utils import Literal
+from idf_build_apps.constants import IDF_PATH
+from idf_build_apps.constants import BuildStatus
 
 
 @pytest.mark.skipif(not shutil.which('idf.py'), reason='idf.py not found')
@@ -285,7 +273,7 @@ class TestBuildWithCustomApp:
 from idf_build_apps import App
 import os
 from idf_build_apps.constants import BuildStatus
-from idf_build_apps.utils import Literal
+from typing import Literal
 
 class CustomApp(App):
     build_system: Literal['custom'] = 'custom'
