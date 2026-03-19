@@ -20,6 +20,24 @@
 </div>
 <hr>
 
+## v3.0.0 (2026-03-19)
+
+### 🚨 Breaking changes
+
+- move FieldMetadata to CliOption, properly annotate fields *(Fu Hanxi - 0a3e9d0)*
+- remove deprecated FolderRule.DEFAULT_BUILD_TARGETS *(Fu Hanxi - 1b0a9a9)*
+- support python 3.10+ only *(Fu Hanxi - c350937)*
+
+### 🐛 Bug Fixes
+
+- help message type mismatch *(Fu Hanxi - 128fef9)*
+
+### 🏗️ Changes
+
+- --ignore-warning-files cli type change to str *(Fu Hanxi - 2d25f2a)*
+- stop showing deprecated cli fields *(Fu Hanxi - e70315a)*
+
+
 ## v2.16.0 (2026-02-23)
 
 ### ✨ New Features
