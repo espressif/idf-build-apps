@@ -20,6 +20,13 @@
 </div>
 <hr>
 
+## v2.16.1 (2026-03-19)
+
+### 🐛 Bug Fixes
+
+- duplicated find argument *(Fu Hanxi - a63dd93)*
+
+
 ## v2.16.0 (2026-02-23)
 
 ### ✨ New Features
