@@ -83,9 +83,11 @@ jobs:
             -p $IDF_PATH/examples/get-started/hello_world \
             --size-file size_info.json
           pytest --cov idf_build_apps --cov-report term-missing:skip-covered --junit-xml pytest.xml | tee pytest-coverage.txt
+
       - name: Save PR number
-        if: github.event_name == 'pull_request'
+        if: github.event.number
         run: echo ${{ github.event.number }} > pr_number.txt
+
       - name: Upload test results
         uses: actions/upload-artifact@v6
         if: always() && github.event_name == 'pull_request'
