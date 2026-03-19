@@ -392,15 +392,17 @@ def main():
 
     if action == 'find':
         arguments = FindArguments(**kwargs_without_none)
+        find_arguments = arguments
     else:
         arguments = BuildArguments(**kwargs_without_none)
+        find_arguments = FindArguments(**kwargs_without_none)
 
     # real call starts here
     # build also needs to find first
     apps = find_apps(
         arguments.paths,
         arguments.target,
-        find_arguments=FindArguments.model_validate(arguments.model_dump(exclude_none=True)),
+        find_arguments=find_arguments,
     )
 
     if isinstance(arguments, FindArguments):  # find only
