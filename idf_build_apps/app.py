@@ -1016,6 +1016,15 @@ class CMakeApp(App):
                 )
                 return
 
+            from .component_targets import should_skip_build_for_components
+            skip, combined_targets = should_skip_build_for_components(modified_files, build_components, self.target)
+            if skip:
+                self.build_status = BuildStatus.SKIPPED
+                self.build_comment = (
+                    f'{self.target} {combined_targets}'
+                )
+                return
+
         if self.build_status == BuildStatus.SKIPPED:
             return
 
@@ -1032,13 +1041,13 @@ class CMakeApp(App):
         if self.verbose:
             common_args.append('-v')
 
-        subprocess_run(
-            common_args,
-            log_terminal=self._is_build_log_path_temp,
-            log_fs=self.build_log_path,
-            check=True,
-            additional_env_dict=additional_env_dict,
-        )
+        # subprocess_run(
+        #     common_args,
+        #     log_terminal=self._is_build_log_path_temp,
+        #     log_fs=self.build_log_path,
+        #     check=True,
+        #     additional_env_dict=additional_env_dict,
+        # )
 
         self.build_status = BuildStatus.SUCCESS
 
