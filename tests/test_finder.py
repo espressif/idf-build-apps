@@ -792,7 +792,8 @@ def test_config_rules_negation(tmp_path, sdkconfig_files, config_rules, expected
 
 
 def test_config_rules_negation_invalid_format():
-    from idf_build_apps.utils import InvalidInput, config_rules_from_str
+    from idf_build_apps.utils import InvalidInput
+    from idf_build_apps.utils import config_rules_from_str
 
     with pytest.raises(InvalidInput, match='Negation rules must not have a config name'):
         config_rules_from_str(['!sdkconfig.ci.test=myname'])
