@@ -46,6 +46,9 @@ def _get_apps_from_path(
     sdkconfig_paths_matched = False
 
     for rule in config_rules:
+        if rule.negated:
+            continue
+
         if not rule.file_name:
             default_config_name = rule.config_name
             continue
@@ -70,6 +73,17 @@ def _get_apps_from_path(
                 config_name = groups.group(1)
 
             app_configs.append((sdkconfig_path, config_name))
+
+    # Apply negation rules
+    negated_paths: t.Set[str] = set()
+    for rule in config_rules:
+        if not rule.negated:
+            continue
+        for matched in Path(path).glob(rule.file_name):
+            negated_paths.add(str(matched.resolve()))
+
+    if negated_paths:
+        app_configs = [(p, n) for p, n in app_configs if p not in negated_paths]
 
     # no config rules matched, use default app
     if not sdkconfig_paths_matched:

@@ -20,7 +20,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ConfigRule:
-    def __init__(self, file_name: str, config_name: str = '') -> None:
+    def __init__(self, file_name: str, config_name: str = '', negated: bool = False) -> None:
         """
         ConfigRule represents the sdkconfig file and the config name.
 
@@ -28,21 +28,31 @@ class ConfigRule:
 
             - filename='', config_name='default' - represents the default app configuration, and gives it a name
                 'default'
-            - filename='sdkconfig.*', config_name=None - represents the set of configurations, names match the wildcard
+            - filename='sdkconfig.*', config_name='' - represents the set of configurations, names match the wildcard
                 value
+            - filename='sdkconfig.ci.test', negated=True - represents an exclusion rule, files matching this pattern
+                will be excluded from the build configurations
 
         :param file_name: name of the sdkconfig file fragment, optionally with a single wildcard ('*' character).
             can also be empty to indicate that the default configuration of the app should be used
-        :param config_name: name of the corresponding build configuration, or None if the value of wildcard is to be
-            used
+        :param config_name: name of the corresponding build configuration, or empty string if the value of the
+            wildcard is to be used
+        :param negated: if True, this rule excludes matching files instead of including them
         """
         self.file_name = file_name
         self.config_name = config_name
+        self.negated = negated
 
 
 def config_rules_from_str(rule_strings: t.Optional[t.List[str]]) -> t.List[ConfigRule]:
     """
     Helper function to convert strings like 'file_name=config_name' into `ConfigRule` objects
+
+    Supports the following formats:
+
+    - ``file_name=config_name`` - include the sdkconfig file with the given config name
+    - ``file_pattern=`` - include all sdkconfig files matching the pattern, config name is derived from the wildcard
+    - ``!file_name`` or ``!file_pattern`` - exclude matching sdkconfig files from the results
 
     :param rule_strings: list of rules as strings or a single rule string
     :return: list of ConfigRules
@@ -52,10 +62,20 @@ def config_rules_from_str(rule_strings: t.Optional[t.List[str]]) -> t.List[Confi
 
     rules = []
     for rule_str in to_list(rule_strings):
+        if rule_str.startswith('!'):
+            negated_str = rule_str[1:].strip()
+            if '=' in negated_str:
+                raise InvalidInput(f'Negation rules must not have a config name: {rule_str}')
+            if not negated_str:
+                raise InvalidInput(f'Negation rules must contain a non-empty file name or pattern: {rule_str}')
+            rules.append(ConfigRule(negated_str, negated=True))
+            continue
+
         items = rule_str.split('=', 2)
         rules.append(ConfigRule(items[0], items[1] if len(items) == 2 else ''))
     # '' is the default config, sort this one to the front
-    return sorted(rules, key=lambda x: x.file_name)
+    # negated rules are sorted to the end since they are applied after positive rules
+    return sorted(rules, key=lambda x: (x.negated, x.file_name))
 
 
 def get_parallel_start_stop(total: int, parallel_count: int, parallel_index: int) -> t.Tuple[int, int]:
