@@ -565,7 +565,9 @@ class FindBuildArguments(DependencyDrivenBuildArguments):
         'Optional NAME is the name of the configuration. '
         'if not specified, the filename is used as the name. '
         'FILEPATTERN is the filename of the sdkconfig file with a single wildcard character (*). '
-        'The NAME is the value matched by the wildcard',
+        'The NAME is the value matched by the wildcard. '
+        'Prefix a rule with ! to exclude matching files from the results (e.g. !sdkconfig.ci.test). '
+        'Negation rules are applied globally after all positive rules',
         validation_alias=AliasChoices('config_rules', 'config_rules_str', 'config'),
         default=None,
     )

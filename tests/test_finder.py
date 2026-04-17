@@ -724,6 +724,90 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
 
 
 @pytest.mark.parametrize(
+    'sdkconfig_files, config_rules, expected_config_names',
+    [
+        # basic negation
+        (
+            ['sdkconfig.ci.foo', 'sdkconfig.ci.bar', 'sdkconfig.ci.test'],
+            ['sdkconfig.ci.*=', '!sdkconfig.ci.test'],
+            ['bar', 'foo'],
+        ),
+        # negation with wildcard
+        (
+            ['sdkconfig.ci.foo', 'sdkconfig.ci.test_debug', 'sdkconfig.ci.test_release'],
+            ['sdkconfig.ci.*=', '!sdkconfig.ci.test*'],
+            ['foo'],
+        ),
+        # multiple negations
+        (
+            ['sdkconfig.ci.foo', 'sdkconfig.ci.bar', 'sdkconfig.ci.test', 'sdkconfig.ci.debug'],
+            ['sdkconfig.ci.*=', '!sdkconfig.ci.test', '!sdkconfig.ci.debug'],
+            ['bar', 'foo'],
+        ),
+        # negation-only (no positive match) -> default config
+        (
+            ['sdkconfig.ci.test'],
+            ['!sdkconfig.ci.test'],
+            [''],
+        ),
+        # negation with named config
+        (
+            ['sdkconfig.ci', 'sdkconfig.ci.foo', 'sdkconfig.ci.bar', 'sdkconfig.ci.test'],
+            ['sdkconfig.ci.*=', 'sdkconfig.ci=default', '!sdkconfig.ci.test'],
+            ['bar', 'default', 'foo'],
+        ),
+        # order independent (negation before positive rule)
+        (
+            ['sdkconfig.ci.foo', 'sdkconfig.ci.test'],
+            ['!sdkconfig.ci.test', 'sdkconfig.ci.*='],
+            ['foo'],
+        ),
+        # negation of non-existent file has no effect
+        (
+            ['sdkconfig.ci.foo', 'sdkconfig.ci.bar'],
+            ['sdkconfig.ci.*=', '!sdkconfig.ci.nonexistent'],
+            ['bar', 'foo'],
+        ),
+        # negation with whitespaces
+        (
+            ['sdkconfig.ci.foo', 'sdkconfig.ci.test'],
+            ['sdkconfig.ci.*=', '!   sdkconfig.ci.test   '],
+            ['foo'],
+        ),
+    ],
+)
+def test_config_rules_negation(tmp_path, sdkconfig_files, config_rules, expected_config_names):
+    create_project('test1', tmp_path)
+    for f in sdkconfig_files:
+        (tmp_path / 'test1' / f).touch()
+
+    apps = find_apps(
+        str(tmp_path / 'test1'),
+        'esp32',
+        recursive=True,
+        config_rules_str=config_rules,
+    )
+    assert len(apps) == len(expected_config_names)
+    assert sorted([app.config_name for app in apps]) == sorted(expected_config_names)
+
+
+def test_config_rules_negation_invalid_format():
+    from idf_build_apps.utils import InvalidInput
+    from idf_build_apps.utils import config_rules_from_str
+
+    with pytest.raises(InvalidInput, match='Negation rules must not have a config name'):
+        config_rules_from_str(['!sdkconfig.ci.test=myname'])
+
+
+def test_config_rules_negation_empty_pattern():
+    from idf_build_apps.utils import InvalidInput
+    from idf_build_apps.utils import config_rules_from_str
+
+    with pytest.raises(InvalidInput, match='Negation rules must contain a non-empty file name or pattern'):
+        config_rules_from_str(['!'])
+
+
+@pytest.mark.parametrize(
     'exclude_list, apps_count',
     [
         (['test1'], 3),  # not excluded

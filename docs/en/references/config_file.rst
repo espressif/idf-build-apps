@@ -42,6 +42,7 @@ Here's a simple example of a configuration file:
          # config rules
          config = [
              "sdkconfig.*=",
+             "!sdkconfig.test",
              "=default",
          ]
 
@@ -62,6 +63,7 @@ Here's a simple example of a configuration file:
          # config rules
          config = [
              "sdkconfig.*=",
+             "!sdkconfig.test",
              "=default",
          ]
 
@@ -73,7 +75,7 @@ Running ``idf-build-apps build`` with the above configuration is equivalent to t
      --paths components examples \
      --target esp32 \
      --recursive \
-     --config-rules "sdkconfig.*=" "=default" \
+     --config-rules "sdkconfig.*=" "!sdkconfig.test" "=default" \
      --build-dir "build_@t_@w"
 
 `TOML <https://toml.io/en/>`__ supports native data types. In order to get the config name and type of the corresponding CLI option, you may refer to the help messages by using ``idf-build-apps find -h`` or ``idf-build-apps build -h``.

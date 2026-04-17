@@ -52,6 +52,11 @@ To define a Config Rule, use the following format: ``[SDKCONFIG_FILEPATTERN]=[CO
 -  ``SDKCONFIG_FILEPATTERN``: This can be a file name to match a `sdkconfig file <#sdkconfig-files>`_ or a pattern with one wildcard (``*``) character to match multiple `sdkconfig files`_.
 -  ``CONFIG_NAME``: The name of the corresponding build configuration. This value can be skipped if the wildcard value is to be used.
 
+To exclude specific `sdkconfig files`_, use the negation rule format: ``![SDKCONFIG_FILEPATTERN]``.
+
+-  ``SDKCONFIG_FILEPATTERN``: The format is the same as in the normal Config Rule.
+-  Negation rules are applied after all inclusion rules, so the order of negation rules does not matter.
+
 The config rules and the corresponding matched `sdkconfig files`_ for the example project are as follows:
 
 .. list-table:: Config Rules
@@ -82,6 +87,30 @@ The config rules and the corresponding matched `sdkconfig files`_ for the exampl
       -  -  ``foo``
          -  ``bar``
       -  The wildcard matches two files. Two apps are built based on each sdkconfig file.
+      -  -  ``sdkconfig.ci.foo``
+         -  ``sdkconfig.ci.bar``
+
+   -  -  -  ``sdkconfig.ci.*=``
+         -  ``!sdkconfig.ci.test``
+      -  -  ``foo``
+         -  ``bar``
+      -  The negation rule excludes the ``sdkconfig.ci.test`` file.
+      -  -  ``sdkconfig.ci.foo``
+         -  ``sdkconfig.ci.bar``
+
+   -  -  -  ``sdkconfig.ci.*=``
+         -  ``!sdkconfig.ci.test*``
+      -  -  ``foo``
+         -  ``bar``
+      -  The negation rule excludes the files matching the negation wildcard pattern like ``sdkconfig.ci.test`` or ``sdkconfig.ci.test_debug``.
+      -  -  ``sdkconfig.ci.foo``
+         -  ``sdkconfig.ci.bar``
+
+   -  -  -  ``!sdkconfig.ci.test*``
+         -  ``sdkconfig.ci.*=``
+      -  -  ``foo``
+         -  ``bar``
+      -  Same as the previous example, but the negation rule is applied first.
       -  -  ``sdkconfig.ci.foo``
          -  ``sdkconfig.ci.bar``
 

@@ -89,6 +89,14 @@ The output would be:
    (cmake) App test-1, target esp32, sdkconfig /tmp/test/examples/test-1/sdkconfig.ci.foo, build in test-1/build
    (cmake) App test-1, target esp32, sdkconfig /tmp/test/examples/test-1/sdkconfig.defaults, build in test-1/build
 
+To drop specific sdkconfigs, add a negation rule:
+
+.. code:: shell
+
+   idf-build-apps find -p test-1 --target esp32 --config "sdkconfig.ci.*=" "!sdkconfig.ci.bar"
+
+The ``bar`` configuration is omitted, only ``foo`` remains.
+
 .. _find-placeholders:
 
 ****************************
