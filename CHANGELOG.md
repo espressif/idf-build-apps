@@ -20,6 +20,13 @@
 </div>
 <hr>
 
+## v3.0.2 (2026-04-17)
+
+### ✨ New Features
+
+- add support of negation config rules *(Evgeny Torbin - 647dfd1)*
+
+
 ## v3.0.1 (2026-03-19)
 
 ### 🐛 Bug Fixes
