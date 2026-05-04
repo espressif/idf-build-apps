@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download test report
-        uses: dawidd6/action-download-artifact@v19
+        uses: dawidd6/action-download-artifact@v21
         with:
           name: test-results
           workflow: ${{ github.event.workflow_run.workflow_id }}
