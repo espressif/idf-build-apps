@@ -86,7 +86,11 @@ class TestCase:
             'name': app.build_path,
             'duration_sec': app._build_duration,
             'timestamp': app._build_timestamp,
-            'properties': {},
+            'properties': {
+                'app_dir': app.app_dir,
+                'target': app.target,
+                'config': app.config_name or '',
+            },
         }
         if app.build_status == BuildStatus.FAILED:
             kwargs['failure_reason'] = app.build_comment

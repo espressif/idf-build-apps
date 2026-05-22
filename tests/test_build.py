@@ -124,6 +124,9 @@ class TestBuild:
         assert test_suite.attrib['skipped'] == '4'
 
         for i, testcase in enumerate(test_suite.findall('testcase')):
+            assert testcase.attrib['app_dir'] == apps[i].app_dir
+            assert testcase.attrib['target'] == apps[i].target
+            assert testcase.attrib['config'] == (apps[i].config_name or '')
             assert testcase.attrib['name'] == apps[i].build_path
             assert float(testcase.attrib['time']) > 0
             assert testcase.find('skipped') is not None
@@ -148,6 +151,9 @@ class TestBuild:
         assert test_suite.attrib['skipped'] == '2'
 
         for i, testcase in enumerate(test_suite.findall('testcase')):
+            assert testcase.attrib['app_dir'] == apps[i].app_dir
+            assert testcase.attrib['target'] == apps[i].target
+            assert testcase.attrib['config'] == (apps[i].config_name or '')
             assert float(testcase.attrib['time']) > 0
             assert testcase.attrib['name'] == apps[i].build_path
             assert testcase.find('error') is None
