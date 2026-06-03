@@ -33,10 +33,12 @@ from .junit import TestReport
 from .junit import TestSuite
 from .manifest.manifest import DEFAULT_BUILD_TARGETS
 from .manifest.manifest import Manifest
+from .scheduler import AppScheduler
+from .scheduler import RedisPullScheduler
+from .scheduler import SliceScheduler
 from .utils import AutocompleteActivationError
 from .utils import InvalidCommand
 from .utils import drop_none_kwargs
-from .utils import get_parallel_start_stop
 from .utils import to_list
 
 LOGGER = logging.getLogger(__name__)
@@ -103,6 +105,7 @@ def build_apps(
     apps: t.Union[t.List[App], App, None] = None,
     *,
     build_arguments: t.Optional[BuildArguments] = None,
+    scheduler: t.Optional[AppScheduler] = None,
     config_file: t.Optional[str] = None,
     **kwargs,
 ) -> int:
@@ -138,8 +141,15 @@ def build_apps(
 
     test_suite = TestSuite('build_apps')
 
-    start, stop = get_parallel_start_stop(len(apps), build_arguments.parallel_count, build_arguments.parallel_index)
-    LOGGER.info('Processing %d total apps: building apps %d-%d', len(apps), start, stop)
+    if scheduler is None:
+        if build_arguments.parallel_mode == 'pull':
+            scheduler = RedisPullScheduler(
+                build_arguments.resolved_pull_queue_url,
+                build_arguments.resolved_pull_queue_key or '',
+                status_key=build_arguments.resolved_pull_queue_status_key,
+            )
+        else:
+            scheduler = SliceScheduler(build_arguments.parallel_count, build_arguments.parallel_index)
 
     # cleanup collect files if exists at this early-stage
     for f in (build_arguments.collect_app_info, build_arguments.collect_size_info, build_arguments.junitxml):
@@ -157,11 +167,7 @@ def build_apps(
         LOGGER.debug('Creating empty size info file: %s', build_arguments.collect_size_info)
         Path(build_arguments.collect_size_info).touch()
 
-    for i, app in enumerate(apps):
-        index = i + 1  # we use 1-based
-        if index < start or index > stop:
-            continue
-
+    for index, app in scheduler.iter_apps(apps):
         # attrs
         app.dry_run = build_arguments.dry_run
         app.index = index
@@ -170,12 +176,17 @@ def build_apps(
 
         LOGGER.info('(%d/%d) Building app: %s', index, len(apps), app)
 
-        app.build(
-            manifest_rootpath=build_arguments.manifest_rootpath,
-            modified_components=build_arguments.modified_components,
-            modified_files=build_arguments.modified_files,
-            check_app_dependencies=build_arguments.dependency_driven_build_enabled,
-        )
+        scheduler.mark_running(index, app)
+        try:
+            app.build(
+                manifest_rootpath=build_arguments.manifest_rootpath,
+                modified_components=build_arguments.modified_components,
+                modified_files=build_arguments.modified_files,
+                check_app_dependencies=build_arguments.dependency_driven_build_enabled,
+            )
+        except Exception:
+            scheduler.mark_failed(index, app)
+            raise
         test_suite.add_test_case(TestCase.from_app(app))
 
         if app.build_comment:
@@ -189,14 +200,17 @@ def build_apps(
             LOGGER.debug('Recorded app info in file: %s', build_arguments.collect_app_info)
 
         if app.build_status == BuildStatus.FAILED:
+            scheduler.mark_failed(index, app)
             if not build_arguments.keep_going:
                 LOGGER.error('Build failed and keep_going=False, stopping build process')
-                return 1
+                exit_code = 1
+                break
             else:
                 LOGGER.warning('Build failed but keep_going=True, continuing with next app')
                 exit_code = 1
-        elif app.build_status == BuildStatus.SUCCESS:
-            if build_arguments.collect_size_info and app.size_json_path:
+        else:
+            scheduler.mark_success(index, app)
+            if app.build_status == BuildStatus.SUCCESS and build_arguments.collect_size_info and app.size_json_path:
                 if os.path.isfile(app.size_json_path):
                     with open(build_arguments.collect_size_info, 'a') as fw:
                         fw.write(
