@@ -132,6 +132,7 @@ def build_apps(
         )
 
     apps = to_list(apps)
+    print("total apps number", len(apps))
     if apps is None:
         apps = find_apps(
             find_arguments=FindArguments(
