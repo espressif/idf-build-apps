@@ -855,8 +855,7 @@ class BuildArguments(FindBuildArguments):
         exclude=True,  # computed field is used
     )
     pull_queue_key: t.Optional[str] = Field(
-        description='Queue key used when --parallel-mode=pull. '
-        'Defaults to job-pull:<pipeline-id>:<job-group-name>.',
+        description='Queue key used when --parallel-mode=pull. Defaults to job-pull:<pipeline-id>:<job-group-name>.',
         default=None,
         exclude=True,  # computed field is used
     )

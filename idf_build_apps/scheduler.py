@@ -15,13 +15,13 @@ class AppScheduler:
     def iter_apps(self, apps: t.List[App]) -> t.Iterator[t.Tuple[int, App]]:
         raise NotImplementedError
 
-    def mark_running(self, index: int, app: App) -> None:  # noqa: ARG002
+    def mark_running(self, index: int, app: App) -> None:
         pass
 
-    def mark_success(self, index: int, app: App) -> None:  # noqa: ARG002
+    def mark_success(self, index: int, app: App) -> None:
         pass
 
-    def mark_failed(self, index: int, app: App) -> None:  # noqa: ARG002
+    def mark_failed(self, index: int, app: App) -> None:
         pass
 
 
