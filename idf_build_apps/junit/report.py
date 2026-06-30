@@ -86,7 +86,11 @@ class TestCase:
             'name': app.build_path,
             'duration_sec': app._build_duration,
             'timestamp': app._build_timestamp,
-            'properties': {},
+            'properties': {
+                'app_dir': app.app_dir,
+                'target': app.target,
+                'config': app.config_name or '',
+            },
         }
         if app.build_status == BuildStatus.FAILED:
             kwargs['failure_reason'] = app.build_comment
@@ -95,8 +99,7 @@ class TestCase:
 
         if app.size_json_path and os.path.isfile(app.size_json_path):
             with open(app.size_json_path) as f:
-                for k, v in json.load(f).items():
-                    kwargs['properties'][f'{k}'] = str(v)
+                kwargs['properties']['size'] = json.dumps(json.load(f))
 
         return cls(**kwargs)
 

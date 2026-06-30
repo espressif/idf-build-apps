@@ -124,6 +124,9 @@ class TestBuild:
         assert test_suite.attrib['skipped'] == '4'
 
         for i, testcase in enumerate(test_suite.findall('testcase')):
+            assert testcase.attrib['app_dir'] == apps[i].app_dir
+            assert testcase.attrib['target'] == apps[i].target
+            assert testcase.attrib['config'] == (apps[i].config_name or '')
             assert testcase.attrib['name'] == apps[i].build_path
             assert float(testcase.attrib['time']) > 0
             assert testcase.find('skipped') is not None
@@ -148,6 +151,9 @@ class TestBuild:
         assert test_suite.attrib['skipped'] == '2'
 
         for i, testcase in enumerate(test_suite.findall('testcase')):
+            assert testcase.attrib['app_dir'] == apps[i].app_dir
+            assert testcase.attrib['target'] == apps[i].target
+            assert testcase.attrib['config'] == (apps[i].config_name or '')
             assert float(testcase.attrib['time']) > 0
             assert testcase.attrib['name'] == apps[i].build_path
             assert testcase.find('error') is None
@@ -248,6 +254,30 @@ class TestBuild:
         size_data_files = size_data.keys()
         for file in expected_files:
             assert any(file in s for s in size_data_files), f"Size JSON should contain '{file}' with extra args"
+
+    def test_app_size_in_junitxml(self, tmp_path):
+        """Test that app size is included in junit xml output."""
+        path = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
+
+        app = CMakeApp(path, 'esp32', work_dir=str(tmp_path / 'test'), size_json_filename='size.json')
+        app.build()
+        app.write_size_json()
+
+        build_apps([app], junitxml='test.xml')
+
+        with open('test.xml') as f:
+            xml = ElementTree.fromstring(f.read())
+
+        test_suite = xml.findall('testsuite')[0]
+        assert test_suite.attrib['tests'] == '1'
+        print(test_suite.attrib)
+
+        testcase = test_suite.findall('testcase')[0]
+        print(testcase.attrib)
+        assert testcase.attrib['size'] is not None
+
+        size = json.loads(testcase.attrib['size'])
+        assert 'layout' in size
 
 
 class CustomClassApp(App):
