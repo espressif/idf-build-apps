@@ -99,8 +99,7 @@ class TestCase:
 
         if app.size_json_path and os.path.isfile(app.size_json_path):
             with open(app.size_json_path) as f:
-                for k, v in json.load(f).items():
-                    kwargs['properties'][f'{k}'] = str(v)
+                kwargs['properties']['size'] = json.dumps(json.load(f))
 
         return cls(**kwargs)
 

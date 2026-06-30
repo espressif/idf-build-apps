@@ -255,6 +255,30 @@ class TestBuild:
         for file in expected_files:
             assert any(file in s for s in size_data_files), f"Size JSON should contain '{file}' with extra args"
 
+    def test_app_size_in_junitxml(self, tmp_path):
+        """Test that app size is included in junit xml output."""
+        path = os.path.join(IDF_PATH, 'examples', 'get-started', 'hello_world')
+
+        app = CMakeApp(path, 'esp32', work_dir=str(tmp_path / 'test'), size_json_filename='size.json')
+        app.build()
+        app.write_size_json()
+
+        build_apps([app], junitxml='test.xml')
+
+        with open('test.xml') as f:
+            xml = ElementTree.fromstring(f.read())
+
+        test_suite = xml.findall('testsuite')[0]
+        assert test_suite.attrib['tests'] == '1'
+        print(test_suite.attrib)
+
+        testcase = test_suite.findall('testcase')[0]
+        print(testcase.attrib)
+        assert testcase.attrib['size'] is not None
+
+        size = json.loads(testcase.attrib['size'])
+        assert 'layout' in size
+
 
 class CustomClassApp(App):
     build_system: Literal['custom_class'] = 'custom_class'  # type: ignore
