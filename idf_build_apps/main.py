@@ -28,6 +28,7 @@ from .autocompletions import activate_completions
 from .constants import BuildStatus
 from .constants import completion_instructions
 from .finder import _find_apps
+from .finder import _iter_app_paths
 from .junit import TestCase
 from .junit import TestReport
 from .junit import TestSuite
@@ -82,17 +83,29 @@ def find_apps(
         targets = [find_arguments.target]
         LOGGER.info('Searching for apps by target: %s', find_arguments.target)
 
+    app_cls: t.Type[App] = find_arguments.build_system  # type: ignore
+    app_paths: t.List[str] = []
+    prepared_app_dirs: t.Set[str] = set()
+    for _p in find_arguments.paths:
+        for app_path in _iter_app_paths(_p, app_cls=app_cls, args=find_arguments):
+            abs_app_path = os.path.abspath(app_path)
+            if abs_app_path in prepared_app_dirs:
+                continue
+            prepared_app_dirs.add(abs_app_path)
+            LOGGER.debug('Preparing app at %s', abs_app_path)
+            app_cls.prepare_app(app_path)
+            app_paths.append(app_path)
+
     for _t in targets:
-        for _p in find_arguments.paths:
-            LOGGER.debug('Searching for apps in path %s for target %s', _p, _t)
-            apps.update(
-                _find_apps(
-                    _p,
-                    _t,
-                    app_cls=find_arguments.build_system,  # type: ignore
-                    args=find_arguments,
-                )
+        LOGGER.debug('Searching for apps for target %s', _t)
+        apps.update(
+            _find_apps(
+                app_paths,
+                _t,
+                app_cls=app_cls,
+                args=find_arguments,
             )
+        )
 
     LOGGER.info('Found %d apps in total', len(apps))
 

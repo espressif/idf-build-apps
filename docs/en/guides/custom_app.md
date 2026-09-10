@@ -10,7 +10,8 @@ Here's an example of creating a custom app class:
 from idf_build_apps import App
 from idf_build_apps.constants import BuildStatus
 import os
-from typing import Literal  # Python 3.8+ only. from typing_extensions import Literal for earlier versions
+from typing import Literal
+
 
 class CustomApp(App):
     build_system: Literal['custom'] = 'custom'  # Must be unique to identify your custom app type
@@ -56,11 +57,57 @@ for app in apps:
     app.build()
 ```
 
+## Preparing Apps and Injecting Extra SDKConfig Defaults
+
+Custom app classes can hook into the app discovery process by overriding `prepare_app()` and `extra_sdkconfig_defaults()`:
+
+- `prepare_app(path: str)`: Called once per app directory before `find_apps` expands targets and configurations. Override this class method to generate files needed during discovery (such as board-specific sdkconfig default files).
+- `extra_sdkconfig_defaults(path: str)`: Returns a list of additional sdkconfig default files for this app directory. These files are appended after `sdkconfig.defaults` (or `SDKCONFIG_DEFAULTS` / `--sdkconfig-defaults`) and before config-rule files (such as `sdkconfig.ci.*`). Missing files are skipped. Paths can be absolute or relative to the app directory.
+
+### Example: Dynamic Board Defaults
+
+The following example subclasses `CMakeApp` to generate a sdkconfig default file with `CONFIG_IDF_TARGET` during `prepare_app()`. During discovery, the generated defaults file restricts the app to the specified target:
+
+```python
+import os
+from pathlib import Path
+from typing import Literal
+
+from idf_build_apps import CMakeApp
+from idf_build_apps import find_apps
+
+
+class BoardApp(CMakeApp):
+    build_system: Literal['board'] = 'board'  # type: ignore
+
+    @classmethod
+    def prepare_app(cls, path: str) -> None:
+        (Path(path) / 'board_manager.defaults').write_text(
+            'CONFIG_IDF_TARGET="esp32s3"\n',
+            encoding='utf8',
+        )
+
+    @classmethod
+    def extra_sdkconfig_defaults(cls, path: str) -> list[str]:
+        return [os.path.join(path, 'board_manager.defaults')]
+
+
+apps = find_apps(
+    paths=['/path/to/app'],
+    target='all',
+    recursive=False,
+    default_build_targets=['esp32s3', 'esp32p4'],
+    config_rules_str=['sdkconfig.defaults=defaults', 'sdkconfig.ci.*=', '=defaults'],
+    build_system=BoardApp,
+)
+# Only esp32s3 apps are returned; board_manager.defaults appears in app.sdkconfig_files
+```
+
 ## Important Notes
 
-- Your custom app class must subclass `App`
+- Your custom app class must subclass `App` (or a built-in subclass like `CMakeApp`)
 - The `build_system` attribute must be unique to identify your app type
-- You must implement the `is_app()` class method to identify your app type
+- You must implement the `is_app()` class method unless you subclass `CMakeApp` / `MakeApp`
 - For JSON serialization support, you need to pass your custom class to `json_to_app()` when deserializing
 
 ## Example: JSON Serialization
