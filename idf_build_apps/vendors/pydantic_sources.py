@@ -58,7 +58,7 @@ class TomlConfigSettingsSource(InitSettingsSource, ConfigFileSourceMixin):
         self.toml_data = self._read_files(self.toml_file_path)
         super().__init__(settings_cls, self.toml_data)
 
-    def _read_file(self, path: Optional[Path]) -> Dict[str, Any]:
+    def _read_file(self, path: Optional[Path]) -> Dict[str, Any]:  # type: ignore[override]
         if not path or not path.is_file():
             return {}
 

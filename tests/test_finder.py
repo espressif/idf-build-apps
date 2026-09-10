@@ -5,11 +5,13 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from conftest import create_project
 
 import idf_build_apps
+from idf_build_apps import CMakeApp
 from idf_build_apps.constants import DEFAULT_SDKCONFIG
 from idf_build_apps.constants import IDF_PATH
 from idf_build_apps.constants import BuildStatus
@@ -721,6 +723,68 @@ CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1516
         )
         assert len(apps) == 3
         monkeypatch.delenv('TEST_ENV_VAR')
+
+    def test_prepare_app_runs_once_before_find(self, tmp_path):
+        create_project('foo', tmp_path)
+        create_project('bar', tmp_path)
+        (tmp_path / 'not_an_app').mkdir()
+
+        prepared: list[str] = []
+
+        class PreparingApp(CMakeApp):
+            build_system: Literal['preparing'] = 'preparing'  # type: ignore
+
+            @classmethod
+            def prepare_app(cls, path: str) -> None:
+                prepared.append(os.path.abspath(path))
+
+        apps = find_apps(
+            str(tmp_path),
+            'all',
+            recursive=True,
+            default_build_targets=['esp32', 'esp32s2'],
+            config_rules_str=['sdkconfig.defaults=defaults', 'sdkconfig.ci.*=', '=defaults'],
+            build_system=PreparingApp,
+        )
+        assert len(apps) == 4  # 2 apps * 2 targets
+        assert sorted(prepared) == sorted(
+            [
+                os.path.abspath(tmp_path / 'foo'),
+                os.path.abspath(tmp_path / 'bar'),
+            ]
+        )
+
+    def test_extra_sdkconfig_defaults_filter_target(self, tmp_path):
+        create_project('foo', tmp_path)
+
+        class BoardApp(CMakeApp):
+            build_system: Literal['board'] = 'board'  # type: ignore
+
+            @classmethod
+            def prepare_app(cls, path: str) -> None:
+                (Path(path) / 'board_manager.defaults').write_text(
+                    'CONFIG_IDF_TARGET="esp32s3"\n',
+                    encoding='utf8',
+                )
+
+            @classmethod
+            def extra_sdkconfig_defaults(cls, path: str) -> list[str]:
+                return [os.path.join(path, 'board_manager.defaults')]
+
+        (tmp_path / 'foo' / 'sdkconfig.ci.without_hid').write_text('CONFIG_HID_TOUCH_ENABLE=n\n', encoding='utf8')
+
+        apps = find_apps(
+            str(tmp_path / 'foo'),
+            'all',
+            recursive=False,
+            default_build_targets=['esp32s3', 'esp32p4'],
+            config_rules_str=['sdkconfig.defaults=defaults', 'sdkconfig.ci.*=', '=defaults'],
+            build_system=BoardApp,
+        )
+        assert {app.target for app in apps} == {'esp32s3'}
+        assert sorted(app.config_name for app in apps) == ['defaults', 'without_hid']
+        for app in apps:
+            assert any(os.path.basename(f) == 'board_manager.defaults' for f in app.sdkconfig_files)
 
 
 @pytest.mark.parametrize(

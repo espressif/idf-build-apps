@@ -140,29 +140,30 @@ def _get_apps_from_path(
     return sorted(apps)
 
 
-def _find_apps(
+def _iter_app_paths(
     path: str,
-    target: str,
     *,
     app_cls: t.Type[App] = CMakeApp,
     args: FindArguments,
-) -> t.List[App]:
+) -> t.Iterator[str]:
+    """Yield each app directory once."""
     LOGGER.debug(
-        'Looking for %s apps in %s%s with target %s',
+        'Looking for %s apps in %s%s',
         app_cls.__name__,
         path,
         ' recursively' if args.recursive else '',
-        target,
     )
 
     if not args.recursive:
         if args.exclude:
             LOGGER.debug('--exclude option is ignored when used without --recursive')
 
-        return _get_apps_from_path(path, target, app_cls=app_cls, args=args)
+        if app_cls.is_app(path):
+            yield path
+        else:
+            LOGGER.debug('Skipping. %s is not an app', path)
+        return
 
-    # The remaining part is for recursive == True
-    apps = []
     # handle the exclude list, since the config file might use linux style, but run in windows
     exclude_paths_list = [to_absolute_path(p) for p in args.exclude or []]
     for root, dirs, _ in os.walk(path):
@@ -178,11 +179,22 @@ def _find_apps(
             del dirs[:]
             continue
 
-        _found_apps = _get_apps_from_path(root, target, app_cls=app_cls, args=args)
-        if _found_apps:  # root has at least one app
+        if app_cls.is_app(root):
             LOGGER.debug('=> Stop iteration sub dirs of %s since it has apps', root)
             del dirs[:]
-            apps.extend(_found_apps)
-            continue
+            yield root
 
+
+def _find_apps(
+    path: t.Union[str, t.Iterable[str]],
+    target: str,
+    *,
+    app_cls: t.Type[App] = CMakeApp,
+    args: FindArguments,
+) -> t.List[App]:
+    app_paths = _iter_app_paths(path, app_cls=app_cls, args=args) if isinstance(path, str) else path
+
+    apps: t.List[App] = []
+    for app_path in app_paths:
+        apps.extend(_get_apps_from_path(app_path, target, app_cls=app_cls, args=args))
     return apps

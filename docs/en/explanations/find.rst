@@ -32,6 +32,20 @@ All examples are based on the following demo projects, with the folder structure
 
    For detailed list of arguments, please refer to the :class:`~idf_build_apps.args.FindArguments` reference.
 
+***********************
+ App Discovery Process
+***********************
+
+Finding apps (CLI ``find`` or :func:`~idf_build_apps.find_apps`) processes discovered paths in three stages:
+
+#. **Path discovery**: Traverse search paths (recursively or not) and collect app directories. Non-app directories are skipped.
+#. **App preparation**: Call ``prepare_app(path)`` once per app directory, before targets and configs are expanded. Custom app classes can override this to generate files that find should see (for example board-specific sdkconfig defaults).
+#. **Target and config expansion**: Expand targets and build configurations for each app directory, combining default sdkconfigs, extra defaults from ``extra_sdkconfig_defaults(path)``, and matched config-rule files.
+
+.. note::
+
+   For an example of overriding these hooks, see :doc:`../guides/custom_app`.
+
 ************************
  Basic ``find`` Command
 ************************

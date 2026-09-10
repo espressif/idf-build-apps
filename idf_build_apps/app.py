@@ -196,13 +196,14 @@ class App(BaseModel):
 
     @property
     def sdkconfig_defaults_candidates(self) -> t.List[str]:
+        extras = self.extra_sdkconfig_defaults(self.app_dir)
         if self.sdkconfig_defaults_str is not None:
-            return self.sdkconfig_defaults_str.split(';')
+            return self.sdkconfig_defaults_str.split(';') + extras
 
         if os.getenv('SDKCONFIG_DEFAULTS', None) is not None:
-            return os.getenv('SDKCONFIG_DEFAULTS', '').split(';')
+            return os.getenv('SDKCONFIG_DEFAULTS', '').split(';') + extras
 
-        return [DEFAULT_SDKCONFIG]
+        return [DEFAULT_SDKCONFIG, *extras]
 
     @t.overload
     def _expand(self, path: None) -> None: ...
@@ -701,6 +702,27 @@ class App(BaseModel):
                 break
 
         return True, is_ignored
+
+    @classmethod
+    def prepare_app(cls, path: str) -> None:
+        """
+        Called once per app directory before find expands targets and configs.
+
+        Override in a custom App subclass to generate files that find should see
+        (for example board-specific sdkconfig defaults).
+        """
+        pass
+
+    @classmethod
+    def extra_sdkconfig_defaults(cls, path: str) -> t.List[str]:  # noqa: ARG003
+        """
+        Extra sdkconfig default files for this app directory.
+
+        Included after ``sdkconfig.defaults`` / ``SDKCONFIG_DEFAULTS`` and before
+        the config-rule file (for example ``sdkconfig.ci.*``). Missing files are
+        skipped later.
+        """
+        return []
 
     @classmethod
     def is_app(cls, path: str) -> bool:
