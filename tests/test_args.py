@@ -80,6 +80,22 @@ def test_apply_config_in_parent_dir(tmp_path):
     assert FindArguments().target == 'esp32'
 
 
+def test_project_root_expands_to_toml_dir(tmp_path):
+    test_under = tmp_path / 'test_under'
+    tools_dir = tmp_path / 'tools'
+    test_under.mkdir()
+    tools_dir.mkdir()
+    os.chdir(test_under)
+
+    with open(tmp_path / IDF_BUILD_APPS_TOML_FN, 'w') as fw:
+        fw.write('extra_pythonpaths = ["${PROJECT_ROOT}/tools"]\n')
+        fw.write('manifest_rootpath = "${PROJECT_ROOT}"\n')
+
+    args = FindArguments()
+    assert args.extra_pythonpaths == [str(tools_dir.resolve())]
+    assert os.path.abspath(args.manifest_rootpath) == str(tmp_path.resolve())
+
+
 def test_apply_config_over_pyproject_toml(tmp_path):
     test_under = tmp_path / 'test_under'
     test_under.mkdir()

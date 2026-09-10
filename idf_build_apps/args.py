@@ -88,7 +88,11 @@ def get_cli_option(f: FieldInfo) -> t.Optional[CliOption]:
 
 def expand_vars(v: t.Optional[str]) -> t.Optional[str]:
     """
-    Expand environment variables in the string. If the variable is not found, use an empty string.
+    Expand variables in the string. If the variable is not found, use an empty string.
+
+    ``PROJECT_ROOT`` expands to the directory containing the loaded
+    ``.idf_build_apps.toml`` or ``pyproject.toml`` (``.idf_build_apps.toml``
+    wins). Other names come from the process environment.
 
     :param v: string to expand
     :return: expanded string or None if the input is None
@@ -96,10 +100,14 @@ def expand_vars(v: t.Optional[str]) -> t.Optional[str]:
     if v is None:
         return None
 
+    mapping = dict(os.environ)
+    if TomlConfigSettingsSource.project_root:
+        mapping['PROJECT_ROOT'] = TomlConfigSettingsSource.project_root
+
     unknown_vars: t.Dict[str, str] = dict()
     while True:
         try:
-            v = Template(v).substitute(os.environ, **unknown_vars)
+            v = Template(v).substitute(mapping, **unknown_vars)
         except KeyError as e:
             LOGGER.debug('Environment variable %s not found. use empty string', e)
             unknown_vars[e.args[0]] = ''
@@ -1124,6 +1132,7 @@ def apply_config_file(config_file: t.Optional[str] = None, reset: bool = False) 
         return set(klass.__subclasses__()).union([s for c in klass.__subclasses__() for s in _subclasses(c)])
 
     if reset:
+        TomlConfigSettingsSource.project_root = None
         BaseArguments.CONFIG_FILE_PATH = None
         for cls in _subclasses(BaseArguments):
             cls.CONFIG_FILE_PATH = None

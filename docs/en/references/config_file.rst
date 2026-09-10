@@ -111,6 +111,34 @@ All configuration options support environment variables. You can use environment
 
 when the environment variable ``CI_JOB_NAME_SLUG`` is set to ``my_job``, the ``collect_app_info_filename`` will be expanded to ``app_info_my_job``. When the environment variable is not set, the value will be ``app_info_``.
 
+Special Variable ``${PROJECT_ROOT}``
+====================================
+
+``idf-build-apps`` provides a special variable ``${PROJECT_ROOT}`` (or ``$PROJECT_ROOT``) that expands to the directory containing the loaded configuration file (either ``.idf_build_apps.toml`` or ``pyproject.toml``). If both files exist in the search hierarchy, ``.idf_build_apps.toml`` takes precedence according to the configuration file discovery order.
+
+This is useful for configuring paths relative to the configuration file rather than the current working directory:
+
+.. tabs::
+
+   .. group-tab::
+
+      ``.idf_build_apps.toml``
+
+      .. code:: toml
+
+         extra_pythonpaths = ["${PROJECT_ROOT}/tools"]
+         manifest_rootpath = "${PROJECT_ROOT}"
+
+   .. group-tab::
+
+      ``pyproject.toml``
+
+      .. code:: toml
+
+         [tool.idf-build-apps]
+         extra_pythonpaths = ["${PROJECT_ROOT}/tools"]
+         manifest_rootpath = "${PROJECT_ROOT}"
+
 *************************
  CLI Argument Precedence
 *************************

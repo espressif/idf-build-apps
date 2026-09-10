@@ -21,6 +21,7 @@ import logging
 import sys
 from pathlib import Path
 from typing import Any
+from typing import ClassVar
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -44,6 +45,8 @@ class TomlConfigSettingsSource(InitSettingsSource, ConfigFileSourceMixin):
     A source class that loads variables from a TOML file
     """
 
+    project_root: ClassVar[Optional[str]] = None
+
     def __init__(
         self,
         settings_cls: Type[BaseSettings],
@@ -55,8 +58,14 @@ class TomlConfigSettingsSource(InitSettingsSource, ConfigFileSourceMixin):
             search_depth,
             IDF_BUILD_APPS_TOML_FN,
         )
+        self._remember_project_root(self.toml_file_path)
         self.toml_data = self._read_files(self.toml_file_path)
         super().__init__(settings_cls, self.toml_data)
+
+    @classmethod
+    def _remember_project_root(cls, toml_file_path: Optional[Path]) -> None:
+        if toml_file_path is not None and cls.project_root is None:
+            cls.project_root = str(toml_file_path.parent.resolve())
 
     def _read_file(self, path: Optional[Path]) -> Dict[str, Any]:  # type: ignore[override]
         if not path or not path.is_file():
@@ -121,6 +130,7 @@ class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSource):
             search_depth,
             'pyproject.toml',
         )
+        self._remember_project_root(self.toml_file_path)
         self.toml_table_header = table_header
         self.toml_data = self._read_files(self.toml_file_path)
         for key in self.toml_table_header:
