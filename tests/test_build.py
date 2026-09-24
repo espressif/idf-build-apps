@@ -270,10 +270,8 @@ class TestBuild:
 
         test_suite = xml.findall('testsuite')[0]
         assert test_suite.attrib['tests'] == '1'
-        print(test_suite.attrib)
 
         testcase = test_suite.findall('testcase')[0]
-        print(testcase.attrib)
         assert testcase.attrib['size'] is not None
 
         size = json.loads(testcase.attrib['size'])
