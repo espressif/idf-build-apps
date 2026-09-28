@@ -12,6 +12,7 @@ from idf_build_apps.constants import BuildStatus
 import os
 from typing import Literal  # Python 3.8+ only. from typing_extensions import Literal for earlier versions
 
+
 class CustomApp(App):
     build_system: Literal['custom'] = 'custom'  # Must be unique to identify your custom app type
 
