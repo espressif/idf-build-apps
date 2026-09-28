@@ -830,6 +830,41 @@ class BuildArguments(FindBuildArguments):
         'and the current run will build the parallel_index-th part',
         default=1,
     )
+    parallel_mode: Annotated[
+        t.Literal['slice', 'pull'],
+        CliOption(
+            choices=['slice', 'pull'],
+        ),
+    ] = Field(
+        description='Parallel scheduling mode. "slice" divides apps by --parallel-count/--parallel-index. '
+        '"pull" pulls app indexes from a shared queue.',
+        default='slice',
+    )
+    pull_queue: Annotated[
+        t.Optional[t.Literal['redis']],
+        CliOption(
+            choices=['redis'],
+        ),
+    ] = Field(
+        description='Queue backend used when --parallel-mode=pull',
+        default=None,
+    )
+    pull_queue_url: t.Optional[str] = Field(
+        description='Queue backend URL used when --parallel-mode=pull. Defaults to REDIS_URL.',
+        default=None,
+        exclude=True,  # computed field is used
+    )
+    pull_queue_key: t.Optional[str] = Field(
+        description='Queue key used when --parallel-mode=pull. Defaults to job-pull:<pipeline-id>:<job-group-name>.',
+        default=None,
+        exclude=True,  # computed field is used
+    )
+    pull_queue_status_key: t.Optional[str] = Field(
+        description='Redis hash key for per-app build status in pull mode. '
+        'Defaults to job-app-status:<pipeline-id>:<job-name>.',
+        default=None,
+        exclude=True,  # computed field is used
+    )
     dry_run: Annotated[
         bool,
         CliOption(
@@ -952,11 +987,56 @@ class BuildArguments(FindBuildArguments):
 
         App.IGNORE_WARNS_REGEXES = [re.compile(p.strip()) for p in patterns if p.strip()]
 
+        if self.parallel_mode == 'pull':
+            if self.pull_queue != 'redis':
+                raise InvalidCommand('--pull-queue=redis is required when --parallel-mode=pull.')
+            if not self.resolved_pull_queue_key:
+                raise InvalidCommand(
+                    '--pull-queue-key is required when --parallel-mode=pull unless CI_PIPELINE_ID/PARENT_PIPELINE_ID '
+                    'and CI_JOB_GROUP_NAME are set.'
+                )
+            if not self.resolved_pull_queue_status_key:
+                raise InvalidCommand(
+                    '--pull-queue-status-key is required when --parallel-mode=pull unless '
+                    'CI_PIPELINE_ID/PARENT_PIPELINE_ID and CI_JOB_NAME are set.'
+                )
+
     @computed_field  # type: ignore
     @property
     def collect_size_info(self) -> t.Optional[str]:
         if self.collect_size_info_filename:
             return self.collect_size_info_filename.replace(self.PARALLEL_INDEX_PLACEHOLDER, str(self.parallel_index))
+
+        return None
+
+    @computed_field  # type: ignore
+    @property
+    def resolved_pull_queue_url(self) -> str:
+        return self.pull_queue_url or os.getenv('REDIS_URL', 'redis://192.168.2.147:16379/0')
+
+    @computed_field  # type: ignore
+    @property
+    def resolved_pull_queue_key(self) -> t.Optional[str]:
+        if self.pull_queue_key:
+            return self.pull_queue_key
+
+        pipeline_id = os.getenv('PARENT_PIPELINE_ID') or os.getenv('CI_PIPELINE_ID')
+        job_group_name = os.getenv('CI_JOB_GROUP_NAME')
+        if pipeline_id and job_group_name:
+            return f'job-pull:{pipeline_id}:{job_group_name}'
+
+        return None
+
+    @computed_field  # type: ignore
+    @property
+    def resolved_pull_queue_status_key(self) -> t.Optional[str]:
+        if self.pull_queue_status_key:
+            return self.pull_queue_status_key
+
+        pipeline_id = os.getenv('PARENT_PIPELINE_ID') or os.getenv('CI_PIPELINE_ID')
+        job_name = os.getenv('CI_JOB_NAME')
+        if pipeline_id and job_name:
+            return f'job-app-status:{pipeline_id}:{job_name}'
 
         return None
 
