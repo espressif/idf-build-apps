@@ -43,6 +43,37 @@ from .utils import to_list
 LOGGER = logging.getLogger(__name__)
 
 
+def _sdkconfig_defaults_candidates(sdkconfig_defaults: t.Optional[str]) -> t.List[str]:
+    if sdkconfig_defaults is not None:
+        return sdkconfig_defaults.split(';')
+    if os.getenv('SDKCONFIG_DEFAULTS') is not None:
+        return os.getenv('SDKCONFIG_DEFAULTS', '').split(';')
+    return [DEFAULT_SDKCONFIG]
+
+
+def _existing_sdkconfig_files(app_dir: str, defaults: t.List[str], sdkconfig_path: t.Optional[str]) -> t.Iterator[str]:
+    for candidate in defaults + ([sdkconfig_path] if sdkconfig_path else []):
+        if not os.path.isfile(candidate):
+            LOGGER.debug('sdkconfig file %s not found, checking under app_dir...', candidate)
+            candidate = os.path.join(app_dir, candidate)
+            if not os.path.isfile(candidate):
+                LOGGER.debug('sdkconfig file %s not found, skipping...', candidate)
+                continue
+        yield candidate
+
+
+def _sdkconfig_target_from_match(match: t.Optional[t.Match[str]]) -> t.Optional[str]:
+    if match and match.group(1) == 'CONFIG_IDF_TARGET':
+        return match.group(2)
+    return None
+
+
+def _sdkconfig_target_with_overrides(defined_target: t.Optional[str]) -> t.Optional[str]:
+    if SESSION_ARGS.override_sdkconfig_file_path and 'CONFIG_IDF_TARGET' in SESSION_ARGS.override_sdkconfig_items:
+        return SESSION_ARGS.override_sdkconfig_items['CONFIG_IDF_TARGET']
+    return defined_target
+
+
 class App(BaseModel):
     TARGET_PLACEHOLDER: t.ClassVar[str] = '@t'  # replace it with self.target
     WILDCARD_PLACEHOLDER: t.ClassVar[str] = '@w'  # replace it with the wildcard, usually the sdkconfig
@@ -196,13 +227,7 @@ class App(BaseModel):
 
     @property
     def sdkconfig_defaults_candidates(self) -> t.List[str]:
-        if self.sdkconfig_defaults_str is not None:
-            return self.sdkconfig_defaults_str.split(';')
-
-        if os.getenv('SDKCONFIG_DEFAULTS', None) is not None:
-            return os.getenv('SDKCONFIG_DEFAULTS', '').split(';')
-
-        return [DEFAULT_SDKCONFIG]
+        return _sdkconfig_defaults_candidates(self.sdkconfig_defaults_str)
 
     @t.overload
     def _expand(self, path: None) -> None: ...
@@ -313,16 +338,7 @@ class App(BaseModel):
         expanded_dir = os.path.join(self.work_dir, 'expanded_sdkconfig_files', os.path.basename(self.build_dir))
         os.makedirs(expanded_dir, exist_ok=True)
 
-        for f in self.sdkconfig_defaults_candidates + ([self.sdkconfig_path] if self.sdkconfig_path else []):
-            # use filepath if abs/rel already point to itself
-            if not os.path.isfile(f):
-                # find it in the app_dir
-                LOGGER.debug('sdkconfig file %s not found, checking under app_dir...', f)
-                f = os.path.join(self.app_dir, f)
-                if not os.path.isfile(f):
-                    LOGGER.debug('sdkconfig file %s not found, skipping...', f)
-                    continue
-
+        for f in _existing_sdkconfig_files(self.app_dir, self.sdkconfig_defaults_candidates, self.sdkconfig_path):
             expanded_fp = os.path.join(expanded_dir, os.path.basename(f))
             with open(f) as fr, open(expanded_fp, 'w') as fw:
                 for line in fr:
@@ -331,7 +347,7 @@ class App(BaseModel):
                     m = self.SDKCONFIG_LINE_REGEX.match(line)
                     if m:
                         key, value = m.group(1), m.group(2)
-                        if key == 'CONFIG_IDF_TARGET':
+                        if _sdkconfig_target_from_match(m) is not None:
                             sdkconfig_files_defined_target = value
 
                         if isinstance(self, CMakeApp):
@@ -371,10 +387,8 @@ class App(BaseModel):
 
         if SESSION_ARGS.override_sdkconfig_file_path:
             real_sdkconfig_files.append(SESSION_ARGS.override_sdkconfig_file_path)
-            if 'CONFIG_IDF_TARGET' in SESSION_ARGS.override_sdkconfig_items:
-                sdkconfig_files_defined_target = SESSION_ARGS.override_sdkconfig_items['CONFIG_IDF_TARGET']
 
-        return real_sdkconfig_files, sdkconfig_files_defined_target
+        return real_sdkconfig_files, _sdkconfig_target_with_overrides(sdkconfig_files_defined_target)
 
     @property
     def sdkconfig_files_defined_idf_target(self) -> t.Optional[str]:

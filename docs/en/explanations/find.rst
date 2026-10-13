@@ -97,6 +97,17 @@ To drop specific sdkconfigs, add a negation rule:
 
 The ``bar`` configuration is omitted, only ``foo`` remains.
 
+To inspect configurations for one app directory without constructing build ``App`` objects, use ``idf_build_apps.finder.find_app_configs``:
+
+.. code:: python
+
+   from idf_build_apps.finder import find_app_configs
+
+   configs = find_app_configs('test-1', ['sdkconfig.ci.*=', '=default'], target='esp32')
+   # [(absolute_sdkconfig_path, config_name), ...]
+
+``target`` is optional. If supplied, configurations with a conflicting ``CONFIG_IDF_TARGET`` in ``sdkconfig.defaults`` or the selected config file are excluded. This API resolves config rules only; it does not check whether a directory is an app or apply manifest/buildability rules.
+
 .. _find-placeholders:
 
 ****************************
