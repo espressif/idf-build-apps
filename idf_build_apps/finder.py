@@ -17,6 +17,7 @@ from .app import (
 from .args import FindArguments
 from .constants import (
     ALL_TARGETS,
+    DEFAULT_SDKCONFIG,
     BuildStatus,
 )
 from .utils import (
@@ -35,25 +36,24 @@ def _is_target_specific(filepath: str) -> bool:
     return False
 
 
-def _get_apps_from_path(
+def find_app_configs(
     path: str,
-    target: str,
+    config_rules: t.Optional[t.List[str]] = None,
     *,
-    app_cls: t.Type[App] = CMakeApp,
-    args: FindArguments,
-) -> t.List[App]:
-    if not app_cls.is_app(path):
-        LOGGER.debug('Skipping. %s is not an app', path)
-        return []
+    target: t.Optional[str] = None,
+    sdkconfig_defaults: t.Optional[str] = None,
+) -> t.List[t.Tuple[t.Optional[str], str]]:
+    """Resolve sdkconfig files and names without constructing App objects.
 
-    config_rules = config_rules_from_str(args.config_rules)
-
-    apps = []
+    When target is given, reject configurations that explicitly specify another
+    CONFIG_IDF_TARGET in their sdkconfig defaults or selected config file.
+    """
     app_configs: t.List[t.Tuple[t.Optional[str], str]] = []  # List of (sdkconfig_path, config_name) tuples
     default_config_name = ''
     sdkconfig_paths_matched = False
+    parsed_rules = config_rules_from_str(config_rules)
 
-    for rule in config_rules:
+    for rule in parsed_rules:
         if not rule.file_name:
             default_config_name = rule.config_name
             continue
@@ -83,8 +83,47 @@ def _get_apps_from_path(
     if not sdkconfig_paths_matched:
         app_configs.append((None, default_config_name))
 
+    if target is None:
+        return app_configs
+
+    if sdkconfig_defaults is None:
+        sdkconfig_defaults = os.getenv('SDKCONFIG_DEFAULTS')
+    if sdkconfig_defaults is None:
+        sdkconfig_defaults = DEFAULT_SDKCONFIG
+
+    matching_configs: t.List[t.Tuple[t.Optional[str], str]] = []
+    for selected_path, config_name in app_configs:
+        defined_target = None
+        for candidate in [*sdkconfig_defaults.split(';'), *([selected_path] if selected_path else [])]:
+            if not os.path.isfile(candidate):
+                candidate = os.path.join(path, candidate)
+            if not os.path.isfile(candidate):
+                continue
+            with open(candidate) as fr:
+                for line in fr:
+                    match = App.SDKCONFIG_LINE_REGEX.match(os.path.expandvars(line))
+                    if match and match.group(1) == 'CONFIG_IDF_TARGET':
+                        defined_target = match.group(2)
+        if defined_target is None or defined_target == target:
+            matching_configs.append((selected_path, config_name))
+
+    return matching_configs
+
+
+def _get_apps_from_path(
+    path: str,
+    target: str,
+    *,
+    app_cls: t.Type[App] = CMakeApp,
+    args: FindArguments,
+) -> t.List[App]:
+    if not app_cls.is_app(path):
+        LOGGER.debug('Skipping. %s is not an app', path)
+        return []
+
+    apps = []
     # Create, validate, and add all apps
-    for p, n in app_configs:
+    for p, n in find_app_configs(path, args.config_rules):
         app = app_cls(
             path,
             target,
