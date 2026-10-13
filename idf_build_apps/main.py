@@ -487,7 +487,7 @@ def json_to_app(json_str: str, extra_classes: t.Optional[t.List[t.Type[App]]] = 
 
     custom_deserializer = create_model(
         '_CustomDeserializer',
-        app=(t.Union[tuple(_known_classes)], Field(discriminator='build_system')),
+        app=(t.Union[tuple(_known_classes)], Field(discriminator='build_system')),  # type: ignore[arg-type]
         __base__=AppDeserializer,
     )
 
@@ -511,7 +511,7 @@ def json_list_files_to_apps(
 
     custom_deserializer = create_model(
         '_CustomDeserializer',
-        app=(t.Union[tuple(_known_classes)], Field(discriminator='build_system')),
+        app=(t.Union[tuple(_known_classes)], Field(discriminator='build_system')),  # type: ignore[arg-type]
         __base__=AppDeserializer,
     )
 
