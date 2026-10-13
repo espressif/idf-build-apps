@@ -10,6 +10,10 @@ from pathlib import Path
 
 from .app import App
 from .app import CMakeApp
+from .app import _existing_sdkconfig_files
+from .app import _sdkconfig_defaults_candidates
+from .app import _sdkconfig_target_from_match
+from .app import _sdkconfig_target_with_overrides
 from .args import FindArguments
 from .constants import ALL_TARGETS
 from .constants import BuildStatus
@@ -27,25 +31,24 @@ def _is_target_specific(filepath: str) -> bool:
     return False
 
 
-def _get_apps_from_path(
+def find_app_configs(
     path: str,
-    target: str,
+    config_rules: t.Optional[t.List[str]] = None,
     *,
-    app_cls: t.Type[App] = CMakeApp,
-    args: FindArguments,
-) -> t.List[App]:
-    if not app_cls.is_app(path):
-        LOGGER.debug('Skipping. %s is not an app', path)
-        return []
+    target: t.Optional[str] = None,
+    sdkconfig_defaults: t.Optional[str] = None,
+) -> t.List[t.Tuple[t.Optional[str], str]]:
+    """Resolve sdkconfig files and names without constructing App objects.
 
-    config_rules = config_rules_from_str(args.config_rules)
-
-    apps = []
+    When target is given, reject configurations that explicitly specify another
+    CONFIG_IDF_TARGET in their sdkconfig defaults or selected config file.
+    """
     app_configs: t.List[t.Tuple[t.Optional[str], str]] = []  # List of (sdkconfig_path, config_name) tuples
     default_config_name = ''
     sdkconfig_paths_matched = False
+    parsed_rules = config_rules_from_str(config_rules)
 
-    for rule in config_rules:
+    for rule in parsed_rules:
         if rule.negated:
             continue
 
@@ -76,7 +79,7 @@ def _get_apps_from_path(
 
     # Apply negation rules
     negated_paths: t.Set[str] = set()
-    for rule in config_rules:
+    for rule in parsed_rules:
         if not rule.negated:
             continue
         for matched in Path(path).glob(rule.file_name):
@@ -89,8 +92,40 @@ def _get_apps_from_path(
     if not sdkconfig_paths_matched:
         app_configs.append((None, default_config_name))
 
+    if target is None:
+        return app_configs
+
+    defaults = _sdkconfig_defaults_candidates(sdkconfig_defaults)
+    matching_configs: t.List[t.Tuple[t.Optional[str], str]] = []
+    for selected_path, config_name in app_configs:
+        defined_target = None
+        for candidate in _existing_sdkconfig_files(path, defaults, selected_path):
+            with open(candidate) as fr:
+                for line in fr:
+                    file_target = _sdkconfig_target_from_match(App.SDKCONFIG_LINE_REGEX.match(os.path.expandvars(line)))
+                    if file_target is not None:
+                        defined_target = file_target
+        defined_target = _sdkconfig_target_with_overrides(defined_target)
+        if defined_target is None or defined_target == target:
+            matching_configs.append((selected_path, config_name))
+
+    return matching_configs
+
+
+def _get_apps_from_path(
+    path: str,
+    target: str,
+    *,
+    app_cls: t.Type[App] = CMakeApp,
+    args: FindArguments,
+) -> t.List[App]:
+    if not app_cls.is_app(path):
+        LOGGER.debug('Skipping. %s is not an app', path)
+        return []
+
+    apps = []
     # Create, validate, and add all apps
-    for p, n in app_configs:
+    for p, n in find_app_configs(path, args.config_rules):
         app = app_cls(
             path,
             target,
