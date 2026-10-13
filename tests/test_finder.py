@@ -55,6 +55,24 @@ def test_find_app_configs_default_fallback_respects_target(tmp_path):
     assert find_app_configs(str(tmp_path), rules, target='esp32c3') == []
 
 
+def test_find_app_configs_target_overrides(tmp_path, monkeypatch):
+    (tmp_path / 'sdkconfig.defaults').write_text('CONFIG_IDF_TARGET="esp32"\n', encoding='utf8')
+    (tmp_path / 'sdkconfig.ci.release').write_text('CONFIG_IDF_TARGET="esp32c3"\n', encoding='utf8')
+    rules = ['sdkconfig.ci.*=']
+
+    assert find_app_configs(str(tmp_path), rules, target='esp32c3') == [
+        (str(tmp_path / 'sdkconfig.ci.release'), 'release')
+    ]
+    assert find_app_configs(str(tmp_path), rules, target='esp32') == []
+
+    monkeypatch.setattr(idf_build_apps.SESSION_ARGS, 'override_sdkconfig_file_path', str(tmp_path / 'override'))
+    monkeypatch.setattr(idf_build_apps.SESSION_ARGS, 'override_sdkconfig_items', {'CONFIG_IDF_TARGET': 'esp32s3'})
+    assert find_app_configs(str(tmp_path), rules, target='esp32s3') == [
+        (str(tmp_path / 'sdkconfig.ci.release'), 'release')
+    ]
+    assert find_app_configs(str(tmp_path), rules, target='esp32c3') == []
+
+
 class TestFindWithManifest:
     def test_manifest_rootpath_chdir(self, capsys, tmp_path):
         test_dir = tmp_path / 'examples' / 'get-started'

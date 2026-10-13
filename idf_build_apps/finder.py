@@ -13,11 +13,14 @@ from pathlib import (
 from .app import (
     App,
     CMakeApp,
+    _existing_sdkconfig_files,
+    _sdkconfig_defaults_candidates,
+    _sdkconfig_target_from_match,
+    _sdkconfig_target_with_overrides,
 )
 from .args import FindArguments
 from .constants import (
     ALL_TARGETS,
-    DEFAULT_SDKCONFIG,
     BuildStatus,
 )
 from .utils import (
@@ -86,24 +89,17 @@ def find_app_configs(
     if target is None:
         return app_configs
 
-    if sdkconfig_defaults is None:
-        sdkconfig_defaults = os.getenv('SDKCONFIG_DEFAULTS')
-    if sdkconfig_defaults is None:
-        sdkconfig_defaults = DEFAULT_SDKCONFIG
-
+    defaults = _sdkconfig_defaults_candidates(sdkconfig_defaults)
     matching_configs: t.List[t.Tuple[t.Optional[str], str]] = []
     for selected_path, config_name in app_configs:
         defined_target = None
-        for candidate in [*sdkconfig_defaults.split(';'), *([selected_path] if selected_path else [])]:
-            if not os.path.isfile(candidate):
-                candidate = os.path.join(path, candidate)
-            if not os.path.isfile(candidate):
-                continue
+        for candidate in _existing_sdkconfig_files(path, defaults, selected_path):
             with open(candidate) as fr:
                 for line in fr:
-                    match = App.SDKCONFIG_LINE_REGEX.match(os.path.expandvars(line))
-                    if match and match.group(1) == 'CONFIG_IDF_TARGET':
-                        defined_target = match.group(2)
+                    file_target = _sdkconfig_target_from_match(App.SDKCONFIG_LINE_REGEX.match(os.path.expandvars(line)))
+                    if file_target is not None:
+                        defined_target = file_target
+        defined_target = _sdkconfig_target_with_overrides(defined_target)
         if defined_target is None or defined_target == target:
             matching_configs.append((selected_path, config_name))
 
