@@ -5,7 +5,6 @@ import logging
 import os
 import typing as t
 import warnings
-from functools import lru_cache
 from hashlib import sha512
 
 from esp_bool_parser import BoolStmt, parse_bool_expr
@@ -168,10 +167,19 @@ class FolderRule(metaclass=_FolderRuleMeta):
         depends_components: t.Optional[t.List[t.Union[str, t.Dict[str, t.Any]]]] = None,
         depends_filepatterns: t.Optional[t.List[t.Union[str, t.Dict[str, t.Any]]]] = None,
         manifest_filepath: t.Optional[str] = None,
+        supported_toolchains: t.Optional[t.List[str]] = None,
     ) -> None:
         self._manifest_filepath = manifest_filepath
 
         self.folder = os.path.abspath(folder)
+        if supported_toolchains is not None and (
+            not isinstance(supported_toolchains, list)
+            or any(not isinstance(toolchain, str) or not toolchain.strip() for toolchain in supported_toolchains)
+        ):
+            raise InvalidManifest(
+                f'Invalid supported_toolchains for {self.folder}: expected a list of non-empty strings'
+            )
+        self.supported_toolchains: t.List[str] = ['gcc'] if supported_toolchains is None else supported_toolchains
 
         def _clause_to_if_clause(clause: t.Dict[str, t.Any]) -> IfClause:
             _kwargs = {'stmt': clause['if']}
@@ -244,6 +252,9 @@ class FolderRule(metaclass=_FolderRuleMeta):
         ]:
             sha.update(repr(obj).encode())
 
+        if self.supported_toolchains != ['gcc']:
+            sha.update(repr(self.supported_toolchains).encode())
+
         return sha.hexdigest()
 
     def __repr__(self) -> str:
@@ -253,7 +264,6 @@ class FolderRule(metaclass=_FolderRuleMeta):
     def by_manifest_file(self) -> t.Optional[str]:
         return self._manifest_filepath
 
-    @lru_cache(None)
     def _enable_build(self, target: str, config_name: str) -> bool:
         if self.enable:
             res = False
@@ -272,24 +282,11 @@ class FolderRule(metaclass=_FolderRuleMeta):
 
         return res
 
-    @lru_cache(None)
-    def _enable_test(
-        self, target: str, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
-    ) -> bool:
-        res = target in self.enable_build_targets(default_sdkconfig_target, config_name)
-
-        if self.disable or self.disable_test:
-            for clause in self.disable + self.disable_test:
-                if clause.get_value(target, config_name or ''):
-                    res = False
-                    break
-
-        return res
-
-    @lru_cache(None)
     def enable_build_targets(
         self, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> t.List[str]:
+        if os.getenv('IDF_TOOLCHAIN', 'gcc') not in self.supported_toolchains:
+            return []
         res = []
         for target in ALL_TARGETS:
             if self._enable_build(target, config_name or ''):
@@ -313,16 +310,14 @@ class FolderRule(metaclass=_FolderRuleMeta):
 
         return sorted(res)
 
-    @lru_cache(None)
     def enable_test_targets(
         self, default_sdkconfig_target: t.Optional[str] = None, config_name: t.Optional[str] = None
     ) -> t.List[str]:
-        res = []
-        for target in ALL_TARGETS:
-            if self._enable_test(target, default_sdkconfig_target, config_name):
-                res.append(target)
-
-        return sorted(res)
+        return [
+            target
+            for target in self.enable_build_targets(default_sdkconfig_target, config_name)
+            if not any(clause.get_value(target, config_name or '') for clause in self.disable_test)
+        ]
 
 
 class DefaultRule(FolderRule):
@@ -402,6 +397,11 @@ class Manifest:
             # not a folder, but an anchor
             if folder.startswith('.'):
                 continue
+
+            if folder_rule and 'supported_toolchains' in folder_rule and folder_rule['supported_toolchains'] is None:
+                raise InvalidManifest(
+                    f'Invalid supported_toolchains for {folder}: expected a list of non-empty strings'
+                )
 
             if not os.path.isabs(folder):
                 folder = os.path.join(root_path, folder)

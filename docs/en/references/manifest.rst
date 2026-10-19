@@ -9,6 +9,7 @@ One typical manifest file look like this:
 .. code:: yaml
 
    [folder]:
+     supported_toolchains: [gcc, clang]  # optional; defaults to [gcc]
      enable:
        - if: [if clause]
          temporary: true  # optional, default to false. `reason` is required if `temporary` is true
@@ -113,12 +114,14 @@ Three rules (disable rules are calculated after the enable rules):
 -  ``disable``: will not run CI build/test jobs for targets that match any of the specified conditions
 -  ``disable_test``: will not run CI test jobs for targets that match any of the specified conditions
 
+``supported_toolchains`` controls toolchain admission independently of these conditions. It is a list of non-empty strings, defaulting to ``[gcc]`` when omitted; ``[clang]`` admits only Clang, and ``[]`` admits no toolchain. Other toolchain names are allowed. The current toolchain is read from ``IDF_TOOLCHAIN`` (defaulting to ``gcc`` when unset). Mentioning ``IDF_TOOLCHAIN`` in an ``if`` clause does not grant admission: an ``enable`` match cannot override the list, a ``disable`` match still prevents building, and ``disable_test`` only prevents testing. The same GCC-only default applies when there is no matching rule or no manifest file.
+
 Each key is a folder. The rule will recursively apply to all apps inside.
 
 Overrides Rules
 ===============
 
-If one sub folder is in a special case, you can overwrite the rules for this folder by adding another entry for this folder itself. Each folder’s rules are standalone, and will not inherit its parent’s rules. (YAML inheritance is too complicated for reading)
+If one sub folder is in a special case, you can overwrite the rules for this folder by adding another entry for this folder itself. Each folder’s rules are standalone, and will not inherit its parent’s rules. (YAML inheritance is too complicated for reading) This includes ``supported_toolchains``: if the closest matching folder rule omits it, that rule uses ``[gcc]`` even if a parent rule declares ``[gcc, clang]``.
 
 For example, in the following code block, only ``disable`` rule exists in ``examples/foo/bar``. It’s unaware of its parent’s ``enable`` rule.
 

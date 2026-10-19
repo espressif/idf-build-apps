@@ -418,6 +418,8 @@ class App(BaseModel):
 
     @property
     def supported_targets(self) -> t.List[str]:
+        if os.getenv('IDF_TOOLCHAIN', 'gcc') not in self.supported_toolchains:
+            return []
         if self.MANIFEST:
             return self.MANIFEST.enable_build_targets(
                 self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
@@ -436,6 +438,12 @@ class App(BaseModel):
             )
 
         return []
+
+    @property
+    def supported_toolchains(self) -> t.List[str]:
+        if self.MANIFEST:
+            return self.MANIFEST.most_suitable_rule(self.app_dir).supported_toolchains
+        return ['gcc']
 
     def record_build_duration(func):
         @functools.wraps(func)
@@ -750,6 +758,15 @@ class App(BaseModel):
         if self.build_status != BuildStatus.UNKNOWN:
             return
 
+        toolchain = os.getenv('IDF_TOOLCHAIN', 'gcc')
+        if toolchain not in self.supported_toolchains:
+            self.build_status = BuildStatus.DISABLED
+            self.build_comment = (
+                f'Toolchain {toolchain} not in supported toolchains {",".join(self.supported_toolchains)}'
+            )
+            self.checked_should_build = True
+            return
+
         if self.target not in self.supported_targets:
             # default error message
             self.build_comment = (
@@ -843,6 +860,12 @@ class App(BaseModel):
 
     def check_should_test(self) -> None:
         """Check if testing is disabled for this app and set test_disable_reason."""
+        toolchain = os.getenv('IDF_TOOLCHAIN', 'gcc')
+        if toolchain not in self.supported_toolchains:
+            self.test_comment = (
+                f'Toolchain {toolchain} not in supported toolchains {",".join(self.supported_toolchains)}'
+            )
+            return
         if not self.MANIFEST:
             return
 
@@ -878,6 +901,8 @@ class MakeApp(App):
 
     @property
     def supported_targets(self) -> t.List[str]:
+        if os.getenv('IDF_TOOLCHAIN', 'gcc') not in self.supported_toolchains:
+            return []
         if self.MANIFEST:
             return self.MANIFEST.enable_build_targets(
                 self.app_dir, self.sdkconfig_files_defined_idf_target, self.config_name
