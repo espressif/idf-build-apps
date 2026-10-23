@@ -20,6 +20,13 @@
 </div>
 <hr>
 
+## v2.17.0 (2026-10-23)
+
+### ✨ New Features
+
+- **manifest**: add `supported_toolchains` to explicitly declare supported toolchains for apps *(Fu Hanxi - d78ead4)*
+
+
 ## v2.16.1 (2026-03-19)
 
 ### 🐛 Bug Fixes
