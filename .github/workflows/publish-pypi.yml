@@ -4,12 +4,20 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish or retry"
+        required: true
+        type: string
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
@@ -19,4 +27,4 @@ jobs:
           FLIT_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           pip install flit
-          flit publish --setup-py
+          flit publish
