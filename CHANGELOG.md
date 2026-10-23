@@ -20,6 +20,18 @@
 </div>
 <hr>
 
+## v3.1.0 (2026-10-23)
+
+### ✨ New Features
+
+- **manifest**: add `supported_toolchains` to explicitly declare supported toolchains for apps *(Fu Hanxi - 5af8462)*
+- **junitxml**: add app_dir, target and config name *(Evgeny Torbin - c9b7995)*
+
+### 🏗️ Changes
+
+- **junitxml**: move size properties to separated attribute in testcase *(Evgeny Torbin - 0c90291)*
+
+
 ## v3.0.2 (2026-04-17)
 
 ### ✨ New Features
