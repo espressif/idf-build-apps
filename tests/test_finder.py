@@ -19,10 +19,58 @@ from idf_build_apps.constants import (
     IDF_PATH,
     BuildStatus,
 )
+from idf_build_apps.finder import find_app_configs
 from idf_build_apps.main import (
     find_apps,
 )
 from idf_build_apps.manifest.manifest import Manifest
+
+
+def test_find_app_configs_without_constructing_apps(tmp_path, monkeypatch):
+    directory = tmp_path / 'app'
+    directory.mkdir()
+    (directory / 'sdkconfig.ci.release').write_text('CONFIG_IDF_TARGET=${TEST_TARGET}\n', encoding='utf8')
+    (directory / 'sdkconfig.ci.debug').touch()
+    (directory / 'sdkconfig.ci.release.esp32').touch()
+    monkeypatch.setenv('TEST_TARGET', 'esp32c3')
+
+    def reject_app(*args, **kwargs):
+        raise AssertionError('config discovery should not construct an App')
+
+    monkeypatch.setattr(idf_build_apps.CMakeApp, '__init__', reject_app)
+    rules = ['sdkconfig.ci.release=release', '=default']
+
+    assert find_app_configs(str(directory), rules) == [(str(directory / 'sdkconfig.ci.release'), 'release')]
+    assert find_app_configs(str(directory), rules, target='esp32') == []
+    assert find_app_configs(str(directory), rules, target='esp32c3') == [
+        (str(directory / 'sdkconfig.ci.release'), 'release')
+    ]
+
+
+def test_find_app_configs_default_fallback_respects_target(tmp_path):
+    (tmp_path / 'sdkconfig.defaults').write_text('CONFIG_IDF_TARGET="esp32"\n', encoding='utf8')
+    rules = ['sdkconfig.ci.*=', '=default']
+
+    assert find_app_configs(str(tmp_path), rules, target='esp32') == [(None, 'default')]
+    assert find_app_configs(str(tmp_path), rules, target='esp32c3') == []
+
+
+def test_find_app_configs_target_overrides(tmp_path, monkeypatch):
+    (tmp_path / 'sdkconfig.defaults').write_text('CONFIG_IDF_TARGET="esp32"\n', encoding='utf8')
+    (tmp_path / 'sdkconfig.ci.release').write_text('CONFIG_IDF_TARGET="esp32c3"\n', encoding='utf8')
+    rules = ['sdkconfig.ci.*=']
+
+    assert find_app_configs(str(tmp_path), rules, target='esp32c3') == [
+        (str(tmp_path / 'sdkconfig.ci.release'), 'release')
+    ]
+    assert find_app_configs(str(tmp_path), rules, target='esp32') == []
+
+    monkeypatch.setattr(idf_build_apps.SESSION_ARGS, 'override_sdkconfig_file_path', str(tmp_path / 'override'))
+    monkeypatch.setattr(idf_build_apps.SESSION_ARGS, 'override_sdkconfig_items', {'CONFIG_IDF_TARGET': 'esp32s3'})
+    assert find_app_configs(str(tmp_path), rules, target='esp32s3') == [
+        (str(tmp_path / 'sdkconfig.ci.release'), 'release')
+    ]
+    assert find_app_configs(str(tmp_path), rules, target='esp32c3') == []
 
 
 class TestFindWithManifest:
