@@ -20,6 +20,17 @@
 </div>
 <hr>
 
+## v3.1.1 (2026-10-26)
+
+### ✨ New Features
+
+- **finder**: expose lightweight sdkconfig configuration discovery (#274) *(Fu Hanxi - 86e3597)*
+
+### 🐛 Bug Fixes
+
+- **ci**: support Flit 4 publishing and tagged retries (#278) *(Fu Hanxi - 1de8524)*
+
+
 ## v3.1.0 (2026-10-23)
 
 ### ✨ New Features
