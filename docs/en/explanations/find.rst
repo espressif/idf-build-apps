@@ -89,6 +89,17 @@ The output would be:
    (cmake) App test-1, target esp32, sdkconfig /tmp/test/examples/test-1/sdkconfig.ci.foo, build in test-1/build
    (cmake) App test-1, target esp32, sdkconfig /tmp/test/examples/test-1/sdkconfig.defaults, build in test-1/build
 
+To inspect configurations for one app directory without constructing build ``App`` objects, use ``idf_build_apps.finder.find_app_configs``:
+
+.. code:: python
+
+   from idf_build_apps.finder import find_app_configs
+
+   configs = find_app_configs('test-1', ['sdkconfig.ci.*=', '=default'], target='esp32')
+   # [(sdkconfig_path, config_name), ...]  # path is absolute, or None for the default fallback
+
+``target`` is optional. If supplied, configurations with a conflicting ``CONFIG_IDF_TARGET`` in ``sdkconfig.defaults`` or the selected config file are excluded. This API resolves config rules only; it does not check whether a directory is an app or apply manifest/buildability rules.
+
 .. _find-placeholders:
 
 ****************************
