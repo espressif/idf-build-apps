@@ -20,6 +20,13 @@
 </div>
 <hr>
 
+## v2.17.1 (2026-10-26)
+
+### ✨ New Features
+
+- **finder**: expose lightweight sdkconfig configuration discovery *(Fu Hanxi - d9a8565)*
+
+
 ## v2.17.0 (2026-10-23)
 
 ### ✨ New Features
