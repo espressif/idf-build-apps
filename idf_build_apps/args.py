@@ -892,6 +892,11 @@ class BuildArguments(FindBuildArguments):
         description='Copy the sdkconfig file to the build directory',
         default=False,
     )
+    fail_on_log_regex: t.Optional[str] = Field(
+        description='Build fails when a line in the build output matches this regex pattern. '
+        'If not set, the default pattern "(?:error|warning):" with case-insensitive matching is used',
+        default=None,
+    )
 
     # Attrs that support placeholders
     collect_size_info_filename: Annotated[
@@ -951,6 +956,9 @@ class BuildArguments(FindBuildArguments):
                     patterns.extend(f)
 
         App.IGNORE_WARNS_REGEXES = [re.compile(p.strip()) for p in patterns if p.strip()]
+
+        if self.fail_on_log_regex:
+            App.LOG_ERROR_WARNING_REGEX = re.compile(self.fail_on_log_regex, re.MULTILINE | re.IGNORECASE)
 
     @computed_field  # type: ignore
     @property

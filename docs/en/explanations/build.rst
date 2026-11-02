@@ -35,6 +35,8 @@ Besides of the :ref:`placeholders supported in find command <find-placeholders>`
 
 You may use `--check-warnings` to enable this check. If any warning is captured while the building process, the exit code would turn to a non-zero value. Besides, `idf-build-apps` provides CLI options `--ignore-warnings-str` and `--ignore-warnings-file` to let you bypass some false alarms.
 
+By default, lines matching the regex ``(?:error|warning):`` (case-insensitive) are treated as errors or warnings. You may use `--fail-on-log-regex` to customize this pattern.
+
 ***************************
  ``build`` With Debug Mode
 ***************************
