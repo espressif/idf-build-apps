@@ -532,6 +532,33 @@ dry_run = false
         assert test_suite.findall('testcase')[0].attrib['name'] == 'bar/build'
 
 
+class TestFailOnLogRegex:
+    def test_default(self, monkeypatch):
+        monkeypatch.setattr(App, 'LOG_ERROR_WARNING_REGEX', App.LOG_ERROR_WARNING_REGEX)
+
+        BuildArguments()
+
+        assert App.LOG_ERROR_WARNING_REGEX.pattern == r'(?:error|warning):'
+
+    def test_func_with_str(self, monkeypatch):
+        monkeypatch.setattr(App, 'LOG_ERROR_WARNING_REGEX', App.LOG_ERROR_WARNING_REGEX)
+
+        BuildArguments(
+            fail_on_log_regex=r'(?:error|warning|fatal):',
+        )
+
+        assert App.LOG_ERROR_WARNING_REGEX.pattern == r'(?:error|warning|fatal):'
+
+    def test_cli(self, monkeypatch):
+        monkeypatch.setattr(App, 'LOG_ERROR_WARNING_REGEX', App.LOG_ERROR_WARNING_REGEX)
+
+        with monkeypatch.context() as m:
+            m.setattr('sys.argv', ['idf-build-apps', 'build', '--fail-on-log-regex', r'(?:error|warning|fatal):'])
+            main()
+
+        assert App.LOG_ERROR_WARNING_REGEX.pattern == r'(?:error|warning|fatal):'
+
+
 class TestDefaultBuildTargetsContextVar:
     SUPPORTED_TARGETS = ['esp32', 'esp32s2']
     PREVIEW_TARGETS = ['esp32h2', 'esp32p4']
