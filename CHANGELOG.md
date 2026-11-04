@@ -20,6 +20,13 @@
 </div>
 <hr>
 
+## v3.1.2 (2026-11-04)
+
+### ✨ New Features
+
+- **build**: make LOG_ERROR_WARNING_REGEX configurable via --fail-on-log-regex *(Igor Udot - 551e632)*
+
+
 ## v3.1.1 (2026-10-26)
 
 ### ✨ New Features
